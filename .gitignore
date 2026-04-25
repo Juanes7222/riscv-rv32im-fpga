@@ -216,3 +216,31 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+_docs/
+_diagram_cache/
+
+
+output_files/
+uart-leds_files/
+cpu0_files/
+site_libs/
+db/
+incremental_db/
+simulation/
+*.bak
+*.vo
+*.qws
+*.sft
+c5_pin_model_dump.txt
+
+/.quarto/
+
+/.luarc.json
+tikz-tex/*
+diagram-*.pdf
+basic_programs/riscv-vga-debug/package-lock.json
+basic_programs/riscv-vga-debug/package.json
+basic_programs/cpu-memory/test/
+.metals
+.scala-build
