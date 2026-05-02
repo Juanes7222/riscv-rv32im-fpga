@@ -4,7 +4,7 @@
 **ISA:** RV32IM (base RV32I + M extension)  
 **Memory:** Harvard (separate instruction and data memories, see [ADR 001](../decisions/001_harvard_memory_architecture.md))  
 **Nominal CPI:** 1 for all RV32I instructions and MUL/MULH/MULHSU/MULHU  
-**Effective CPI for division:** 33 for DIV/DIVU/REM/REMU (1 issue cycle + 32 stall cycles, see [ADR 008](../decisions/008_m_extension_implementation.md))
+**Effective CPI for division:** 34 for DIV/DIVU/REM/REMU (1 issue cycle + 33 stall cycles, see [ADR 008](../decisions/008_m_extension_implementation.md))
 
 This document is the design reference for Objective 1, Activity 1.1 of the
 thesis. It defines the top-level interface, the complete internal signal
