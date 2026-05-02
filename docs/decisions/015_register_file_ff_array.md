@@ -1,4 +1,4 @@
-# ADR 014 — Register File: FF Array Implementation
+# ADR 015 — Register File: FF Array Implementation
 
 **Status:** Accepted  
 **Date:** 2026-05-02

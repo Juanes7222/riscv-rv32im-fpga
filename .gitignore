@@ -244,3 +244,5 @@ basic_programs/riscv-vga-debug/package.json
 basic_programs/cpu-memory/test/
 .metals
 .scala-build
+
+.vscode/

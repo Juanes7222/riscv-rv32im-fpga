@@ -1,4 +1,4 @@
-# ADR 015 — Register File: All Registers Reset to Zero
+# ADR 016 — Register File: All Registers Reset to Zero
 
 **Status:** Accepted  
 **Date:** 2026-05-02
