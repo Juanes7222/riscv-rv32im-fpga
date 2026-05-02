@@ -88,7 +88,8 @@ module alu_rv32im (
             case (div_state)
 
                 DIV_IDLE: begin
-                    if (alu_op inside {ALU_DIV, ALU_DIVU, ALU_REM, ALU_REMU}) begin
+                    if (alu_op == ALU_DIV || alu_op == ALU_DIVU ||
+                            alu_op == ALU_REM || alu_op == ALU_REMU) begin
                         div_op_r <= alu_op;
                         if (div_by_zero) begin
                             case (alu_op)
@@ -195,7 +196,8 @@ module alu_rv32im (
 
     assign div_done = (div_state == DIV_DONE) ||
                   (div_state == DIV_IDLE &&
-                   alu_op inside {ALU_DIV, ALU_DIVU, ALU_REM, ALU_REMU} &&
+                   (alu_op == ALU_DIV || alu_op == ALU_DIVU ||
+                    alu_op == ALU_REM || alu_op == ALU_REMU) &&
                    (div_by_zero || div_overflow));
 
 endmodule

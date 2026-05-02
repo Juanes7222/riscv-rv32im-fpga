@@ -1,6 +1,5 @@
 module data_memory #(
-    parameter int unsigned DMEM_DEPTH = 8192,    // words (32 KB)
-    parameter string       MEM_FILE   = ""        // optional pre-load; empty = no init
+    parameter int unsigned DMEM_DEPTH = 8192    // words (32 KB)
 ) (
     input  logic        clk,
     input  logic [31:0] addr,
@@ -15,11 +14,6 @@ module data_memory #(
     // $readmemh is only called when MEM_FILE is non-empty (data + BSS init).
     logic [31:0] mem [0:DMEM_DEPTH-1];
 
-    generate
-        if (MEM_FILE != "") begin : gen_init
-            initial $readmemh(MEM_FILE, mem);
-        end
-    endgenerate
 
     // dm_ctrl field decoding
     // dm_ctrl[1:0] — access width: 00=byte, 01=halfword, 10=word
