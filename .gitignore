@@ -221,28 +221,68 @@ _docs/
 _diagram_cache/
 
 
-output_files/
-uart-leds_files/
-cpu0_files/
-site_libs/
+ 
+# Compilation databases (large, fully regenerated on each build)
 db/
 incremental_db/
-simulation/
-*.bak
-*.vo
+ 
+# Output files (SOF, POF, reports) - raw copies go to results/ by the Makefile
+output_files/
+ 
+# Report and log files generated at project root level
+*.rpt
+*.summary
+*.smsg
+*.done
+*.flow.rpt
+ 
+# Project state and workspace files
 *.qws
-*.sft
+*.qdf
+*.jdi
+*.jditmp
+*.pin
+*.sld
+ 
+# Generated project files (source of truth is setup.tcl, not these)
+*.qpf
+*.qsf
+ 
+# Pin model dump
 c5_pin_model_dump.txt
-
-/.quarto/
-
-/.luarc.json
-tikz-tex/*
-diagram-*.pdf
-basic_programs/riscv-vga-debug/package-lock.json
-basic_programs/riscv-vga-debug/package.json
-basic_programs/cpu-memory/test/
-.metals
-.scala-build
-
+ 
+# =============================================================================
+# Simulation artifacts
+# =============================================================================
+simulation/
+*.vcd
+*.wlf
+ 
+# =============================================================================
+# cocotb and Python
+# =============================================================================
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+sim_build/
+results.xml
+ 
+# =============================================================================
+# RISC-V toolchain output
+# =============================================================================
+*.elf
+*.hex
+*.bin
+*.o
+*.d
+ 
+# =============================================================================
+# OS and editor
+# =============================================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
 .vscode/
+.idea/
