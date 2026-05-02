@@ -5,7 +5,8 @@ module alu_rv32im (
     input  logic [31:0] b,
     input  logic [4:0]  alu_op,
     output logic [31:0] alu_res,
-    output logic        div_busy
+    output logic        div_busy,
+    output logic        div_done
 );
 
     localparam [4:0] ALU_ADD    = 5'b00000;
@@ -191,5 +192,10 @@ module alu_rv32im (
             endcase
         end
     end
+
+    assign div_done = (div_state == DIV_DONE) ||
+                  (div_state == DIV_IDLE &&
+                   alu_op inside {ALU_DIV, ALU_DIVU, ALU_REM, ALU_REMU} &&
+                   (div_by_zero || div_overflow));
 
 endmodule

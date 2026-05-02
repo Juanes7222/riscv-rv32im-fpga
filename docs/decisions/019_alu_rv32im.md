@@ -1,101 +1,105 @@
 # ADR 019 — ALU RV32IM: Interface, MULHSU, and Division Strategy
 
-**Status:** Accepted (updated 2026-05-02 — RTL revised for Quartus synthesis compatibility)  
+**Status:** Accepted (updated 2026-05-02 — div_done port added; Quartus synthesis correction)  
 **Date:** 2026-05-02
 
 ## Context
 
 The ALU must implement the full RV32IM integer instruction set: ten base RV32I
 operations, four multiply operations (M extension), and four divide/remainder
-operations (M extension). The design decisions that require formal justification
-are: the module interface (ports and types), the implementation strategy for
-MULHSU, and the implementation strategy for DIV/DIVU/REM/REMU.
+operations (M extension). Three design decisions require formal justification:
+the module interface (ports and types), the MULHSU implementation strategy, and
+the division implementation strategy.
 
 ## Decisions
 
-**1. The module interface includes `clk`, `rst_n`, and `div_busy`.**  
-All port signals are declared as `logic`. The output `alu_res` is valid
-combinationally for all non-division operations and presents the latched
-`div_result` while division is in progress.
+**1. The module interface includes `clk`, `rst_n`, `div_busy`, and `div_done`.**  
+All port signals are declared as `logic`. `div_busy` is the stall signal for
+the PC unit and the pipeline hazard unit. `div_done` is a registered 1-cycle
+pulse that fires on the `DIV_DONE → DIV_IDLE` transition and is used by
+`top_single_cycle` to gate the register file write enable (see
+[ADR 023](023_wr_en_gated.md)).
 
 **2. MULHSU is implemented using 33-bit sign/zero extension.**  
-Both operands are extended to 33 bits before multiplication: `a` is
-sign-extended, `b` is zero-extended. Both 33-bit intermediates are declared
-`signed`. The 66-bit product is computed in fully signed arithmetic; the result
-is `product[63:32]`.
+Both operands are extended to 33 bits: `a` sign-extended, `b` zero-extended.
+Both 33-bit intermediates are `signed`. Product is `[63:32]` of the 66-bit result.
 
 **3. DIV/DIVU/REM/REMU are implemented as a radix-2 restoring divisor with
-fixed 32-cycle latency** (see [ADR 008](008_m_extension_implementation.md)).
-The combinational `/` and `%` operators are not used for synthesis.
+fixed 32-cycle latency.** Effective CPI = 34 (see [ADR 008](008_m_extension_implementation.md)).
 
-**4. Intermediate signals used by the FSM (`sub_res`, `raw_quot`, `raw_rem`)
-are declared at module scope** and driven by a dedicated `always_comb` block.
+**4. All combinational logic uses `always_comb`. All sequential logic uses
+`always_ff`.** Consistent with [ADR 010](010_systemverilog_style.md).
+
+**5. Intermediate signals `sub_res`, `raw_quot`, `raw_rem` are declared at
+module scope** and driven by a dedicated `always_comb` block to avoid Quartus
+inference issues with locally declared variables inside `always_ff` branches.
 
 ## Rationale
+
+**`div_done` port:**  
+Without `div_done`, `top_single_cycle` cannot distinguish the single correct
+write cycle (DONE state, result valid) from the 32 incorrect write cycles
+(RUNNING state, result not yet valid). `div_busy` remains high during both
+RUNNING and DONE, so it cannot gate the write alone. `div_done` is a
+registered 1-cycle pulse aligned with the cycle that `div_result` holds the
+correct final value — the exact write window needed by the register file.
+See [ADR 023](023_wr_en_gated.md) for the complete timing analysis.
 
 **`clk`, `rst_n`, `div_busy`:**  
 The radix-2 restoring divisor is a sequential state machine that requires a
 clock and reset. `div_busy` is the stall signal consumed by `pc_unit`
-(single-cycle) and the hazard unit (pipeline). Without it, neither
-microarchitecture can hold state while the division completes.
+(single-cycle) and the hazard unit (pipeline).
 
 **MULHSU 33-bit approach:**  
-In SystemVerilog, a binary expression involving one `signed` and one `unsigned`
-operand is evaluated as unsigned, the signed operand is reinterpreted as
-unsigned. A direct `$signed(a) * b` expression therefore produces the wrong
-result when `a` is negative. The 33-bit approach sidesteps this: by making
-both operands 33-bit `signed` (with `b`'s MSB permanently 0), the entire
-multiplication is in signed arithmetic and the compiler correctly
-sign-extends `a`. The 66-bit product `[63:32]` is the correct MULHSU result
-for all operand combinations (see [ADR 009](009_mulhsu_33bit_extension.md)).
+In SystemVerilog, a binary expression with one `signed` and one `unsigned`
+operand is evaluated unsigned. `$signed(a) * b` produces the wrong result
+when `a` is negative. The 33-bit approach forces fully signed arithmetic
+with `b[32] = 0`. See [ADR 009](009_mulhsu_33bit_extension.md).
 
 **Radix-2 restoring division:**  
-A combinational divider synthesized from `/` or `%` in Quartus produces a
-carry-chain structure approximately 32 levels deep, reducing Fmax to 20–30 MHz
-on Cyclone V. This would make the measured Fmax a function of divider depth
-rather than of the IF→ID→EX→MEM→WB datapath, which is the architectural
-variable under comparison (see [ADR 008](008_m_extension_implementation.md)).
+A combinational `/` synthesized by Quartus produces a ~32-level carry chain,
+reducing Fmax to 20–30 MHz — making it a function of divider depth rather
+than the IF→WB datapath under comparison. See [ADR 008](008_m_extension_implementation.md).
 
 **Module-scope intermediate signals:**  
 Quartus Prime has inconsistent support for variables declared inside
-`begin...end` branches of `always_ff` blocks when those branches are not
-explicitly named. `sub_res`, `raw_quot`, and `raw_rem` are intermediate values
-computed combinationally and sampled by the FSM on the next clock edge. Moving
-them to module scope and driving them from a dedicated `always_comb` block
-produces identical simulation and synthesis behavior while avoiding the
-Quartus inference issue. Icarus Verilog and ModelSim simulate both forms
-equivalently.
+`begin...end` branches of `always_ff`. Moving `sub_res`, `raw_quot`, and
+`raw_rem` to module scope and driving them from `always_comb` produces
+identical behavior while avoiding the inference issue.
 
 ## Normative RTL Specification
 
-See [alu_rv32im.sv](../../rtl/shared/alu_rv32im.sv)
+See [alu_rv32im.md](../../rtl/shared/alu_rv32im.sv)
 
-## Result Mux Timing Correctness
+## div_done Timing
 
-When `div_busy` is high, `alu_res = div_result`. During `DIV_RUNNING`,
-`div_result` holds a stale value — this is safe because `pc_unit` holds the
-PC while `div_busy == 1`, so no instruction retires and no register write
-occurs. `div_result` receives its final value on the clock edge that
-transitions the FSM from `DIV_DONE` to `DIV_IDLE`. On that same edge,
-`div_busy` de-asserts. The combinational path `div_state != DIV_IDLE` goes
-low, and `alu_res` presents the correct `div_result` in the same cycle that
-`pc_unit` resumes advancing. The timing is correct without any additional
-pipeline stage.
+`div_done` is a registered output (FF). It pulses high for exactly one clock
+cycle in two cases:
+1. **Normal division (CPI = 34):** fires on the DONE cycle — the same cycle
+   that `div_result` receives its correct final value and `div_state` returns
+   to IDLE.
+2. **Corner cases (CPI = 1):** fires on the IDLE cycle itself, immediately
+   after the result is set combinationally.
+
+In both cases, `div_done` is asserted in the same cycle that `div_result` is
+correct and `div_busy` is either still high (normal) or never asserted (corner
+case). `top_single_cycle` uses `div_done` as the write enable gate (see
+[ADR 023](023_wr_en_gated.md)).
+
+## Effective CPI
+
+| Case | Cycles | CPI |
+|------|--------|-----|
+| Normal division (DIV/DIVU/REM/REMU) | 1 issue + 32 RUNNING + 1 DONE | **34** |
+| Corner case (div-by-zero, signed overflow) | 1 (resolved in IDLE) | **1** |
+| All other instructions | 1 | **1** |
 
 ## Consequences
 
-- Effective CPI for normal division: **34** (1 issue + 32 RUNNING + 1 DONE).
-  This supersedes the CPI = 33 figure in earlier documents; `single_cycle.md`
-  must be updated accordingly.
-- Division corner cases (by-zero, signed overflow) are resolved in `DIV_IDLE`
-  without asserting `div_busy`. Effective CPI for these cases is 1.
-- `div_busy` is permanently `0` for all non-division operations. No stall
-  penalty is imposed on RV32I or multiply instructions.
-- All FSM registers are reset to zero, consistent with [ADR 016](016_register_file_reset_zero.md).
-  This prevents X-propagation in the first cocotb simulation iteration.
-- The `inside {}` operator in `DIV_IDLE` requires Quartus Prime 18.1 or later.
-  If an earlier version is used, it must be replaced with four explicit
-  equality comparisons connected by `||`.
-- Quartus will infer DSP blocks for `mul_ss`, `mul_uu`, and `mul_su`. The
-  exact count depends on place-and-route and is reported in
-  `results/single_cycle/` after the first synthesis replica.
+- `shared_modules.md` must reflect the `div_done` port addition.
+- `top_single_cycle.sv` uses `div_done` for `wr_en_gated` (ADR 023).
+- All FSM registers reset to zero, consistent with [ADR 015](015_register_file_reset_zero.md).
+- `div_done` resets to `1'b0` and is safe to use from the first clock cycle.
+- The `inside {}` operator requires Quartus Prime 18.1+, consistent with this
+  project's toolchain constraint.
+- Quartus will infer DSP blocks for `mul_ss`, `mul_uu`, and `mul_su`.

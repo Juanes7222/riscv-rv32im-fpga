@@ -30,6 +30,7 @@ for the normative RTL specification and full design rationale.
 | `alu_op` | input | 5 | Operation select (see encoding below) |
 | `alu_res` | output | 32 | Result (combinational for non-division; registered for division) |
 | `div_busy` | output | 1 | High while division FSM is in DIV_RUNNING or DIV_DONE state |
+| `div_done` | output | 1 | 1-cycle pulse when division result is valid (DONE→IDLE transition) |
 
 ### ALU Operation Encoding
 
@@ -63,8 +64,13 @@ for the normative RTL specification and full design rationale.
   `DIV_DONE`. The correct result is available on `alu_res` on the clock edge
   that transitions `DIV_DONE → DIV_IDLE`, which is the same edge that
   de-asserts `div_busy`. Effective CPI = 34.
+- `div_done` pulses high for exactly 1 cycle when `div_result` holds the
+  correct final value: on the `DIV_DONE → DIV_IDLE` transition for normal
+  divisions, and on the issue cycle itself for corner cases (div-by-zero,
+  signed overflow). `top_single_cycle` uses `div_done` to gate the register
+  file write enable (see [ADR 023](../decisions/023_wr_en_gated.md)).
 - Division corner cases are resolved in `DIV_IDLE` without asserting `div_busy`.
-  Effective CPI for corner cases = 1.
+  `div_done` pulses once; effective CPI = 1.
 
 ### Division Corner Cases
 
@@ -154,8 +160,9 @@ See [ADR 011](../decisions/011_instruction_memory_async_read.md) for rationale.
 **Description:** Read-write data memory. Supports byte, halfword, and word
 accesses. On loads, the result is sign- or zero-extended to 32 bits as
 specified by `dm_ctrl`. On stores, only the relevant byte lanes are written
-using byte enables. See [ADR 020](../decisions/020_data_memory_async_read.md),
-[ADR 021](../decisions/021_data_memory_organization.md).
+using byte enables. See [ADR 019](../decisions/019_data_memory_async_read.md),
+[ADR 020](../decisions/020_data_memory_organization.md), and
+[ADR 021](../decisions/021_dm_ctrl_funct3.md).
 
 ### Ports
 
@@ -171,7 +178,7 @@ using byte enables. See [ADR 020](../decisions/020_data_memory_async_read.md),
 ### dm_ctrl Encoding
 
 `dm_ctrl` is the `funct3` field of the load or store instruction passed
-directly without translation. Bit [2] encodes sign/zero extension
+directly without translation (ADR 021). Bit [2] encodes sign/zero extension
 for loads and is irrelevant for stores; bits [1:0] encode access width.
 
 | `dm_ctrl` | Load result | Store write width |
@@ -185,7 +192,7 @@ for loads and is irrelevant for stores; bits [1:0] encode access width.
 ### Behavioral Notes
 
 - Read is asynchronous: `rd_data` is available combinationally in the same
-  cycle the address is presented (ADR 020).
+  cycle the address is presented (ADR 019).
 - Write is synchronous: memory is updated on the rising edge of `clk` when
   `dm_wr == 1`.
 - Write data `wr_data` is replicated across all byte positions before the
