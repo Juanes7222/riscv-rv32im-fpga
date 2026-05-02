@@ -21,3 +21,12 @@ the original, and both remain in the index.
 | [011](011_instruction_memory_async_read.md) | Instruction memory asynchronous read | Accepted | — |
 | [012](012_reset_vector.md) | Reset vector `0x00000000` | Accepted | — |
 | [013](013_memory_sizes.md) | Instruction memory 64 KB, data memory 32 KB | Accepted | — |
+| [014](014_memory_initialize_format.md) | Memory Initialization Format | Accepted | — |
+| [015](015_register_file_ff_array.md) | Register File: FF Array Implementation | Accepted | — |
+| [016](016_register_file_reset_zero.md) | Register File: All Registers Reset to Zero | Accepted | — |
+| [017](017_imm_gen_interface.md) | Immediate Generator: Interface and Implementation | Accepted | — |
+| [018](018_branch_unit.md) | Branch Unit: Interface and Implementation | Accepted | — |
+| [019](019_alu_rv32im.md) | ALU RV32IM: Interface, MULHSU, and Division Strategy | Accepted | — |
+| [020](020_data_memory_async_read.md) | Data Memory: Asynchronous Read | Accepted | — |
+| [021](021_data_memory_organization.md) | Data Memory: Word-Addressed Organization with Byte Enables | Accepted | — |
+| [022](022_control_unit.md) | Control Unit: Interface and Implementation | Accepted | — |
