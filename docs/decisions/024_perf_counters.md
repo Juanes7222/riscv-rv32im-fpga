@@ -32,88 +32,125 @@ counters and the `program_done` signal.
 **1. All counter logic is isolated in a dedicated module `perf_counters.sv`.**  
 The module is instantiated identically in both `top_single_cycle.sv` and
 `top_pipeline.sv`. It receives observation signals from the datapath but has no
-outputs that feed back into the datapath. It is a purely passive observer.
+outputs that feed back into the datapath. It is a purely passive observer and is
+excluded from the processor’s functional behavior.
 
 **2. Counter width is 64 bits.**  
 Two counters are implemented: `cycle_count` and `instr_retired`. Both are 64 bits
-wide, matching the signal widths declared in the SignalTap II `.stp` file (ADR 026).
-At 50 MHz, a 64-bit counter overflows after approximately 584 years — overflow is
-unreachable for any planned benchmark. No saturation logic is implemented.
+wide, matching the signal widths declared in the SignalTap II `.stp` file
+(ADR 026). At 50 MHz, a 64-bit counter overflows after far more cycles than any
+planned benchmark will execute; overflow is unreachable and no saturation logic is
+implemented.
 
-**3. `instr_retired` is defined differently per microarchitecture via a
-static elaboration parameter.**  
-The module is parameterized with `parameter logic PIPELINE_MODE = 1'b0`, resolved
-at elaboration time. This generates distinct hardware for each top-level with no
-shared multiplexer:
+**3. `instr_retired` is defined differently per microarchitecture via a static elaboration parameter.**  
+The module is parameterized with
 
-- Single-cycle (`PIPELINE_MODE = 0`): increments when `~div_busy`, every cycle
-  in which the processor is not executing a multi-cycle divide operation.
-- Pipeline (`PIPELINE_MODE = 1`): increments when `valid_wb == 1`, only when a
-  non-bubble instruction commits at the WB stage. Bubbles carry `valid_wb = 0`.
+```systemverilog
+parameter bit PIPELINE_MODE = 1'b0;
+```
 
-**4. A `program_done` signal triggers counter freeze.**  
-`program_done` is asserted combinationally when `dm_wr == 1` and
-`alu_res == TOHOST_ADDR` (default: `32'h8000_1000`). This is the `tohost`
-convention used by riscv-tests (lowRISC, 2019). On the first assertion of
-`program_done`, a `frozen` flag latches and both counters stop incrementing.
-SignalTap II (ADR 026) uses `program_done` as its capture trigger.
+resolved at elaboration time. This generates distinct hardware for each top-level
+with no shared multiplexer:
+
+- **Single-cycle (`PIPELINE_MODE = 1'b0`)**: `instr_retired` increments on every
+  clock cycle where `div_busy == 0`. A multi-cycle divide operation holds
+  `div_busy == 1`, and those cycles are not counted as retired instructions.
+- **Pipeline (`PIPELINE_MODE = 1'b1`)**: `instr_retired` increments when
+  `valid_wb == 1`, i.e., only when a non-bubble instruction commits at the WB
+  stage. Bubbles inserted by the hazard unit propagate `valid_wb == 0` and are
+  not counted.
+
+A `parameter bit PIPELINE_MODE` is resolved by the synthesizer during elaboration,
+so only the relevant increment path is synthesized for each architecture. A runtime
+`input` mode flag is explicitly rejected, as it would synthesize a multiplexer on
+the increment enable path and violate the homogeneity requirement.
+
+**4. A registered `program_done` signal triggers counter freeze.**  
+`program_done` is implemented as a **registered** 1-bit output of `perf_counters.sv`,
+not as a combinational expression. It is asserted on the first clock cycle in which
+the core performs a data memory write (`dm_wr == 1`) to the `tohost` address
+(`alu_res == TOHOST_ADDR`, default `32'h8000_1000`), following the riscv-tests
+convention (lowRISC, 2019). On that cycle, a 1-bit `frozen` flag latches and both
+counters stop incrementing; `program_done` remains high until reset.
+
+Formally, the behavioral contract is:
+
+- `cycle_count` increments by 1 on every rising edge of `clk` while `reset_n == 1`
+  and `frozen == 0`.  
+- `instr_retired` increments according to `PIPELINE_MODE` as described above, but
+  only while `frozen == 0`.  
+- `program_done` and `frozen` are reset to 0 when `reset_n == 0`.  
+- On any rising edge of `clk` where `reset_n == 1`, `frozen == 0`,
+  `dm_wr == 1`, and `alu_res == TOHOST_ADDR`, the module sets
+  `program_done <= 1` and `frozen <= 1`.  
+- Once `frozen == 1`, both counters hold their value and `program_done` stays
+  asserted until the next reset.
+
+SignalTap II (ADR 026) uses the rising edge of this registered `program_done`
+as its capture trigger; no combinational version of `program_done` is exported
+or tapped.
 
 **5. The measurement infrastructure is excluded from Fmax timing constraints.**  
-A false path SDC constraint excludes all registers in `perf_counters` from the
-processor clock domain Fmax analysis, ensuring the reported Fmax reflects only
-the processor datapath.
+A false-path SDC constraint excludes all registers in `perf_counters` from the
+processor clock domain Fmax analysis. The reported Fmax thus reflects only the
+processor datapath and memories. The counter infrastructure is present and
+identical in both microarchitectures, but it is explicitly removed from the
+critical-path computation.
 
 ## Rationale
 
-**Separate passive module:**  
-The anteproyecto requires conditions "as homogeneous as possible". If
-counter logic were embedded in the datapath, differences in placement between the
-two microarchitectures would create heterogeneous routing pressure on the critical
-path, invalidating the Fmax comparison. A passive observer module eliminates this
-risk: neither architecture's Fmax is affected by the counter logic, and both use
-identical counter hardware.
+The project requires conditions “as homogeneous as possible” between the two
+microarchitectures. Embedding counter logic directly in the datapath would create
+architecture-specific placement and routing interactions on the critical path,
+contaminating the Fmax comparison. A separate `perf_counters.sv` module that only
+observes signals and never feeds back into the core guarantees that both
+implementations see the same measurement overhead and that any Fmax difference is
+attributable to the processor microarchitecture itself.
 
-**64-bit counters without saturation:**  
-At 50 MHz, CoreMark requires at least 10 seconds of execution (EEMBC, 2009).
-A 64-bit counter adds only 64 additional flip-flops (negligible on Cyclone V)
-and removes any need for saturation logic, which would itself introduce unnecessary
-combinational paths. The 64-bit width matches the `.stp` signal configuration in
-ADR 026 exactly, preventing elaboration errors at SignalTap II integration.
+At the planned operating frequency (50 MHz), even the longest benchmarks (e.g.
+CoreMark running for several seconds) produce cycle counts far below $2^{64}$. A 64-bit
+counter adds a negligible number of registers on Cyclone V and completely removes
+the need for saturation or overflow detection logic, which would otherwise
+introduce extra combinational paths. Matching the 64-bit width to the SignalTap II
+configuration in ADR 026 also prevents elaboration-time mismatches between RTL and
+`.stp` definitions.
 
-**Static `PIPELINE_MODE` parameter:**  
-A `parameter logic PIPELINE_MODE` is resolved by the synthesizer during
-elaboration, generating hardware that contains only the increment logic relevant
-to each microarchitecture. A runtime `input logic pipeline_mode` signal would
-instead synthesize a 2:1 multiplexer on the increment enable path, creating a
-structural asymmetry between the two implementations, a violation of the
-homogeneity principle.
+Using a `parameter bit PIPELINE_MODE` resolved at elaboration time lets the
+synthesizer prune away unused increment logic: the single-cycle and pipeline
+top-levels instantiate structurally different, but measurement-equivalent, hardware
+without any runtime multiplexers on the enable path. A runtime mode input would
+synthesize a 2:1 multiplexer gating the increment condition, creating a structural
+asymmetry between treatments and violating the homogeneity principle of the
+experimental protocol.
 
-**`instr_retired` definition per microarchitecture:**  
-In the single-cycle processor, every cycle where `div_busy = 0` represents one
-retiring instruction. In the pipeline, the correct definition requires a `valid_wb`
-signal propagated through the pipeline registers — a bubble inserted by the hazard
-unit must NOT count as a retired instruction. If bubbles were counted, the pipeline
-would appear to have CPI = 1 even under heavy hazard load, invalidating the
-comparison.
+The notion of “retired instruction” is inherently different in a single-cycle
+design from a pipelined design. In the single-cycle core, every cycle where
+`div_busy == 0` corresponds to the completion of one instruction; counting those
+cycles directly yields the number of retired instructions. In the pipeline, a
+hazard-stall or flush cycle must not be counted, so a `valid_wb` tag propagated
+through the pipeline registers is required to distinguish real commits from
+bubbles. Defining `instr_retired` as “number of cycles with `valid_wb == 1`” gives
+a CPI that reflects true hazard and control penalties instead of being artificially
+deflated by counting bubbles as successful retirements.
 
-**`tohost` convention and registered `program_done`:**  
-The riscv-tests suite signals completion by writing to address `0x80001000`
-(the `tohost` symbol in the default linker script). Detecting this write requires
-only two signals already present in the datapath: `dm_wr` and `alu_res`.
-No modification to any existing module is needed (lowRISC, 2019).
+Using a combinational `program_done` derived directly from `dm_wr` and `alu_res`
+would expose SignalTap to narrow pulses or glitches and to potential timing
+misalignments with the sampling clock. Implementing `program_done` as a registered
+output that latches on the first `tohost` write and remains high until reset
+ensures a single, clean rising edge synchronized to `clk`. This matches the
+assumption in ADR 026, where SignalTap II is configured to trigger on the rising
+edge of `program_done` and capture a single post-trigger sample. The `frozen` flag
+guarantees that both counters hold their final values after that event, so
+SignalTap always sees a stable snapshot of `cycle_count` and `instr_retired`.
 
-`program_done` is implemented as a registered output rather than a combinational
-signal. A registered signal guarantees that SignalTap II (ADR 026) captures a stable
-value aligned to the clock edge, eliminating any risk of glitch capture on the JTAG
-trigger. Because `program_done` asserts one cycle after the `tohost` write,
-`cycle_count` already reflects the complete execution cycle count at capture time.
-This +1 cycle offset is identical for both microarchitectures and does not affect
-the comparison.
-
-**False path SDC:**  
-If `perf_counters` registers were included in timing analysis, the 64-bit counter
-chains could become the reported critical path, an artifact of instrumentation,
-not of the processor datapath. The false path constraint removes this artifact.
+If the counter and `program_done` logic were left on the main clock’s timing
+graph, they could become part of the reported critical path, especially in the
+pipeline treatment where `valid_wb` and `dm_wr` traverse multiple stages. Marking
+all paths to and from `perf_counters` as false in the SDC file ensures that the
+Timing Analyzer reports Fmax only for the processor datapath and memories. The
+measurement infrastructure remains present and identical across treatments, but it
+is explicitly removed from the Fmax optimization and reporting loop, preserving
+the validity of the comparison.
 
 ## Module Interface: `perf_counters.sv`
 
@@ -220,7 +257,7 @@ output logic [31:0] flush_count,   // instructions flushed (branch taken)
 
 Connected to hazard unit signals `pc_stall` and `if_id_flush` respectively.
 These counters saturate at `32'hFFFF_FFFF`; their sum is always bounded by
-`instr_retired` and will not approach 2^32 in any planned benchmark.
+`instr_retired` and will not approach $2^{32}$ in any planned benchmark.
 
 The CPI decomposition formula is:
 
