@@ -1,52 +1,55 @@
 module perf_counters #(
-    parameter logic [31:0] TOHOST_ADDR = 32'h8000_1000
+    parameter logic   PIPELINE_MODE = 1'b0,
+    parameter [31:0]  TOHOST_ADDR   = 32'h8000_1000
 ) (
     input  logic        clk,
     input  logic        rst_n,
 
-    // Single-cycle: tie valid_wb to 0, connect div_busy
-    input  logic        div_busy,       // from alu_rv32im (single-cycle)
+    // Single-cycle: connect div_busy. Tie to 1'b0 when PIPELINE_MODE = 1.
+    input  logic        div_busy,
 
-    // Pipeline: tie div_busy to 0, connect valid_wb
-    input  logic        valid_wb,       // 1 when non-bubble instruction at WB (pipeline)
+    // Pipeline: connect valid_wb. Tie to 1'b0 when PIPELINE_MODE = 0.
+    input  logic        valid_wb,
 
     // Shared inputs
     input  logic        dm_wr,
     input  logic [31:0] alu_res,
 
-    // Mode selector: 0 = single-cycle, 1 = pipeline
-    input  logic        pipeline_mode,
-
-    // Outputs
-    output logic [31:0] cycle_count,
-    output logic [31:0] instr_retired,
-    output logic        program_done    // combinational: pulses 1 cycle on tohost write
+    // Outputs — all registered, tapped by SignalTap II (ADR 026)
+    output logic [63:0] cycle_count,
+    output logic [63:0] instr_retired,
+    output logic        program_done
 );
 
-    logic        frozen;
-    logic        instr_retired_en;
+    logic frozen;
+    logic tohost_hit;
+    logic instr_retired_en;
 
-    // Combinational: tohost detection
-    assign program_done    = dm_wr & (alu_res == TOHOST_ADDR);
+    // tohost detection
+    assign tohost_hit = dm_wr & (alu_res == TOHOST_ADDR);
 
-    // Combinational: retire condition differs by mode
-    assign instr_retired_en = pipeline_mode ? valid_wb : ~div_busy;
+    // no runtime mux on increment enable
+    generate
+        if (PIPELINE_MODE == 1'b0)
+            assign instr_retired_en = ~div_busy;
+        else
+            assign instr_retired_en = valid_wb;
+    endgenerate
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            cycle_count   <= 32'b0;
-            instr_retired <= 32'b0;
+            cycle_count   <= 64'h0;
+            instr_retired <= 64'h0;
+            program_done  <= 1'b0;
             frozen        <= 1'b0;
-        end else if (program_done && !frozen) begin
-            // Freeze on first tohost write; do not increment this cycle
-            frozen        <= 1'b1;
+        end else if (tohost_hit && !frozen) begin
+            // Register program_done one cycle after tohost write.
+            // cycle_count already reflects complete execution at this point.
+            program_done <= 1'b1;
+            frozen       <= 1'b1;
         end else if (!frozen) begin
-            // Saturating increment (no wrap-around)
-            cycle_count   <= (cycle_count   == 32'hFFFF_FFFF) ? 32'hFFFF_FFFF
-                                                               : cycle_count + 32'd1;
-            instr_retired <= (instr_retired == 32'hFFFF_FFFF) ? 32'hFFFF_FFFF
-                           : instr_retired_en                 ? instr_retired + 32'd1
-                                                               : instr_retired;
+            cycle_count   <= cycle_count + 64'h1;
+            instr_retired <= instr_retired + {{63{1'b0}}, instr_retired_en};
         end
     end
 

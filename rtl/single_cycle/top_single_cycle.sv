@@ -1,7 +1,6 @@
 module top_single_cycle (
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
-    output logic tx_pin,          // UART TX - DE1-SoC PIN_AF13
     output logic [9:0] ledr       // pc[9:0]
 );
 
@@ -69,14 +68,6 @@ module top_single_cycle (
     logic        is_div;
     logic        wr_en_gated;
 
-    // Performance counters
-    logic        program_done;
-    logic [31:0] cycle_count;
-    logic [31:0] instr_retired;
-    logic [7:0]  tx_data;
-    logic        tx_valid;
-    logic        tx_ready;
-
 
     assign opcode   = instruction[6:0];
     assign rd_addr  = instruction[11:7];
@@ -112,44 +103,24 @@ module top_single_cycle (
         endcase
     end
 
-    perf_counters #(
-    .TOHOST_ADDR (32'h8000_1000)
-    ) u_perf (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .div_busy      (div_busy),
-        .valid_wb      (1'b0),          // single-cycle: tie to 0
-        .dm_wr         (dm_wr),
-        .alu_res       (alu_res),
-        .pipeline_mode (1'b0),          // single-cycle
-        .cycle_count   (cycle_count),
-        .instr_retired (instr_retired),
-        .program_done  (program_done)
-    );
+    logic [63:0] cycle_count;
+    logic [63:0] instr_retired;
+    logic        program_done;
 
-    uart_send_controller u_uart_ctrl (
+    perf_counters #(
+        .PIPELINE_MODE (1'b0),
+        .TOHOST_ADDR   (32'h8000_1000)
+    ) u_perf (
         .clk          (clk),
         .rst_n        (rst_n),
-        .program_done (program_done),
+        .div_busy     (div_busy),
+        .valid_wb     (1'b0),
+        .dm_wr        (dm_wr),
+        .alu_res      (alu_res),
         .cycle_count  (cycle_count),
         .instr_retired(instr_retired),
-        .tx_ready     (tx_ready),
-        .tx_data      (tx_data),
-        .tx_valid     (tx_valid)
+        .program_done (program_done)
     );
-
-    uart_tx #(
-        .CLK_FREQ  (50_000_000),
-        .BAUD_RATE (115_200)
-    ) u_uart_tx (
-        .clk      (clk),
-        .rst_n    (rst_n),
-        .tx_data  (tx_data),
-        .tx_valid (tx_valid),
-        .tx_ready (tx_ready),
-        .tx_pin   (tx_pin)
-    );
-
 
     pc u_pc (
         .clk         (clk),
