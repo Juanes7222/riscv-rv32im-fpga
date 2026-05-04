@@ -27,6 +27,17 @@ QUARTUS_STA = quartus_sta.exe
 SOF_FILE = $(SYNTH_DIR)/output_files/$(PROJECT).sof
 STA_RPT  = $(SYNTH_DIR)/output_files/$(PROJECT).sta.rpt
 
+IMEM_DEPTH := 4096
+DMEM_DEPTH := 1024
+
+BUILD_DIR ?= build
+
+IMEM_MEM ?= $(BUILD_DIR)/imem.mem
+DMEM_MEM ?= $(BUILD_DIR)/dmem.mem
+
+$(SYNTH_DIR)/rtl/shared/mem_config.vh: $(IMEM_MEM) $(DMEM_MEM)
+	python3 scripts/gen_mem_config.py --imem $(IMEM_MEM) --dmem $(DMEM_MEM)
+
 # Default target: show help
 all: help
 
@@ -50,7 +61,7 @@ sync-all:
 
 # Single synthesis run
 .PHONY: build
-build: check-project
+build: check-project $(SYNTH_DIR)/rtl/shared/mem_config.vh
 	@echo "[$(ARCH)] Starting synthesis..."
 	@SECONDS=0; \
 	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
@@ -202,6 +213,15 @@ check-project:
 		echo "Run 'make setup ARCH=$(ARCH)' first."; \
 		exit 1; \
 	fi
+
+.PHONY: mem
+mem: $(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem
+
+$(BUILD_DIR)/imem.mem: $(BUILD_DIR)/program.bin
+	python3 scripts/elf_to_mem.py $< $(IMEM_DEPTH) $@
+
+$(BUILD_DIR)/dmem.mem: $(BUILD_DIR)/program.bin
+	python3 scripts/elf_to_mem.py $< $(DMEM_DEPTH) $@
 
 # Help
 .PHONY: help

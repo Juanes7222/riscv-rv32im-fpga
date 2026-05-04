@@ -286,3 +286,5 @@ Thumbs.db
 *.swo
 .vscode/
 .idea/
+
+.vh*
