@@ -1,3 +1,5 @@
+`include "mem_config.vh"
+
 module instruction_memory #(
    parameter int unsigned IMEM_DEPTH = 1024
 )(
@@ -10,7 +12,11 @@ module instruction_memory #(
    logic [31:0] memory [0:IMEM_DEPTH-1];
 
    initial begin
-      $readmemh("program.hex", memory);
+      `ifdef IMEM_FILE
+         if (`IMEM_FILE != "") begin
+            $readmemh(`IMEM_FILE, memory);
+         end
+      `endif
    end
 
    always_comb begin

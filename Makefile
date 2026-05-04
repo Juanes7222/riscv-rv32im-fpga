@@ -3,7 +3,6 @@ N_REPLICAS  ?= 5
 
 VALID_ARCHS := single_cycle pipeline
 
-# Validate ARCH
 ifeq ($(filter $(ARCH), $(VALID_ARCHS)),)
 $(error Invalid ARCH='$(ARCH)'. Valid values: $(VALID_ARCHS))
 endif
@@ -27,6 +26,7 @@ QUARTUS_STA = quartus_sta.exe
 SOF_FILE = $(SYNTH_DIR)/output_files/$(PROJECT).sof
 STA_RPT  = $(SYNTH_DIR)/output_files/$(PROJECT).sta.rpt
 
+# Memory depths — must match IMEM_DEPTH and DMEM_DEPTH in RTL parameters (ADR 013)
 IMEM_DEPTH := 4096
 DMEM_DEPTH := 1024
 
@@ -35,39 +35,43 @@ BUILD_DIR ?= build
 IMEM_MEM ?= $(BUILD_DIR)/imem.mem
 DMEM_MEM ?= $(BUILD_DIR)/dmem.mem
 
-$(SYNTH_DIR)/rtl/shared/mem_config.vh: $(IMEM_MEM) $(DMEM_MEM)
+MEM_CONFIG_VH = rtl/shared/mem_config.vh
+
+$(MEM_CONFIG_VH): $(IMEM_MEM) $(DMEM_MEM)
 	python3 scripts/gen_mem_config.py --imem $(IMEM_MEM) --dmem $(DMEM_MEM)
+
 
 # Default target: show help
 all: help
 
-# Project setup (run once before first build)
+
 .PHONY: setup
 setup:
 	@echo "[$(ARCH)] Creating Quartus project..."
 	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t setup.tcl
 	@echo "[$(ARCH)] Project created. Run 'make build ARCH=$(ARCH)' to synthesize."
 
-# Sync RTL source files into existing project (run after adding new .sv files)
+
 .PHONY: sync
 sync: check-project
 	@echo "[$(ARCH)] Syncing RTL source files..."
 	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t sync.tcl
+
 
 .PHONY: sync-all
 sync-all:
 	@$(MAKE) sync ARCH=single_cycle
 	@$(MAKE) sync ARCH=pipeline
 
-# Single synthesis run
+
 .PHONY: build
-build: check-project $(SYNTH_DIR)/rtl/shared/mem_config.vh
+build: check-project $(MEM_CONFIG_VH)
 	@echo "[$(ARCH)] Starting synthesis..."
 	@SECONDS=0; \
 	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
 
-# Replica loop for experimental protocol
+
 .PHONY: replicas
 replicas: check-project
 	@echo "[$(ARCH)] Running $(N_REPLICAS) synthesis replicas..."
@@ -94,35 +98,39 @@ replicas: check-project
 	done
 	@echo "[$(ARCH)] All replicas complete. Results in $(RESULTS_DIR)/"
 
-# Program FPGA
+
 .PHONY: program
 program: check-sof
 	@echo "[$(ARCH)] Programming FPGA..."
 	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t program.tcl
+
 
 .PHONY: program-direct
 program-direct: check-sof
 	@echo "[$(ARCH)] Programming FPGA directly..."
 	$(QUARTUS_PGM) -c "DE-SoC" -m JTAG -o "P;$(SOF_FILE)@2"
 
+
 .PHONY: build-program
 build-program: build program
 
-# Verification
+
 .PHONY: verify
 verify:
 	@echo "[$(ARCH)] Running architecture-specific cocotb tests..."
 	@$(MAKE) -C $(VERIF_ARCH_DIR)
+
 
 .PHONY: verify-common
 verify-common:
 	@echo "Running shared RV32IM instruction tests..."
 	@$(MAKE) -C $(VERIF_COMMON_DIR)
 
+
 .PHONY: verify-all
 verify-all: verify-common verify
 
-# Results summary
+
 .PHONY: results
 results:
 	@echo "=== Results: $(ARCH) ==="
@@ -141,12 +149,13 @@ results:
 		fi; \
 	done
 
+
 .PHONY: results-all
 results-all:
 	@$(MAKE) results ARCH=single_cycle
 	@$(MAKE) results ARCH=pipeline
 
-# Status
+
 .PHONY: status
 status:
 	@echo "=== Project Status ==="
@@ -164,7 +173,7 @@ status:
 	done
 	@echo ""
 
-# Clean
+
 .PHONY: clean
 clean:
 	@echo "[$(ARCH)] Cleaning synthesis artifacts..."
@@ -178,10 +187,12 @@ clean:
 		-o -name "*.qdf" \) -delete
 	@echo "[$(ARCH)] Clean complete."
 
+
 .PHONY: clean-all
 clean-all:
 	@$(MAKE) clean ARCH=single_cycle
 	@$(MAKE) clean ARCH=pipeline
+
 
 .PHONY: clean-replicas
 clean-replicas:
@@ -189,30 +200,16 @@ clean-replicas:
 	@rm -rf $(RESULTS_DIR)/replica_*
 	@echo "[$(ARCH)] Replica results removed."
 
+
 .PHONY: clean-replicas-all
 clean-replicas-all:
 	@$(MAKE) clean-replicas ARCH=single_cycle
 	@$(MAKE) clean-replicas ARCH=pipeline
 
+
 .PHONY: rebuild
 rebuild: clean build
 
-# Guards
-.PHONY: check-sof
-check-sof:
-	@if [ ! -f "$(SOF_FILE)" ]; then \
-		echo "Error: SOF not found at $(SOF_FILE)"; \
-		echo "Run 'make build ARCH=$(ARCH)' first."; \
-		exit 1; \
-	fi
-
-.PHONY: check-project
-check-project:
-	@if [ ! -f "$(SYNTH_DIR)/$(PROJECT).qpf" ]; then \
-		echo "Error: Quartus project not found at $(SYNTH_DIR)/$(PROJECT).qpf"; \
-		echo "Run 'make setup ARCH=$(ARCH)' first."; \
-		exit 1; \
-	fi
 
 .PHONY: mem
 mem: $(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem
@@ -223,7 +220,25 @@ $(BUILD_DIR)/imem.mem: $(BUILD_DIR)/program.bin
 $(BUILD_DIR)/dmem.mem: $(BUILD_DIR)/program.bin
 	python3 scripts/elf_to_mem.py $< $(DMEM_DEPTH) $@
 
-# Help
+
+.PHONY: check-sof
+check-sof:
+	@if [ ! -f "$(SOF_FILE)" ]; then \
+		echo "Error: SOF not found at $(SOF_FILE)"; \
+		echo "Run 'make build ARCH=$(ARCH)' first."; \
+		exit 1; \
+	fi
+
+
+.PHONY: check-project
+check-project:
+	@if [ ! -f "$(SYNTH_DIR)/$(PROJECT).qpf" ]; then \
+		echo "Error: Quartus project not found at $(SYNTH_DIR)/$(PROJECT).qpf"; \
+		echo "Run 'make setup ARCH=$(ARCH)' first."; \
+		exit 1; \
+	fi
+
+
 .PHONY: help
 help:
 	@echo ""

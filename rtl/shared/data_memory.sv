@@ -1,3 +1,5 @@
+`include "mem_config.vh"
+
 module data_memory #(
     parameter int unsigned DMEM_DEPTH = 8192    // words (32 KB)
 ) (
@@ -13,6 +15,14 @@ module data_memory #(
     // Word-addressed; Quartus infers M10K blocks from this declaration.
     // $readmemh is only called when MEM_FILE is non-empty (data + BSS init).
     logic [31:0] mem [0:DMEM_DEPTH-1];
+
+    initial begin
+        `ifdef DMEM_FILE
+            if (`DMEM_FILE != "") begin
+                $readmemh(`DMEM_FILE, mem);
+            end
+        `endif
+    end
 
 
     // dm_ctrl field decoding
