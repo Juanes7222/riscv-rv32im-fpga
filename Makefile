@@ -37,6 +37,17 @@ setup:
 	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t setup.tcl
 	@echo "[$(ARCH)] Project created. Run 'make build ARCH=$(ARCH)' to synthesize."
 
+# Sync RTL source files into existing project (run after adding new .sv files)
+.PHONY: sync
+sync: check-project
+	@echo "[$(ARCH)] Syncing RTL source files..."
+	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t sync.tcl
+
+.PHONY: sync-all
+sync-all:
+	@$(MAKE) sync ARCH=single_cycle
+	@$(MAKE) sync ARCH=pipeline
+
 # Single synthesis run
 .PHONY: build
 build: check-project
@@ -198,10 +209,12 @@ help:
 	@echo ""
 	@echo "Usage: make <target> [ARCH=single_cycle|pipeline] [N_REPLICAS=5]"
 	@echo ""
-	@echo "  ARCH defaults to 'pipeline' if not specified."
+	@echo "  ARCH defaults to 'single_cycle' if not specified."
 	@echo ""
 	@echo "Synthesis"
 	@echo "  setup              Create Quartus project (run once per arch)"
+	@echo "  sync               Re-register RTL source files after adding modules"
+	@echo "  sync-all           Sync both architectures"
 	@echo "  build              Single synthesis run"
 	@echo "  replicas           Run N_REPLICAS synthesis runs, extract Fmax"
 	@echo "  rebuild            Clean then build"
