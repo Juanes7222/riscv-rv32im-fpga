@@ -13,9 +13,7 @@ module instruction_memory #(
 
    initial begin
       `ifdef IMEM_FILE
-         if (`IMEM_FILE != "") begin
-            $readmemh(`IMEM_FILE, memory);
-         end
+         $readmemh(`IMEM_FILE, memory);
       `endif
    end
 

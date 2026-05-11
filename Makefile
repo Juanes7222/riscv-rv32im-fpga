@@ -38,8 +38,9 @@ DMEM_MEM ?= $(BUILD_DIR)/dmem.mem
 MEM_CONFIG_VH = rtl/shared/mem_config.vh
 
 $(MEM_CONFIG_VH): $(IMEM_MEM) $(DMEM_MEM)
-	python3 scripts/gen_mem_config.py --imem $(IMEM_MEM) --dmem $(DMEM_MEM)
-
+	python3 scripts/gen_mem_config.py \
+		--imem $$(wslpath -w $(abspath $(IMEM_MEM)) | tr '\\\\' '/') \
+		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/')
 
 # Default target: show help
 all: help

@@ -78,12 +78,11 @@ def write_header_file(content: str) -> None:
 
 
 def generate_mem_config(imem_path: Path, dmem_arg: Path | None) -> None:
-    validate_mem_file(imem_path, "IMEM")
-    dmem_path = resolve_dmem_path(dmem_arg)
+    dmem_path = "" if dmem_arg is None else str(dmem_arg)
     header_content = render_mem_config(imem_path, dmem_path)
     write_header_file(header_content)
 
-    dmem_status = dmem_path if dmem_path else "(empty - data memory zero-initialized)"
+    dmem_status = dmem_path if dmem_path else "(empty — data memory zero-initialized)"
     print(f"[gen_mem_config] Written: {OUTPUT_PATH}")
     print(f"[gen_mem_config]   IMEM_FILE = {imem_path}")
     print(f"[gen_mem_config]   DMEM_FILE = {dmem_status}")

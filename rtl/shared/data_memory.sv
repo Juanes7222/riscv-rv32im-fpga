@@ -18,9 +18,7 @@ module data_memory #(
 
     initial begin
         `ifdef DMEM_FILE
-            if (`DMEM_FILE != "") begin
-                $readmemh(`DMEM_FILE, mem);
-            end
+            $readmemh(`DMEM_FILE, mem);
         `endif
     end
 

@@ -28,6 +28,8 @@ set_global_assignment -name DEVICE           $device
 set_global_assignment -name TOP_LEVEL_ENTITY $top_level
 
 # Add RTL source files
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+
 # Glob picks up all .sv files so new modules are included automatically.
 foreach sv_file [glob -nocomplain "$rtl_shared/*.sv"] {
     set_global_assignment -name SYSTEMVERILOG_FILE $sv_file
