@@ -32,8 +32,11 @@ DMEM_DEPTH := 1024
 
 BUILD_DIR ?= build
 
-IMEM_MEM ?= $(BUILD_DIR)/imem.mem
-DMEM_MEM ?= $(BUILD_DIR)/dmem.mem
+# Entry point for the flash pipeline. Override with: make flash ELF=path/to/program.elf
+ELF ?=
+
+IMEM_MEM = $(BUILD_DIR)/imem.mem
+DMEM_MEM = $(BUILD_DIR)/dmem.mem
 
 MEM_CONFIG_VH = rtl/shared/mem_config.vh
 
@@ -71,6 +74,24 @@ build: check-project $(MEM_CONFIG_VH)
 	@SECONDS=0; \
 	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
+
+
+# Full pipeline: ELF -> .bin -> .mem -> mem_config.vh -> synthesis -> program FPGA
+.PHONY: flash
+flash: check-elf check-project
+	@echo "[$(ARCH)] Flashing program: $(ELF)"
+	@mkdir -p $(BUILD_DIR)
+	riscv-none-elf-objcopy -O binary $(ELF) $(BUILD_DIR)/program.bin
+	python3 scripts/elf_to_mem.py $(BUILD_DIR)/program.bin $(IMEM_DEPTH) $(IMEM_MEM)
+	python3 scripts/elf_to_mem.py $(BUILD_DIR)/program.bin $(DMEM_DEPTH) $(DMEM_MEM)
+	python3 scripts/gen_mem_config.py \
+		--imem $$(wslpath -w $(abspath $(IMEM_MEM)) | tr '\\\\' '/') \
+		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/')
+	@SECONDS=0; \
+	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
+	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
+	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t program.tcl
+	@echo "[$(ARCH)] Flash complete: $(ELF)"
 
 
 .PHONY: replicas
@@ -215,11 +236,28 @@ rebuild: clean build
 .PHONY: mem
 mem: $(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem
 
+$(BUILD_DIR)/program.bin: check-elf
+	@mkdir -p $(BUILD_DIR)
+	riscv-none-elf-objcopy -O binary $(ELF) $@
+
 $(BUILD_DIR)/imem.mem: $(BUILD_DIR)/program.bin
 	python3 scripts/elf_to_mem.py $< $(IMEM_DEPTH) $@
 
 $(BUILD_DIR)/dmem.mem: $(BUILD_DIR)/program.bin
 	python3 scripts/elf_to_mem.py $< $(DMEM_DEPTH) $@
+
+
+.PHONY: check-elf
+check-elf:
+	@if [ -z "$(ELF)" ]; then \
+		echo "Error: ELF is not set."; \
+		echo "Usage: make flash ELF=path/to/program.elf"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(ELF)" ]; then \
+		echo "Error: ELF file not found: $(ELF)"; \
+		exit 1; \
+	fi
 
 
 .PHONY: check-sof
@@ -243,15 +281,16 @@ check-project:
 .PHONY: help
 help:
 	@echo ""
-	@echo "Usage: make <target> [ARCH=single_cycle|pipeline] [N_REPLICAS=5]"
+	@echo "Usage: make <target> [ARCH=single_cycle|pipeline] [N_REPLICAS=5] [ELF=path]"
 	@echo ""
 	@echo "  ARCH defaults to 'single_cycle' if not specified."
 	@echo ""
-	@echo "Synthesis"
+	@echo "Synthesis & Flash"
+	@echo "  flash ELF=<path>   Full pipeline: ELF → .mem → synthesis → program FPGA"
 	@echo "  setup              Create Quartus project (run once per arch)"
-	@echo "  sync               Re-register RTL source files after adding modules"
+	@echo "  sync               Re-register RTL source files after adding new modules"
 	@echo "  sync-all           Sync both architectures"
-	@echo "  build              Single synthesis run"
+	@echo "  build              Single synthesis run (requires .mem files)"
 	@echo "  replicas           Run N_REPLICAS synthesis runs, extract Fmax"
 	@echo "  rebuild            Clean then build"
 	@echo ""
@@ -259,6 +298,9 @@ help:
 	@echo "  program            Program FPGA via TCL script (no rebuild)"
 	@echo "  program-direct     Program FPGA via quartus_pgm directly"
 	@echo "  build-program      Build then program"
+	@echo ""
+	@echo "Memory"
+	@echo "  mem ELF=<path>     Generate .mem files from ELF without synthesizing"
 	@echo ""
 	@echo "Verification"
 	@echo "  verify             Run architecture-specific cocotb tests"

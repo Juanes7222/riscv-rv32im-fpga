@@ -25,6 +25,8 @@ puts ""
 puts "Opening project: $project_name"
 project_open $project_name
 
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+
 puts "Starting compilation..."
 set start_time [clock seconds]
 
