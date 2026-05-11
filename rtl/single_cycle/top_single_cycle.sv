@@ -1,7 +1,13 @@
 module top_single_cycle (
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
-    output logic [9:0] ledr       // pc[9:0]
+    output logic [9:0] ledr,       // pc[9:0]
+    output logic [6:0] seven_seg_display0, // Connect to your 7-segment display output
+    output logic [6:0] seven_seg_display1,
+    output logic [6:0] seven_seg_display2,
+    output logic [6:0] seven_seg_display3,
+    output logic [6:0] seven_seg_display4,
+    output logic [6:0] seven_seg_display5
 );
 
     localparam [4:0] ALU_DIV  = 5'b01110;
@@ -202,5 +208,36 @@ module top_single_cycle (
         .dm_ctrl (dm_ctrl),
         .rd_data (dm_rd_data)
     );
+
+    seven_segment u_seven_seg0 (
+        .val     (instruction[3:0]), // Display opcode[3:0] on 7-segment
+        .display (seven_seg_display0)
+    );
+
+    seven_segment u_seven_seg1 (
+        .val     (instruction[7:4]), 
+        .display (seven_seg_display1)
+    );
+
+    seven_segment u_seven_seg2 (
+        .val     (instruction[11:8]),
+        .display (seven_seg_display2)
+    );
+
+    seven_segment u_seven_seg3 (
+        .val     (instruction[15:12]),
+        .display (seven_seg_display3)
+    );
+
+    seven_segment u_seven_seg4 (
+        .val     (instruction[19:16]),
+        .display (seven_seg_display4)
+    );
+
+    seven_segment u_seven_seg5 (
+        .val     (instruction[23:20]),
+        .display (seven_seg_display5)
+    );
+
 
 endmodule
