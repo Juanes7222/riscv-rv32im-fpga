@@ -145,8 +145,8 @@ verify:
 
 .PHONY: verify-common
 verify-common:
-	@echo "Running shared RV32IM instruction tests..."
-	@$(MAKE) -C $(VERIF_COMMON_DIR)
+	@echo "Running shared RV32IM instruction tests (ARCH=[$(ARCH)])..."
+	@$(MAKE) -C $(VERIF_COMMON_DIR) TOPLEVEL=$(if $(filter pipeline,$(ARCH)),top_pipeline,top_single_cycle)
 
 
 .PHONY: verify-all
