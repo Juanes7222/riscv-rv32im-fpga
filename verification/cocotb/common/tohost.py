@@ -5,7 +5,7 @@ from typing import Union
 
 from elftools.elf.elffile import ELFFile
 import cocotb
-from cocotb.triggers import RisingEdge
+from cocotb.triggers import RisingEdge, FallingEdge
 
 MAX_CYCLES_DEFAULT = 200_000
 TOHOST_PASS_VALUE  = 1
@@ -28,7 +28,38 @@ def get_tohost_addr(elf_path: Union[str, pathlib.Path]) -> int:
         return symbols[0].entry["st_value"]
 
 
-def generate_mem_for_elf(elf_path: pathlib.Path) -> None:
+def _elf_to_raw_binary(elf_path: pathlib.Path, bin_path: pathlib.Path) -> None:
+    """Generate a raw memory image from ELF PT_LOAD segments without objcopy."""
+    with open(elf_path, "rb") as f:
+        elf = ELFFile(f)
+        load_segments = [s for s in elf.iter_segments() if s["p_type"] == "PT_LOAD"]
+
+        if not load_segments:
+            raise RuntimeError(f"No PT_LOAD segments in {elf_path}")
+
+        starts = []
+        ends = []
+        for seg in load_segments:
+            start = int(seg["p_paddr"] or seg["p_vaddr"])
+            end = start + int(seg["p_filesz"])
+            starts.append(start)
+            ends.append(end)
+
+        base = min(starts)
+        limit = max(ends)
+        image = bytearray(limit - base)
+
+        for seg in load_segments:
+            start = int(seg["p_paddr"] or seg["p_vaddr"])
+            data = seg.data()
+            off = start - base
+            image[off:off + len(data)] = data
+
+    with open(bin_path, "wb") as out:
+        out.write(image)
+
+
+def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     """
     Convert an ELF to imem.mem + dmem.mem and regenerate mem_config.vh.
     Invokes the same scripts used by 'make flash' in the root Makefile.
@@ -44,10 +75,9 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> None:
 
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
-    subprocess.run(
-        ["riscv-none-elf-objcopy", "-O", "binary", str(elf_path), str(bin_path)],
-        check=True,
-    )
+    # Build raw binary from ELF in pure Python to avoid host objcopy dependency.
+    _elf_to_raw_binary(elf_path, bin_path)
+
     subprocess.run(
         ["python3", str(SCRIPTS_ROOT / "elf_to_mem.py"),
          str(bin_path), str(imem_depth), str(imem_path)],
@@ -64,7 +94,45 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> None:
          "--dmem", str(dmem_path)],
         check=True,
     )
+    return imem_path, dmem_path
 
+
+def _parse_mem_file(mem_file: pathlib.Path) -> list[int]:
+    words = []
+    with open(mem_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("//"):
+                words.append(int(line, 16))
+    return words
+
+def _write_mem_array(mem_handle, words: list[int]) -> None:
+    for addr, word in enumerate(words):
+        mem_handle[addr].value = word
+
+async def _apply_reset(dut, reset_cycles: int = 5) -> None:
+    # Assert active-low reset, hold for `reset_cycles` clocks, then deassert.
+    dut.rst_n.value = 0
+    for _ in range(reset_cycles):
+        await RisingEdge(dut.clk)
+    dut.rst_n.value = 1
+    await RisingEdge(dut.clk)
+
+def reload_memories(dut, imem_path: pathlib.Path, dmem_path: pathlib.Path) -> None:
+    imem_words = _parse_mem_file(imem_path)
+    dmem_words = _parse_mem_file(dmem_path)
+    _write_mem_array(dut.u_imem.mem, imem_words)
+    _write_mem_array(dut.u_dmem.mem, dmem_words)
+
+async def reset_and_reload_memories(
+    dut,
+    imem_path: pathlib.Path,
+    dmem_path: pathlib.Path,
+    reset_cycles: int = 5,
+) -> None:
+    await _apply_reset(dut, reset_cycles)
+    reload_memories(dut, imem_path, dmem_path)
+    await _apply_reset(dut, reset_cycles)
 
 async def monitor_tohost(
     dut,
@@ -80,15 +148,28 @@ async def monitor_tohost(
         str(testnum) — tohost written with failure code; TESTNUM = value >> 1
     """
     tohost_byte_addr = get_tohost_addr(elf_path)
-    tohost_word_addr = tohost_byte_addr >> 2  # DMEM is word-addressed (ADR 021)
+    tohost_word_addr = tohost_byte_addr >> 2
 
+    # In single-cycle designs dm_wr/addr/data are combinational for the
+    # current instruction and can change right after the rising edge when PC
+    # advances. Sample on falling edge to observe stable intent for the write.
     for _ in range(max_cycles):
-        await RisingEdge(dut.clk)
-        if (int(dut.dmwr.value)    == 1 and
-                int(dut.dm_addr.value) == tohost_word_addr):
+        await FallingEdge(dut.clk)
+        try:
+            dm_wr = int(dut.dm_wr.value)
+            dm_addr_val = int(dut.dm_addr.value)
+        except Exception:
+            dm_wr = 0
+            dm_addr_val = -1
+
+        addr_matches = (dm_addr_val == tohost_byte_addr or dm_addr_val == tohost_word_addr)
+
+        if dm_wr == 1 and addr_matches:
             written = int(dut.dm_wdata.value)
             if written == TOHOST_PASS_VALUE:
                 return "pass"
             return str(written >> 1)
+
+        await RisingEdge(dut.clk)
 
     return "timeout"

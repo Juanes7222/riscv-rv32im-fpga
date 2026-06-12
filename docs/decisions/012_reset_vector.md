@@ -42,7 +42,8 @@ register is loaded with `32'h0000_0000`.
 - The riscv-tests suite requires a custom linker script (provided in
   `verification/riscv-tests/`) that overrides the default base address.
 - `ecall`/`tohost` termination convention: riscv-tests signal completion by
-  writing a result code to a `tohost` symbol. The cocotb testbench monitors
-  the data memory write address for a write to `tohost` (defined in the linker
-  script) to determine pass/fail. This does not require `ecall` to be
-  implemented.
+  executing `ecall` from user mode. The trap handler installed at boot time
+  (`mtvec`) writes the result code to a `tohost` symbol. The cocotb testbench
+  monitors the data memory write address for a write to `tohost` (defined
+  in the linker script) to determine pass/fail. The processor therefore
+  must implement a minimal CSR file and trap mechanism — see ADR 030.

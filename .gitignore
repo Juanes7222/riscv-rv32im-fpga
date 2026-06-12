@@ -288,3 +288,25 @@ Thumbs.db
 .idea/
 
 .vh*
+
+# =============================================================================
+# Ad-hoc debug / VCD analysis scripts and intermediate outputs
+# (Kept out of the tree: these are throwaway tools, not part of the project)
+# =============================================================================
+/analyze_*.py
+/parse_vcd.py
+/readbin.py
+/vcd_parsed.txt
+*_vcd_parsed.txt
+/add_dump.txt
+/find_oob.py
+/trace_jumps.py
+/parse_vcd_dm.py
+
+# =============================================================================
+# AI-tool local configuration (opencode / similar)
+# These are per-developer files, not part of the project.
+# =============================================================================
+/AGENTS.md
+/opencode.json
+/.opencode/

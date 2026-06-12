@@ -62,12 +62,7 @@ def read_words_from_binary(bin_path: Path) -> list[str]:
     raw_bytes = bin_path.read_bytes()
     word_count = len(raw_bytes) // WORD_SIZE_BYTES
     return [
-        raw_bytes[i * WORD_SIZE_BYTES : (i + 1) * WORD_SIZE_BYTES]
-        .hex()  # raw little-endian bytes → hex string, no byteswap needed
-        # objcopy -O binary preserves the in-memory byte order of the ELF
-        # sections. RV32I stores instructions little-endian, so the byte
-        # sequence [b0 b1 b2 b3] in the .bin maps directly to the 32-bit
-        # little-endian word that $readmemh expects.
+        raw_bytes[i * WORD_SIZE_BYTES : (i + 1) * WORD_SIZE_BYTES][::-1].hex()
         for i in range(word_count)
     ]
 

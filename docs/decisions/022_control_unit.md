@@ -72,10 +72,14 @@ regardless of `funct7[5]`. The ternary chain `funct7[0] ? ALU_DIVU : funct7[5]
   M opcodes are enabled in the control unit only after rv32ui tests pass. The
   structural decode is correct and complete from the first commit; the
   iteration boundary is a verification milestone, not an RTL change.
-- `ecall`, `ebreak`, and all CSR instructions fall into the `default` branch:
-  `ru_wr = 0`, `dm_wr = 0`, `br_op = {BR_NONE, 3'b000}`. This is a safe
-  no-op. riscv-tests pass/fail detection uses the `tohost` memory write
-  convention (ADR 012), not `ecall` execution.
+- **`ecall`, `ebreak`, and CSR instructions are no longer NOPs.** As of
+  ADR 030, the `OP_SYSTEM` opcode is fully decoded: `ECALL`/`EBREAK`
+  assert `trap_entry`, `MRET` asserts `mret_exec`, and CSR read/write
+  instructions produce `csr_addr`, `csr_op`, `csr_imm`, `csr_wr_raw`
+  for the `csr_file` module. The original "safe no-op" behaviour from
+  this ADR's first version caused all riscv-tests to time out because
+  the `env/p/` boot flow depends on `ECALL` triggering the trap
+  handler that writes `tohost`. See ADR 030 for the full design.
 - `dm_ctrl` is driven as `funct3` in the default section. For non-memory
   instructions, `dm_ctrl` is a don't-care because `dm_wr = 0` and
   `ru_data_wr_src != WB_MEM`. Setting it to `funct3` in the default avoids

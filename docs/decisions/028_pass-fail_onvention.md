@@ -16,9 +16,10 @@ value to the `tohost` symbol:
   index of the failing assertion (always ≥ 3, so the written value is ≥ 3)
 
 After writing `tohost`, the test enters an infinite loop (`j _done`). The
-processor does not implement `ecall` or any trap mechanism. Pass/fail detection
-must therefore be performed by the testbench by observing the data memory write
-bus.
+`tohost` write is performed by the trap handler that the boot code installs
+at `mtvec`; the test itself executes `ecall` (see ADR 030). The testbench
+monitors the data memory write bus for a write to the `tohost` symbol to
+determine pass/fail.
 
 The `tohost` symbol address is fixed by the linker script (ADR 027). Its byte
 address equals `_end - 4`, but the exact value depends on the size of each

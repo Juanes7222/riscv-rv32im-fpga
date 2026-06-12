@@ -18,9 +18,11 @@ mis-fetch.
 The suite provides individual assembly test files (`rv32ui/`, `rv32um/`) and a
 shared `env/p/` environment (bare-metal, no virtual memory) that already
 contains the framework macros (`RVTEST_RV32U`, `TESTNUM`, `RVTEST_PASS`,
-`RVTEST_FAIL`). The `env/p/` environment writes a result code to a symbol named
-`tohost` and then loops forever. The processor does not need to implement
-`ecall`; the testbench monitors the write address on the data bus.
+`RVTEST_FAIL`). The `env/p/` environment signals completion with `ecall`;
+the trap handler installed at boot time writes the result code to a symbol
+named `tohost` and then loops forever. The processor **must** implement
+`ecall`/`mret` and a minimal CSR file (`mtvec`, `mepc`, `mcause`,
+`mstatus.MPP`) — see ADR 030.
 
 The only change required is the base address in the linker script.
 

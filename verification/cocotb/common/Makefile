@@ -1,12 +1,13 @@
-TOPLEVEL_LANG = verilog
-SIM           = icarus
-TOPLEVEL     ?= top_single_cycle
-MODULE        = tests.test_rv32i tests.test_rv32m
+TOPLEVEL_LANG        = verilog
+SIM                  = icarus
+TOPLEVEL            ?= top_single_cycle
+COCOTB_TEST_MODULES  = test_rv32i,test_rv32m
 
 REPO_ROOT    = $(shell git rev-parse --show-toplevel)
 RTL_ROOT     = $(REPO_ROOT)/rtl
 SCRIPTS_ROOT = $(REPO_ROOT)/scripts
 BUILD_DIR    = $(REPO_ROOT)/build
+MEM_CONFIG   = $(RTL_ROOT)/shared/mem_config.vh
 
 VERILOG_SOURCES = \
     $(RTL_ROOT)/shared/instruction_memory.sv \
@@ -16,22 +17,33 @@ VERILOG_SOURCES = \
     $(RTL_ROOT)/shared/branch_unit.sv \
     $(RTL_ROOT)/shared/imm_gen.sv \
     $(RTL_ROOT)/shared/perf_counter.sv \
+    $(RTL_ROOT)/shared/seven_segment.sv \
+    $(RTL_ROOT)/shared/csr_file.sv \
     $(RTL_ROOT)/single_cycle/control_unit.sv \
-    $(RTL_ROOT)/single_cycle/pc_unit.sv \
+    $(RTL_ROOT)/single_cycle/pc.sv \
     $(RTL_ROOT)/single_cycle/top_single_cycle.sv
 
-COMPILE_ARGS  = -I$(RTL_ROOT)/shared
+COMPILE_ARGS = -I$(RTL_ROOT)/shared
 
+export COCOTB_PYTHONPATH := $(shell pwd)
 export REPO_ROOT
 export SCRIPTS_ROOT
 export BUILD_DIR
-export RTL_SHARED = $(RTL_ROOT)/shared
-
-$(RTL_ROOT)/shared/mem_config.vh:
-    python3 $(SCRIPTS_ROOT)/gen_mem_config.py \
-        --imem $(BUILD_DIR)/imem.mem \
-        --dmem $(BUILD_DIR)/dmem.mem
-
-pre-sim: $(RTL_ROOT)/shared/mem_config.vh
+export RTL_SHARED  = $(RTL_ROOT)/shared
+export IMEM_DEPTH  = 16384
+export DMEM_DEPTH  = 8192
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+sim_build/sim.vvp: $(MEM_CONFIG)
+
+$(MEM_CONFIG): FORCE
+	@FIRST_ELF=$$(ls $(BUILD_DIR)/riscv-tests/rv32ui/*.elf 2>/dev/null | head -1); \
+	if [ -z "$$FIRST_ELF" ]; then \
+	    echo "ERROR: No ELFs in $(BUILD_DIR)/riscv-tests/rv32ui/"; exit 1; \
+	fi; \
+        echo "skip" \
+        python3 $(SCRIPTS_ROOT)/gen_mem_config.py --imem $(BUILD_DIR)/imem.mem --dmem $(BUILD_DIR)/dmem.mem --out $(MEM_CONFIG) \
+sim: $(MEM_CONFIG)
+
+FORCE:

@@ -30,3 +30,11 @@ the original, and both remain in the index.
 | [020](020_data_memory_async_read.md) | Data Memory: Asynchronous Read | Accepted | — |
 | [021](021_data_memory_organization.md) | Data Memory: Word-Addressed Organization with Byte Enables | Accepted | — |
 | [022](022_control_unit.md) | Control Unit: Interface and Implementation | Accepted | — |
+| [023](023_wr_en_gated.md) | Register File Write Inhibit During Division | Accepted | — |
+| [024](024_perf_counters.md) | Performance Counters | Accepted | — |
+| [025](025_mem_init_define.md) | Memory Initialization via `define Macros | Accepted | — |
+| [026](026_signaltap_metric_extraction.md) | SignalTap Metric Extraction | Accepted | — |
+| [027](027_riscv-tests_compilation.md) | riscv-tests Compilation for Reset Vector 0x00000000 | Accepted | — |
+| [028](028_pass-fail_onvention.md) | Pass/Fail Convention: tohost Symbol Monitoring in cocotb | Accepted | — |
+| [029](029_cocotb_directory_structure.md) | cocotb Directory Structure | Accepted | — |
+| [030](030_csr_and_trap_handling.md) | CSR File and Minimal Trap Handling (ECALL / MRET) | Accepted | — |
