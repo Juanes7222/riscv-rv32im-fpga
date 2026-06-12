@@ -38,3 +38,4 @@ the original, and both remain in the index.
 | [028](028_pass-fail_onvention.md) | Pass/Fail Convention: tohost Symbol Monitoring in cocotb | Accepted | — |
 | [029](029_cocotb_directory_structure.md) | cocotb Directory Structure | Accepted | — |
 | [030](030_csr_and_trap_handling.md) | CSR File and Minimal Trap Handling (ECALL / MRET) | Accepted | — |
+| [031](031_m_extension_test_failures_and_fsm_correction.md) | M-Extension Test Failures and Division FSM Correction | Accepted | supersedes parts of [008](008_m_extension_implementation.md), [019](019_alu_rv32im.md), [023](023_wr_en_gated.md) |

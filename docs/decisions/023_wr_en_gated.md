@@ -1,7 +1,8 @@
 # ADR 023 — Register File Write Inhibit During Division (wr_en_gated)
 
-**Status:** Accepted (updated 2026-05-02 — uses div_done instead of div_busy gate)  
+**Status:** Accepted (updated 2026-06-12 — timing tables superseded by ADR 031)  
 **Date:** 2026-05-02
+**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) — the cycle-by-cycle analysis below is replaced by the corrected timing in ADR 031. In particular, the corner-case CPI is now 2 (not 1), and the `div_busy` formula is `(div_state != DIV_IDLE) || (is_div_op & ~div_processed)`, not `(div_state != DIV_IDLE)`. The normative signal definition of `wr_en_gated = ru_wr & (~is_div | div_done)` is unchanged.
 
 ## Context
 

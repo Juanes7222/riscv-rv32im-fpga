@@ -1,7 +1,8 @@
 # ADR 019 — ALU RV32IM: Interface, MULHSU, and Division Strategy
 
-**Status:** Accepted (updated 2026-05-02 — div_done port added; Quartus synthesis correction)  
+**Status:** Accepted (updated 2026-06-12 — division FSM corrected per ADR 031)  
 **Date:** 2026-05-02
+**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) — the division FSM, the `div_done` timing table, the `div_busy` formula, the combinational `next_quotient` / `next_partial` signals, and the corner-case CPI (now 2, not 1) are all governed by ADR 031. The combinational multiplier, the MULHSU 33-bit approach, the module interface (`clk`, `rst_n`, `div_busy`, `div_done` ports), and the radix-2 restoring algorithm description remain as stated here.
 
 ## Context
 

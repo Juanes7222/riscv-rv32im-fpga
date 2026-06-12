@@ -2,8 +2,8 @@ import pathlib
 
 import cocotb
 
-from tohost import generate_mem_for_elf, reload_memories, monitor_tohost, REPO_ROOT
-from conftest import apply_reset
+from tohost import generate_mem_for_elf, reset_and_reload_memories, monitor_tohost, REPO_ROOT
+from conftest import start_clock, apply_reset
 
 _TESTS_DIR = REPO_ROOT / "build" / "riscv-tests" / "rv32um"
 
@@ -26,10 +26,11 @@ def _make_test(test_name: str, max_cycles: int):
                 f"ELF not found: {elf}\n"
                 f"Run 'make -C verification/riscv-tests all' first."
             )
+        await start_clock(dut)
         imem_path, dmem_path = generate_mem_for_elf(elf)
-        reload_memories(dut, imem_path, dmem_path)
+        await reset_and_reload_memories(dut, imem_path, dmem_path)
         await apply_reset(dut)
-        result = await monitor_tohost(dut, elf)
+        result = await monitor_tohost(dut, elf, max_cycles=max_cycles)
         assert result == "pass", (
             f"[rv32m/{test_name}] "
             + (f"FAIL at TESTNUM={result}" if result != "timeout" else "TIMEOUT")

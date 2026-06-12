@@ -1,7 +1,8 @@
 # ADR 008 — Combinational Multiplier, Multi-Cycle Divisor for Extension M
 
-**Status:** Accepted (updated 2026-04-24 to specify divisor algorithm)  
+**Status:** Accepted (updated 2026-04-24 to specify divisor algorithm; updated 2026-06-12 to reflect FSM correction)  
 **Date:** 2026-04-24
+**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) — the corner-case CPI for division-by-zero and signed overflow is 2 (one fetch + one `DIV_DONE` writeback cycle), not 1 as stated in the original "Corner cases" section. The radix-2 restoring algorithm sketch and the CPI = 34 figure for normal division remain correct.
 
 ## Context
 
@@ -59,8 +60,11 @@ specification.
 
 **CPI contribution:**
 A DIV instruction causes the PC to stall for 32 cycles. The effective CPI for
-a DIV instruction is 33 (1 cycle for the instruction itself + 32 stall cycles).
+a DIV instruction is 34 (1 cycle for the fetch/issue + 1 cycle for the
+writeback in `DIV_DONE` + 32 cycles of `DIV_RUNNING`).
 This must be reported explicitly in the experimental results.
+See [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) for the
+full cycle-by-cycle breakdown.
 
 ## Rationale
 
@@ -92,5 +96,12 @@ the five synthesis replicas.
   hazard unit (pipeline) to implement stalling.
 - Division corner cases per RISC-V specification (division by zero, signed
   overflow) are handled before the iterative algorithm begins, returning the
-  specified values in 1 cycle with `div_busy` de-asserted immediately.
-  This avoids running 32 cycles of unnecessary computation for a known result.
+  specified values in 2 cycles: one fetch cycle in `DIV_IDLE` that latches
+  `div_result` and transitions to `DIV_DONE` (with `div_done_r` set), and
+  one writeback cycle in `DIV_DONE` (with the PC held and `wr_en_gated`
+  armed) before the FSM returns to `DIV_IDLE`. The `div_busy` signal is
+  asserted for both of these cycles, then de-asserted. This avoids running
+  32 cycles of unnecessary computation for a known result while keeping
+  the writeback cycle on a state where the DIV's `rd_addr` is still valid
+  in the pipeline. See [ADR 031](031_m_extension_test_failures_and_fsm_correction.md)
+  for the corrected timing analysis.
