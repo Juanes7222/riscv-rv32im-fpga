@@ -1,7 +1,7 @@
 TOPLEVEL_LANG        = verilog
 SIM                  = icarus
 TOPLEVEL            ?= top_single_cycle
-COCOTB_TEST_MODULES  = test_rv32i,test_rv32m,test_rv32mi,test_alu_rv32i,test_branch
+COCOTB_TEST_MODULES  = test_rv32i,test_rv32m,test_rv32mi,test_alu_rv32i,test_branch,test_model_vs_dut
 
 REPO_ROOT    = $(shell git rev-parse --show-toplevel)
 RTL_ROOT     = $(REPO_ROOT)/rtl
@@ -25,7 +25,11 @@ VERILOG_SOURCES = \
 
 COMPILE_ARGS = -I$(RTL_ROOT)/shared
 
-export COCOTB_PYTHONPATH := $(shell pwd)
+export COCOTB_PYTHONPATH := $(shell pwd):$(REPO_ROOT)/verification/reference_model
+# cocotb 2.0.1 does not propagate COCOTB_PYTHONPATH to the vvp subprocess;
+# we set PYTHONPATH directly so the embedded Python can import the
+# reference_model package (see ADR 036).
+export PYTHONPATH := $(shell pwd):$(REPO_ROOT)/verification/reference_model:$(PYTHONPATH)
 export REPO_ROOT
 export SCRIPTS_ROOT
 export BUILD_DIR
