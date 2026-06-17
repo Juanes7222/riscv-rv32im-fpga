@@ -4,17 +4,17 @@ Instruction-level cocotb tests for the RV32I branch instructions.
 These tests complement the RV32I ALU instruction tests in test_alu_rv32i.py
 by exercising the branch unit one instruction at a time. Each test:
 
-  1. Drives clk manually (see the "Clock and reset" section below).
-  2. Asserts reset and holds it for two clock cycles.
-  3. Sets the initial register state by writing directly to
+  1. Drives clk manually via the `step_clock` / `reset_dut` helpers
+     imported from conftest (see "Clock and reset" in conftest.py).
+  2. Sets the initial register state by writing directly to
      dut.u_rf.regs[k].
-  4. Writes a single branch instruction into dut.u_imem.mem[0].
-  5. Steps the clock once. The DUT fetches the instruction at PC=0,
+  3. Writes a single branch instruction into dut.u_imem.mem[0].
+  4. Steps the clock once. The DUT fetches the instruction at PC=0,
      evaluates the branch condition, and updates the PC to either
      pc_plus4=4 (fall through) or alu_res=PC+imm (branch taken).
-  6. Asserts that dut.u_pc.pc matches the expected value (4 for fall
+  5. Asserts that dut.u_pc.pc matches the expected value (4 for fall
      through, imm for branch taken).
-  7. Asserts that no register was written, since branch instructions
+  6. Asserts that no register was written, since branch instructions
      do not write back to the register file (the rd field in the
      encoding is unused and the DUT's ru_wr is 0 for OP_BRANCH).
 
@@ -35,12 +35,12 @@ via Python's arithmetic right shift and a final mask.
 ## Clock and reset
 
 The cocotb 2.0 Clock + RisingEdge pattern is unreliable for
-instruction-level tests (see the long comment in test_alu_rv32i.py).
-The pattern used here is identical: start the cocotb Clock (for the
-framework), then drive clk manually inside the test coroutine via
-_step() and _reset(). The two are in sync at 10 ns periods; the
-manual drives win because the test coroutine runs after the Clock
-coroutine yields on every Timer.
+instruction-level tests (see the long comment in conftest.py and
+ADR 034). The pattern used here is identical: start the cocotb Clock
+(for the framework), then drive clk manually inside the test
+coroutine via step_clock() and reset_dut(). The two are in sync at
+10 ns periods; the manual drives win because the test coroutine
+runs after the Clock coroutine yields on every Timer.
 
 ## Hierarchy access
 
@@ -53,30 +53,7 @@ these to top-level ports.
 import cocotb
 from cocotb.triggers import Timer
 
-from conftest import start_clock
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Manual clock driver (duplicated from test_alu_rv32i.py; if a third
-# file needs it, factor into conftest.py)
-# ──────────────────────────────────────────────────────────────────────
-
-async def _step(dut):
-    """Toggle clk for one full period (10 ns)."""
-    dut.clk.value = 0
-    await Timer(5, unit="ns")
-    dut.clk.value = 1
-    await Timer(5, unit="ns")
-
-
-async def _reset(dut, hold_cycles=2):
-    """Assert reset for `hold_cycles` cycles. Does NOT step after deassert."""
-    dut.rst_n.value = 0
-    await Timer(2, unit="ns")
-    for _ in range(hold_cycles):
-        await _step(dut)
-    await Timer(2, unit="ns")
-    dut.rst_n.value = 1
+from conftest import start_clock, step_clock, reset_dut
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -124,7 +101,7 @@ async def _setup_and_execute_branch(dut, instruction, initial_regs, expected_pc)
                    (4 for fall-through, imm for branch taken)
     """
     await start_clock(dut)
-    await _reset(dut, hold_cycles=2)
+    await reset_dut(dut, hold_cycles=2)
 
     # Initialise input registers and the instruction. regs[0] is
     # initialised explicitly because the DUT's reset loop is
@@ -137,7 +114,7 @@ async def _setup_and_execute_branch(dut, instruction, initial_regs, expected_pc)
     dut.u_imem.mem[0].value = instruction
 
     await Timer(2, unit="ns")
-    await _step(dut)
+    await step_clock(dut)
 
     # Assert the PC matches the expected value.
     actual_pc = int(dut.u_pc.pc.value)

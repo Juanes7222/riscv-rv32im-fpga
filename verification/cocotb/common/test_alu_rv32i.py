@@ -4,21 +4,21 @@ Instruction-level cocotb tests for the RV32I ALU operations.
 These tests exercise the ALU instructions one at a time, bypassing
 the riscv-tests ELF loading infrastructure. Each test:
 
-  1. Drives clk manually (the cocotb Clock + RisingEdge pattern
+  1. Drives clk manually via the `step_clock` / `reset_dut` helpers
+     imported from conftest (the cocotb Clock + RisingEdge pattern
      interferes with the register/imem deposits needed for
      instruction-level tests — see the "Clock and reset" section
-     below).
-  2. Asserts reset and holds it for one clock cycle.
-  3. Sets the initial register state by writing directly to
+     in conftest.py and ADR 034).
+  2. Sets the initial register state by writing directly to
      dut.u_rf.regs[k] (the register file instance in top_single_cycle).
-  4. Writes a single instruction into dut.u_imem.mem[0].
-  5. Deasserts reset and steps the clock once, which triggers
-     the DUT to fetch the instruction at PC=0, execute it, and
-     write the result back to the destination register.
-  6. Reads the destination register via dut.u_rf.regs[rd] and
+  3. Writes a single instruction into dut.u_imem.mem[0].
+  4. Steps the clock once, which triggers the DUT to fetch the
+     instruction at PC=0, execute it, and write the result back
+     to the destination register.
+  5. Reads the destination register via dut.u_rf.regs[rd] and
      asserts it equals the expected value (computed from the ISA
      spec).
-  7. Asserts that all other registers (except those set as inputs)
+  6. Asserts that all other registers (except those set as inputs)
      are 0, catching accidental writes.
 
 This style complements the riscv-tests suite (test_rv32i.py):
@@ -35,21 +35,11 @@ the right results for individual operations.
 
 ## Clock and reset
 
-The cocotb 2.0 Clock coroutine toggles the clock in the background.
-When the test code writes to a register (`dut.u_rf.regs[k].value = v`)
-or to the imem (`dut.u_imem.mem[0].value = instr`), the deposit is
-applied at the next simulator event. If the cocotb Clock toggles
-the clock *before* the deposit is applied, the DUT samples the
-old (un-deposited) values at the rising edge and the test fails
-mysteriously (regs[dest] stays 0, PC stays 0).
-
-The fix is to drive the clock manually inside the test coroutine.
-A manual `dut.clk.value = 0; await Timer(5, ns); dut.clk.value = 1;
-await Timer(5, ns)` is a fully synchronous sequence: the test
-yields the simulator exactly once per toggle, and the deposit
-is guaranteed to be applied before the next toggle because the
-cocotb scheduler processes all pending deposits at each yield
-point.
+Uses the manual clock driver pattern (`step_clock`, `reset_dut`)
+imported from conftest.py. The cocotb Clock is also started via
+`start_clock(dut)` so the framework knows about the clock signal,
+but the manual toggles win because the test coroutine runs after
+the Clock coroutine yields on every Timer.
 
 The riscv-tests layer (test_rv32i.py, test_rv32m.py, test_rv32mi.py)
 does NOT have this problem because it uses `monitor_tohost` to
@@ -66,53 +56,7 @@ require updating the helper layer.
 import cocotb
 from cocotb.triggers import Timer
 
-from conftest import start_clock
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Manual clock driver
-# ──────────────────────────────────────────────────────────────────────
-#
-# The cocotb Clock + RisingEdge pattern is unreliable for instruction-
-# level tests because deposits to dut.u_rf.regs[k] and dut.u_imem.mem[0]
-# are not always applied before the next rising edge fires. The
-# reliable pattern is:
-#
-#   1. Call `await start_clock(dut)` so the cocotb framework knows
-#      about the clock signal (and the cocotb Clock runs in the
-#      background, racing with the manual drives below — the manual
-#      drives "win" because they are in the test coroutine, which
-#      runs after the Clock coroutine yields on every Timer).
-#   2. Manually toggle clk in the test coroutine.
-#   3. Insert a short `await Timer(2, unit="ns")` between operations
-#      to give the simulator time to apply deposits before the next
-#      clock edge.
-#   4. Use `await Timer(5, unit="ns")` between clk=0 and clk=1 to
-#      produce a 10ns clock period.
-
-async def _step(dut):
-    """Toggle clk for one full period (10 ns). The DUT samples its
-    inputs on the rising edge (the second half of this function)."""
-    dut.clk.value = 0
-    await Timer(5, unit="ns")
-    dut.clk.value = 1
-    await Timer(5, unit="ns")
-
-
-async def _reset(dut, hold_cycles=2):
-    """Assert reset and hold for `hold_cycles` clock cycles. Does NOT
-    step the clock after deasserting reset — the test must do that
-    itself, AFTER setting up the state, so that the test instruction
-    is at PC=0 when the DUT exits reset."""
-    dut.rst_n.value = 0
-    await Timer(2, unit="ns")
-    for _ in range(hold_cycles):
-        await _step(dut)
-    await Timer(2, unit="ns")
-    dut.rst_n.value = 1
-    # No trailing step. The DUT is in a known state (PC=0, regs=0,
-    # imem and dmem as initialised by $readmemh or the test setup).
-    # The caller will set the input state and then step the clock.
+from conftest import start_clock, step_clock, reset_dut
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -154,7 +98,7 @@ async def _setup_and_execute(dut, instruction, initial_regs=None,
     initial_regs = initial_regs or {}
 
     # 0. Start the cocotb Clock (needed by the framework). The Clock
-    #    also toggles the clock in the background; the manual _step
+    #    also toggles the clock in the background; the manual step_clock
     #    calls in the test coroutine race with the Clock but the
     #    manual drives win because the test coroutine runs after
     #    the Clock yields on every Timer.
@@ -162,7 +106,7 @@ async def _setup_and_execute(dut, instruction, initial_regs=None,
 
     # 1. Assert reset and hold for 2 cycles. The DUT resets all regs
     #    to 0 and the PC to 0.
-    await _reset(dut, hold_cycles=2)
+    await reset_dut(dut, hold_cycles=2)
 
     # 2. Set the input state and the instruction while rst_n is high
     #    (deasserted) but no clock edge has fired yet. The deposits
@@ -188,9 +132,9 @@ async def _setup_and_execute(dut, instruction, initial_regs=None,
     await Timer(2, unit="ns")
 
     # 3. Step the clock once. This is the cycle that exits reset
-    #    (rst_n=1 was already set by _reset), fetches the instruction
+    #    (rst_n=1 was already set by reset_dut), fetches the instruction
     #    at PC=0, executes it, and writes the result to dest_reg.
-    await _step(dut)
+    await step_clock(dut)
 
     # 4. Assert the destination register holds the expected value.
     if dest_reg is not None:
