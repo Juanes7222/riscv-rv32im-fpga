@@ -39,3 +39,9 @@ the original, and both remain in the index.
 | [029](029_cocotb_directory_structure.md) | cocotb Directory Structure | Accepted | — |
 | [030](030_csr_and_trap_handling.md) | CSR File and Minimal Trap Handling (ECALL / MRET) | Accepted | — |
 | [031](031_m_extension_test_failures_and_fsm_correction.md) | M-Extension Test Failures and Division FSM Correction | Accepted | supersedes parts of [008](008_m_extension_implementation.md), [019](019_alu_rv32im.md), [023](023_wr_en_gated.md) |
+| [032](032_single_cycle_cpi_one_test_layer.md) | Single-Cycle CPI=1 Test Layer (test_cpi_one) | Accepted | implements the test layer called out in [029](029_cocotb_directory_structure.md) |
+| [033](033_rv32mi_test_layer_and_csr_extension.md) | RV32MI Test Layer + CSR Register File Extension | Accepted | extends the CSR file from [030](030_csr_and_trap_handling.md) with 8 additional registers; adds rv32mi cocotb layer |
+| [034](034_instruction_level_cocotb_test_layer.md) | Instruction-Level Cocotb Test Layer (test_alu_rv32i) | Accepted | implements the instruction-level test layer called out in [029](029_cocotb_directory_structure.md) |
+| [035](035_branch_instruction_level_tests.md) | Branch Instruction-Level Tests (test_branch) | Accepted | adds BEQ/BNE/BLT/BGE/BLTU/BGEU tests using the pattern from [034] |
+| [036](036_branch_resolution_ex_predict_not-taken.md) | Branch Resolution in EX with Predict-Not-Taken Policy | Accepted | |
+| [036](037_canonical_pipeline_bubble_instruction.md) | Canonical Bubble Instruction for Pipeline Flush and Stall Insertion | Accepted | |
