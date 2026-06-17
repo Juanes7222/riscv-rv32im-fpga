@@ -1,6 +1,6 @@
 # ADR 030 — CSR File and Minimal Trap Handling (ECALL / MRET)
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-06-12 — CSR register file extended with mscratch, misa, mhartid, mimpid, marchid, mvendorid, mcounteren, mtval per ADR 033)
 **Date:** 2026-06-11
 **Depends on:** ADR 022 (control unit), ADR 027 (riscv-tests boot flow), ADR 028 (tohost convention)
 **Supersedes:** the implicit assumption in ADR 022, ADR 027, and ADR 028 that `ecall` is a NOP.
