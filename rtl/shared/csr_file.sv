@@ -34,7 +34,7 @@ module csr_file (
     output logic [31:0] mepc_value    // mepc for MRET return
 );
 
-    // ── CSR registers ──────────────────────────────────────────────
+    // CSR registers
     logic [31:0] mstatus;
     logic [31:0] misa;          // (0x301) RO. Encodes I+M, XLEN=32
     logic [31:0] mtvec;
@@ -104,7 +104,7 @@ module csr_file (
         endcase
     end
 
-    // ── Sequential CSR updates (writeback / trap entry / MRET) ─────
+    // Sequential CSR updates (writeback / trap entry / MRET)
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             mstatus    <= 32'h00001800;   // MPP = 2'b11 (Machine) per RISC-V spec
@@ -149,7 +149,7 @@ module csr_file (
         end
     end
 
-    // ── Combinational read ─────────────────────────────────────────
+    // Combinational read
     always_comb begin
         case (csr_addr)
             12'h300: csr_rdata = mstatus;
@@ -168,7 +168,7 @@ module csr_file (
         endcase
     end
 
-    // ── Trap target / MRET return address ──────────────────────────
+    // Trap target / MRET return address
     // mtvec MODE[1:0] forced to 00 (direct) — ADR 006.
     // trap_target and mepc_value are output ports, assigned directly.
     assign trap_target = {mtvec[31:2], 2'b00};
