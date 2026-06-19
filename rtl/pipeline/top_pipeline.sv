@@ -306,6 +306,10 @@ module top_pipeline #(
         .id_rs2_addr       (id_rs2_addr),
         .ex_rd_addr        (ex_rd_addr),
         .ex_ru_data_wr_src (ex_ru_data_wr_src),
+        .mem_rd_addr       (mem_rd_addr),
+        .mem_ru_wr         (mem_ru_wr),
+        .wb_rd_addr        (wb_rd_addr),
+        .wb_ru_wr          (wb_ru_wr),
         .div_busy          (ex_div_busy),
         .stall             (stall),
         .load_use          (load_use_hazard)
@@ -449,7 +453,7 @@ module top_pipeline #(
     ex_mem_register u_ex_mem (
         .clk                (clk),
         .rst                (rst),
-        .stall              (stall && !trap_flush),
+        .stall              (ex_div_busy),
         .flush              (trap_flush),
         .ex_alu_result      (ex_alu_result),
         .ex_rs2_data_fwd    (ex_rs2_fwd),
@@ -508,7 +512,7 @@ module top_pipeline #(
     mem_wb_register u_mem_wb (
         .clk                (clk),
         .rst                (rst),
-        .stall              (stall && !trap_flush),
+        .stall              (ex_div_busy),
         .mem_alu_result     (mem_alu_result),
         .mem_dm_rd_data     (mem_dm_rd_data),
         .mem_rs1_data       (mem_rs1_data),
