@@ -8,14 +8,18 @@ instructions, the test steps the clock until the program finishes (e.g.,
 tohost-based finish for riscv-tests) or until the test's expected number
 of cycles has elapsed.
 
-Helpers:
-  - start_clock(dut): start the cocotb Clock in the background.
-  - step_clock(dut): toggle clk for one full 10 ns period.
-  - reset_dut(dut, hold_cycles=2): assert reset, step `hold_cycles` cycles.
+Two clock/reset patterns are provided:
+  - **Manual clock driver** (step_clock, reset_dut): used by the
+    instruction-level smoke tests where exact timing matters.
+  - **Cocotb Clock + RisingEdge** (start_clock, apply_reset): used by
+    the riscv-tests where the test waits for the program to write to
+    tohost. The cocotb Clock toggles clk in the background; RisingEdge
+    yields until the next rising edge.
 
-The `reset_dut` helper does NOT step after deasserting reset, so the test
-can preload state (regs, imem) and then step the clock to execute the
-test instruction.
+The pipeline has more `dmem_depth` than typical for instruction-level
+testing, so the IMEM_DEPTH=16384 and DMEM_DEPTH=8192 env vars in the
+Makefile must match the RTL parameter (and the riscv-tests ELF's load
+segments must fit in 8 KB of data memory).
 """
 import cocotb
 from cocotb.clock import Clock
@@ -25,10 +29,30 @@ CLOCK_PERIOD_NS = 10
 RESET_CYCLES    = 4
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Cocotb Clock + RisingEdge pattern (riscv-tests)
+# ──────────────────────────────────────────────────────────────────────
+
 async def start_clock(dut) -> None:
     """Start the cocotb Clock coroutine. Runs in the background."""
     cocotb.start_soon(Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns").start())
 
+
+async def apply_reset(dut) -> None:
+    """Assert active-low reset for RESET_CYCLES cycles, then deassert.
+
+    Used by the riscv-tests. Uses RisingEdge so the test waits for the
+    cocotb Clock to actually toggle."""
+    dut.rst_n.value = 0
+    for _ in range(RESET_CYCLES):
+        await RisingEdge(dut.clk)
+    dut.rst_n.value = 1
+    await RisingEdge(dut.clk)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Manual clock driver (instruction-level tests)
+# ──────────────────────────────────────────────────────────────────────
 
 async def step_clock(dut) -> None:
     """Toggle clk for one full period (10 ns)."""

@@ -1,7 +1,7 @@
 TOPLEVEL_LANG        = verilog
 SIM                  = icarus
 TOPLEVEL            ?= top_pipeline
-COCOTB_TEST_MODULES  = test_pipeline_smoke
+COCOTB_TEST_MODULES  = test_pipeline_smoke,test_pipeline_debug,test_pipeline_rv32i,test_pipeline_rv32m,test_pipeline_rv32mi
 
 REPO_ROOT    = $(shell git rev-parse --show-toplevel)
 RTL_ROOT     = $(REPO_ROOT)/rtl
@@ -35,8 +35,8 @@ VERILOG_SOURCES = \
 
 COMPILE_ARGS = -I$(RTL_ROOT)/shared
 
-export COCOTB_PYTHONPATH := $(shell pwd):$(REPO_ROOT)/verification/reference_model
-export PYTHONPATH := $(shell pwd):$(REPO_ROOT)/verification/reference_model:$(PYTHONPATH)
+export COCOTB_PYTHONPATH := $(shell pwd):$(REPO_ROOT)/verification/reference_model:$(REPO_ROOT)/verification/cocotb/common
+export PYTHONPATH := $(shell pwd):$(REPO_ROOT)/verification/reference_model:$(REPO_ROOT)/verification/cocotb/common:$(PYTHONPATH)
 export REPO_ROOT
 export SCRIPTS_ROOT
 export BUILD_DIR
@@ -46,8 +46,10 @@ export DMEM_DEPTH  = 8192
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
-# Generate an empty mem_config so the test doesn't need a pre-built ELF.
-# The test loads instructions directly into dut.u_imem.mem[] via deposit.
+# Generate mem_config for the riscv-tests pipeline run. The
+# test_pipeline_rv32i/rv32m/rv32mi tests invoke gen_mem_config.py
+# themselves (via tohost.generate_mem_for_elf) for each ELF; this target
+# just ensures the file exists for the make-level dependency.
 sim_build/sim.vvp: $(MEM_CONFIG)
 
 $(MEM_CONFIG):

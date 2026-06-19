@@ -121,16 +121,30 @@ async def test_load_use_stall_keeps_load_in_ex(dut):
     dut.u_rf.regs[4].value = 0x42
     # Data memory: write 0xDEADBEEF at word address addr/4.
     dut.u_dmem.mem[addr // 4].value = mem_val
+    # imem is preloaded by the riscv-tests run (add.elf or similar) —
+    # overwrite imem[0..1] with our test program and clear imem[2..3] to
+    # bubbles so the loaded program doesn't interfere.
     dut.u_imem.mem[0].value = lw
-    dut.u_imem.mem[4].value = add
+    dut.u_imem.mem[1].value = add
+    for i in range(2, 8):
+        dut.u_imem.mem[i].value = 0x00000013  # canonical bubble
     await Timer(2, unit="ns")
 
     # Step until both instructions have retired.
     # LW: 5 cycles to retire (cycles 1-5 in pipeline).
     # ADD: 1 stall + 5 cycles to retire (cycles 3-8 in pipeline).
     # Total: 8 cycles minimum; we use 10 for margin.
-    for _ in range(10):
+    for cycle in range(10):
         await step_clock(dut)
+        cocotb.log.info(
+            f"cycle {cycle+1}: "
+            f"if_id={int(dut.u_if_id.id_instruction.value):#010x} "
+            f"id_ex={int(dut.u_id_ex.ex_instruction.value):#010x} "
+            f"ex_mem={int(dut.u_ex_mem.mem_instruction.value):#010x} "
+            f"mem_wb={int(dut.u_mem_wb.wb_instruction.value):#010x} "
+            f"x1={int(dut.u_rf.regs[1].value):#010x} "
+            f"x3={int(dut.u_rf.regs[3].value):#010x}"
+        )
 
     assert int(dut.u_rf.regs[1].value) == mem_val, (
         f"x1 (load result): expected {mem_val:#010x}, "

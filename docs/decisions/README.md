@@ -44,5 +44,7 @@ the original, and both remain in the index.
 | [034](034_instruction_level_cocotb_test_layer.md) | Instruction-Level Cocotb Test Layer (test_alu_rv32i) | Accepted | implements the instruction-level test layer called out in [029](029_cocotb_directory_structure.md) |
 | [035](035_branch_instruction_level_tests.md) | Branch Instruction-Level Tests (test_branch) | Accepted | adds BEQ/BNE/BLT/BGE/BLTU/BGEU tests using the pattern from [034] |
 | [036](036_reference_model.md) | Python Reference Model for RV32IM | Accepted | implements the reference model called out in [029](029_cocotb_directory_structure.md); enables model-vs-DUT differential testing |
+| [039](039_pipeline_critical_bug_fixes.md) | Pipeline Critical Bug Fixes | Accepted | fixes four critical bugs in the 5-stage pipeline (stall/flush separation, register propagation, trap flush); creates smoke tests |
+| [040](040_pipeline_forwarding_hazards.md) | Pipeline Forwarding Hazard Detection (MEM-RAW and WB-RAW) | Accepted | extends hazard detection for non-load RAW hazards; fixes forwarding race for 2-cycle-old producers; 5/65 riscv tests pass |
 | [036](037_canonical_pipeline_bubble_instruction.md) | Canonical Bubble Instruction for Pipeline Flush and Stall Insertion | Accepted | |
 | [036](038_branch_resolution_ex_predict_not-taken.md) | Branch Resolution in EX with Predict-Not-Taken Policy | Accepted | |
