@@ -6,15 +6,12 @@ module hazard_detection_unit (
     input  logic [1:0]  ex_ru_data_wr_src,
     input  logic [4:0]  mem_rd_addr,
     input  logic        mem_ru_wr,
-    input  logic [4:0]  wb_rd_addr,
-    input  logic        wb_ru_wr,
     input  logic        div_busy,
     output logic        stall,
     output logic        load_use
 );
     logic load_use_hazard;
     logic mem_raw_hazard;
-    logic wb_raw_hazard;
 
     always_comb begin
         load_use_hazard = (ex_ru_data_wr_src == 2'b01) &&
@@ -25,11 +22,7 @@ module hazard_detection_unit (
                           (mem_rd_addr != 5'b0) &&
                           ((mem_rd_addr == id_rs1_addr) || (mem_rd_addr == id_rs2_addr));
 
-        wb_raw_hazard = wb_ru_wr &&
-                         (wb_rd_addr != 5'b0) &&
-                         ((wb_rd_addr == id_rs1_addr) || (wb_rd_addr == id_rs2_addr));
-
         load_use = load_use_hazard;
-        stall    = load_use_hazard || mem_raw_hazard || wb_raw_hazard || div_busy;
+        stall    = load_use_hazard || mem_raw_hazard || div_busy;
     end
 endmodule

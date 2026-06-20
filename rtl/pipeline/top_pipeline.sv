@@ -48,6 +48,7 @@ module top_pipeline #(
     // ID decoded fields
     logic [4:0]  id_rs1_addr, id_rs2_addr, id_rd_addr;
     logic [31:0] id_rs1_data, id_rs2_data;
+    logic [31:0] id_rs1_data_wb_fwd, id_rs2_data_wb_fwd;
     logic [31:0] id_imm;
 
     // ID control signals
@@ -272,6 +273,16 @@ module top_pipeline #(
         .rs2_data (id_rs2_data)
     );
 
+    // WB-to-ID forwarding: when the producer is in WB, the register file still
+    // exposes the old value because the write is synchronous.  Capture the
+    // new value directly into ID/EX so the consumer sees it without stalling.
+    always_comb begin
+        id_rs1_data_wb_fwd = (wb_ru_wr && (wb_rd_addr != 5'b0) && (wb_rd_addr == id_rs1_addr))
+                              ? wb_rd_data : id_rs1_data;
+        id_rs2_data_wb_fwd = (wb_ru_wr && (wb_rd_addr != 5'b0) && (wb_rd_addr == id_rs2_addr))
+                              ? wb_rd_data : id_rs2_data;
+    end
+
     imm_gen u_imm_gen (
         .instruction (id_instruction),
         .imm_src     (id_imm_src),
@@ -308,8 +319,6 @@ module top_pipeline #(
         .ex_ru_data_wr_src (ex_ru_data_wr_src),
         .mem_rd_addr       (mem_rd_addr),
         .mem_ru_wr         (mem_ru_wr),
-        .wb_rd_addr        (wb_rd_addr),
-        .wb_ru_wr          (wb_ru_wr),
         .div_busy          (ex_div_busy),
         .stall             (stall),
         .load_use          (load_use_hazard)
@@ -335,8 +344,8 @@ module top_pipeline #(
         .stall             (ex_div_busy),
         .id_pc             (id_pc),
         .id_instruction    (id_instruction),
-        .id_rs1_data       (id_rs1_data),
-        .id_rs2_data       (id_rs2_data),
+        .id_rs1_data       (id_rs1_data_wb_fwd),
+        .id_rs2_data       (id_rs2_data_wb_fwd),
         .id_imm            (id_imm),
         .id_rs1_addr       (id_rs1_addr),
         .id_rs2_addr       (id_rs2_addr),
