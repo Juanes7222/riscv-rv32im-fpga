@@ -22,31 +22,29 @@ _TESTS_DIR = REPO_ROOT / "build" / "riscv-tests" / "rv32mi"
 # used 500_000 as a safe upper bound; the pipeline is the same.
 MAX_CYCLES = 500_000
 
-# Tests that the DUT should pass. Same list as the monocycle — the
-# CSR / trap path is shared between the two implementations.
+# Tests that the DUT should pass. After the WB→ID forwarding fix
+# (Opción A) eliminated the trap_vector desynchronisation, the
+# pipeline now handles all CSR / trap paths correctly, including
+# the cases previously documented as limitations in ADR 030.
 EXPECTED_PASS = [
     "breakpoint",
     "csr",
-    "instret_overflow",
-    "mcsr",
-    "scall",
-    "sh-misaligned",
-    "sw-misaligned",
-    "zicntr",
-]
-
-# Tests the DUT is expected to FAIL on, per ADR 030's documented
-# limitations. The pipeline has the same limitations as the monocycle
-# (no illegal-instruction trap, no misaligned-access trap, etc.).
-EXPECTED_FAIL = [
     "illegal",
+    "instret_overflow",
     "lh-misaligned",
     "lw-misaligned",
     "ma_addr",
     "ma_fetch",
+    "mcsr",
+    "scall",
     "sbreak",
+    "sh-misaligned",
     "shamt",
+    "sw-misaligned",
+    "zicntr",
 ]
+
+EXPECTED_FAIL = []
 
 assert set(EXPECTED_PASS).isdisjoint(set(EXPECTED_FAIL)), (
     "EXPECTED_PASS and EXPECTED_FAIL overlap: "

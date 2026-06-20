@@ -150,22 +150,42 @@ async def monitor_tohost(
     tohost_byte_addr = get_tohost_addr(elf_path)
     tohost_word_addr = tohost_byte_addr >> 2
 
+    # Detect whether the DUT is the single-cycle or the pipelined design.
+    # The pipeline exposes MEM-stage signals; single-cycle exposes top-level
+    # dm_wr/dm_addr/dm_wdata.
+    try:
+        _ = dut.mem_dm_wr
+        _pipeline = True
+    except Exception:
+        _pipeline = False
+
     # In single-cycle designs dm_wr/addr/data are combinational for the
     # current instruction and can change right after the rising edge when PC
     # advances. Sample on falling edge to observe stable intent for the write.
     for _ in range(max_cycles):
         await FallingEdge(dut.clk)
-        try:
-            dm_wr = int(dut.dm_wr.value)
-            dm_addr_val = int(dut.dm_addr.value)
-        except Exception:
-            dm_wr = 0
-            dm_addr_val = -1
+        if _pipeline:
+            try:
+                dm_wr = int(dut.mem_dm_wr.value)
+                dm_addr_val = int(dut.mem_alu_result.value)
+            except Exception:
+                dm_wr = 0
+                dm_addr_val = -1
+        else:
+            try:
+                dm_wr = int(dut.dm_wr.value)
+                dm_addr_val = int(dut.dm_addr.value)
+            except Exception:
+                dm_wr = 0
+                dm_addr_val = -1
 
         addr_matches = (dm_addr_val == tohost_byte_addr or dm_addr_val == tohost_word_addr)
 
         if dm_wr == 1 and addr_matches:
-            written = int(dut.dm_wdata.value)
+            if _pipeline:
+                written = int(dut.mem_rs2_data.value)
+            else:
+                written = int(dut.dm_wdata.value)
             if written == TOHOST_PASS_VALUE:
                 return "pass"
             return str(written >> 1)
