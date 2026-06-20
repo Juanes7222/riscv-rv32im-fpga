@@ -1,14 +1,9 @@
 """
 cocotb tests for the RV32M riscv-tests suite against the pipelined DUT.
 
-Same test binaries as test_rv32m.py in the common/ (single-cycle)
-directory, but with a different test name prefix and the pipeline
-top-level. The pipeline's multi-cycle division stall (ADR 008)
-holds the entire pipeline for 34 cycles per division, so DIV/REM
-tests need a larger cycle budget.
+Same test binaries as test_rv32m.py in the common/ (single-cycle) directory,
+but with a different test name prefix and the pipeline top-level.
 """
-import pathlib
-
 import cocotb
 
 from tohost import generate_mem_for_elf, reset_and_reload_memories, monitor_tohost, REPO_ROOT
@@ -16,12 +11,10 @@ from conftest import start_clock, apply_reset
 
 _TESTS_DIR = REPO_ROOT / "build" / "riscv-tests" / "rv32um"
 
-# DIV stalls: CPI=34 per division instruction (ADR 008). The longest
-# rv32um test (div) executes dozens of divisions → budget accordingly.
-# Single-cycle: ~500K was enough. Pipeline: same budget is fine because
-# the pipeline makes up for the per-instruction overhead.
-MAX_CYCLES_MUL = 500_000
-MAX_CYCLES_DIV = 2_000_000
+# DIV stalls: CPI=34 per division instruction (ADR 008).
+# Most rv32um tests execute dozens of division instances -> budget accordingly.
+MAX_CYCLES_MUL = 200_000
+MAX_CYCLES_DIV = 500_000
 
 _RV32M_MUL_TESTS = ["mul", "mulh", "mulhsu", "mulhu"]
 _RV32M_DIV_TESTS = ["div", "divu", "rem", "remu"]
@@ -35,7 +28,7 @@ def _make_test(test_name: str, max_cycles: int):
         if not elf.exists():
             raise FileNotFoundError(
                 f"ELF not found: {elf}\n"
-                f"Run 'make -C verification/riscv-tests rv32um' first."
+                f"Run 'make -C verification/riscv-tests all' first."
             )
         await start_clock(dut)
         imem_path, dmem_path = generate_mem_for_elf(elf)

@@ -1,7 +1,7 @@
 TOPLEVEL_LANG        = verilog
 SIM                  = icarus
 TOPLEVEL            ?= top_pipeline
-COCOTB_TEST_MODULES  = test_pipeline_smoke,test_pipeline_debug,test_pipeline_rv32i,test_pipeline_rv32m,test_pipeline_rv32mi
+COCOTB_TEST_MODULES  = test_pipeline_smoke,test_pipeline_debug,test_pipeline_rv32i,test_pipeline_rv32m,test_pipeline_rv32mi,test_pipeline_hazards,test_pipeline_control,test_pipeline_cpi
 
 REPO_ROOT    = $(shell git rev-parse --show-toplevel)
 RTL_ROOT     = $(REPO_ROOT)/rtl
