@@ -40,6 +40,11 @@ module top_pipeline #(
     logic [31:0] if_instruction;
     logic [31:0] if_pc_plus4;
 
+    // IMEM address mux: bypass PC register on flush to capture redirect
+    // target immediately (sync IMEM captures at posedge — must see target
+    // during the flush cycle, not one cycle later).
+    logic [31:0] imem_addr;
+
     // IF/ID register outputs                                               //
 
     logic [31:0] id_pc;
@@ -124,13 +129,13 @@ module top_pipeline #(
     logic [1:0]  mem_csr_op;
     logic        mem_csr_imm;
 
-    // MEM stage
-    logic [31:0] mem_dm_rd_data;
+    // MEM stage — DMEM registered output (aligned with MEM/WB outputs)
+    logic [31:0] dmem_rd_data;
 
     // MEM/WB register outputs                                              //
 
     logic [31:0] wb_alu_result;
-    logic [31:0] wb_dm_rd_data;
+    logic [31:0] wb_dm_rd_data_unused;  // retained for MEM/WB port compat only
     logic [31:0] wb_rs1_data;
     logic [4:0]  wb_rd_addr;
     logic [4:0]  wb_rs1_addr;
@@ -171,6 +176,7 @@ module top_pipeline #(
     logic branch_flush;
     logic trap_flush;
     logic flush;
+    logic load_use_hazard;
 
     assign branch_flush = ex_branch_taken;
     assign trap_flush   = wb_trap_entry || wb_mret_exec;
@@ -237,14 +243,21 @@ module top_pipeline #(
         .pc            (if_pc)
     );
 
-    instruction_memory #(
+    // IMEM address: during a flush, feed the redirect target directly
+    // so the synchronous IMEM captures the correct instruction at posedge.
+    // IMEM address: during a flush, feed the redirect target directly.
+    assign imem_addr = flush ? pc_redirect_target : if_pc;
+
+    instruction_memory_pipe #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
-        .addr        (if_pc),
+        .clk         (clk),
+        .addr        (imem_addr),
         .instruction (if_instruction)
     );
 
-    // IF/ID register                                                       //
+    // IF/ID register: captures from if_pc and IMEM combinational output,
+    // both aligned to the same fetch.
     if_id_register u_if_id (
         .clk            (clk),
         .rst            (rst),
@@ -313,15 +326,16 @@ module top_pipeline #(
 
     // Hazard detection unit                                                //
     hazard_detection_unit u_hdu (
-        .id_rs1_addr       (id_rs1_addr),
-        .id_rs2_addr       (id_rs2_addr),
-        .ex_rd_addr        (ex_rd_addr),
-        .ex_ru_data_wr_src (ex_ru_data_wr_src),
-        .mem_rd_addr       (mem_rd_addr),
-        .mem_ru_wr         (mem_ru_wr),
-        .div_busy          (ex_div_busy),
-        .stall             (stall),
-        .load_use          (load_use_hazard)
+        .id_rs1_addr            (id_rs1_addr),
+        .id_rs2_addr            (id_rs2_addr),
+        .ex_rd_addr             (ex_rd_addr),
+        .ex_ru_data_wr_src      (ex_ru_data_wr_src),
+        .mem_rd_addr            (mem_rd_addr),
+        .mem_ru_wr              (mem_ru_wr),
+        .mem_ru_data_wr_src     (mem_ru_data_wr_src),
+        .div_busy               (ex_div_busy),
+        .stall                  (stall),
+        .load_use               (load_use_hazard)
     );
 
     // ID/EX flush: bubble on branch, trap, AND load-use. The standard
@@ -503,7 +517,9 @@ module top_pipeline #(
     );
 
     // MEM stage                                                            //
-    data_memory #(
+    // DMEM synchronous read: rd_data is registered (captured at posedge),
+    // naturally aligned with MEM/WB control outputs in the WB stage.
+    data_memory_pipe #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
         .clk     (clk),
@@ -511,19 +527,21 @@ module top_pipeline #(
         .wr_data (mem_rs2_data),
         .dm_wr   (mem_dm_wr),
         .dm_ctrl (mem_dm_ctrl),
-        .rd_data (mem_dm_rd_data)
+        .rd_data (dmem_rd_data)
     );
 
     // MEM/WB register                                                      //
     // stall: holds current contents during div stall. The trap itself
     // is in WB when trap_flush is asserted, so the trap must be allowed
     // to commit normally — MEM/WB is not flushed.
+    // Note: dm_rd_data bypasses MEM/WB; the DMEM registered output feeds
+    // the WB mux directly.  mem_dm_rd_data is tied to 0 for port compat.
     mem_wb_register u_mem_wb (
         .clk                (clk),
         .rst                (rst),
         .stall              (ex_div_busy),
         .mem_alu_result     (mem_alu_result),
-        .mem_dm_rd_data     (mem_dm_rd_data),
+        .mem_dm_rd_data     ('0),
         .mem_rs1_data       (mem_rs1_data),
         .mem_instruction    (mem_instruction),
         .mem_rd_addr        (mem_rd_addr),
@@ -539,7 +557,7 @@ module top_pipeline #(
         .mem_csr_imm        (mem_csr_imm),
         .mem_rs1_addr       (mem_rs1_addr),
         .wb_alu_result      (wb_alu_result),
-        .wb_dm_rd_data      (wb_dm_rd_data),
+        .wb_dm_rd_data      (wb_dm_rd_data_unused),
         .wb_rs1_data        (wb_rs1_data),
         .wb_instruction     (wb_instruction),
         .wb_rd_addr         (wb_rd_addr),
@@ -599,7 +617,7 @@ module top_pipeline #(
     always_comb begin
         wb_rd_data = wb_alu_result;
         unique case (wb_ru_data_wr_src)
-            WB_MEM:  wb_rd_data = wb_dm_rd_data;
+            WB_MEM:  wb_rd_data = dmem_rd_data;
             WB_PC4:  wb_rd_data = wb_pc_plus4;
             WB_CSR:  wb_rd_data = csr_rdata;
             default: wb_rd_data = wb_alu_result;
