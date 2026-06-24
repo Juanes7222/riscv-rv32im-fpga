@@ -1,4 +1,4 @@
-`include "mem_config.vh"
+`include "../shared/mem_config.vh"
 
 // Data memory: byte-enable writes, asynchronous read, M10K inference target.
 module data_memory #(
@@ -12,7 +12,7 @@ module data_memory #(
     output logic [31:0] rd_data
 );
 
-    logic [31:0] mem [0:DMEM_DEPTH-1];
+    (* ramstyle = "M10K" *) logic [31:0] mem [0:DMEM_DEPTH-1];
 
     initial begin
         `ifdef DMEM_FILE
@@ -20,15 +20,10 @@ module data_memory #(
         `endif
     end
 
-    `ifndef SYNTHESIS
-      task load_imem(input string filename);
-         $readmemh(filename, u_imem.mem);
-      endtask
-
-      task load_dmem(input string filename);
-         $readmemh(filename, u_dmem.mem);
-      endtask
-    `endif
+    // NOTE: load_imem/load_dmem debug tasks removed.
+    // They were in `ifndef SYNTHESIS but Quartus 25.1 still parsed the
+    // hierarchical references (u_imem/u_dmem) causing synthesis errors.
+    // Testbenches load .mem files through the initial block above.
 
     localparam [1:0] WIDTH_BYTE = 2'b00;
     localparam [1:0] WIDTH_HALF = 2'b01;
