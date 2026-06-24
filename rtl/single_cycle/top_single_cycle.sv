@@ -1,4 +1,7 @@
-module top_single_cycle (
+module top_single_cycle #(
+    parameter int IMEM_DEPTH = 16384,
+    parameter int DMEM_DEPTH = 8192
+)(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
     output logic [9:0] ledr,       // pc[9:0]
@@ -182,7 +185,7 @@ module top_single_cycle (
     );
 
     instruction_memory #(
-        .IMEM_DEPTH (16384)
+        .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
         .addr        (pc),
         .instruction (instruction)
@@ -248,7 +251,7 @@ module top_single_cycle (
     );
 
     data_memory #(
-        .DMEM_DEPTH (8192)
+        .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
         .clk     (clk),
         .addr    (alu_res),

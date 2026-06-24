@@ -72,6 +72,14 @@ module alu_rv32im (
     logic        div_neg_quot;
     logic        div_neg_rem;
     logic        div_done_r;
+    
+    // Combinational "next" values for div_quotient/div_partial: the value
+    // they WILL have after this iteration's update. Used on the last
+    // iteration to include the LSB of the quotient in the latched result
+    // (which is otherwise lost because the FSM transitions out of
+    // DIV_RUNNING on the same cycle).
+    logic [31:0] next_quotient;
+    logic [32:0] next_partial;
 
     logic [32:0] sub_res;
     logic [31:0] raw_quot, raw_rem;
@@ -212,13 +220,6 @@ module alu_rv32im (
         end
     end
 
-    // Combinational "next" values for div_quotient/div_partial: the value
-    // they WILL have after this iteration's update. Used on the last
-    // iteration to include the LSB of the quotient in the latched result
-    // (which is otherwise lost because the FSM transitions out of
-    // DIV_RUNNING on the same cycle).
-    logic [31:0] next_quotient;
-    logic [32:0] next_partial;
 
     always_comb begin
         sub_res  = {div_partial_word, div_dividend_msb} - {1'b0, div_divisor};
@@ -234,7 +235,7 @@ module alu_rv32im (
     end
 
     always_comb begin
-        if (div_busy || div_done_r) begin
+        if (div_busy || div_done_r || div_processed) begin
             alu_res = div_result;
         end else begin
             case (alu_op)
