@@ -38,7 +38,6 @@ module top_pipeline #(
 
     logic [31:0] if_pc;
     logic [31:0] if_instruction;
-    logic [31:0] if_pc_plus4;
 
     // IMEM address mux: bypass PC register on flush to capture redirect
     // target immediately (sync IMEM captures at posedge — must see target
@@ -104,10 +103,8 @@ module top_pipeline #(
     logic        ex_branch_taken, ex_mask_pc_lsb;
     logic [31:0] ex_pc_plus4;
 
-    // Division write-enable gate (mirrors ADR 023 from single-cycle)
-    logic        ex_is_div;
-    assign ex_is_div = (ex_alu_op == ALU_DIV  || ex_alu_op == ALU_DIVU ||
-                        ex_alu_op == ALU_REM  || ex_alu_op == ALU_REMU);
+    // Division detection — used in ID/EX stall logic (mirrors ADR 023)
+    // ex_alu_op is checked directly; no separate ex_is_div signal needed.
 
     // EX/MEM register outputs                                              //
 
@@ -154,16 +151,13 @@ module top_pipeline #(
     logic [31:0] wb_rd_data;
 
     // Division gate in WB (instruction arrives after 34-cycle stall,
-    // so div_done pulse coincides with the cycle the result is used)
-    logic        wb_is_div;
-    logic        wb_wr_en_gated;
-    assign wb_is_div      = (ex_alu_op == ALU_DIV  || ex_alu_op == ALU_DIVU ||
-                             ex_alu_op == ALU_REM  || ex_alu_op == ALU_REMU);
+    // so div_done pulse coincides with the cycle the result is used).
     // NOTE: div gating is applied at the register file write enable.
     // Because div_busy stalls the whole pipeline, the DIV instruction stays
     // in EX for 34 cycles. When div_done pulses, the stall drops and the
     // instruction advances to MEM/WB normally, so wb_ru_wr already reflects
     // the correct enable. No additional gating is needed in WB beyond wb_ru_wr.
+    logic        wb_wr_en_gated;
     assign wb_wr_en_gated = wb_ru_wr;
 
     // CSR outputs                                                          //
@@ -213,16 +207,16 @@ module top_pipeline #(
     seven_segment u_seven_seg4 (.val(wb_instruction[19:16]), .display(seven_seg_display4));
     seven_segment u_seven_seg5 (.val(wb_instruction[23:20]), .display(seven_seg_display5));
 
+// synthesis translate_off
    `ifndef SYNTHESIS
       initial begin
          $dumpfile("dump.vcd");
          $dumpvars(0, top_pipeline);
       end
    `endif
+// synthesis translate_on
 
-    // IF stage                                                             //
-    assign if_pc_plus4 = if_pc + 32'd4;
-
+    // IF stage
     // PC redirect target mux: trap (WB) > branch/jump (EX) > sequential
     logic [31:0] pc_redirect_target;
     always_comb begin

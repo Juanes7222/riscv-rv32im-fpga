@@ -45,7 +45,7 @@ set_global_assignment -name SDC_FILE $constraints_sdc
 # Synthesis settings
 # Identical to single_cycle to satisfy the homogeneous protocol requirement.
 # Do not change these settings independently between architectures.
-set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+set_global_assignment -name NUM_PARALLEL_PROCESSORS 4
 set_global_assignment -name OPTIMIZATION_MODE        "Balanced"
 set_global_assignment -name DSP_BLOCK_BALANCING      "Auto"
 set_global_assignment -name AUTO_RAM_RECOGNITION     "On"

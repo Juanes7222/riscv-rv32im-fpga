@@ -82,7 +82,6 @@ module alu_rv32im (
     logic [32:0] next_partial;
 
     logic [32:0] sub_res;
-    logic [31:0] raw_quot, raw_rem;
     logic        sub_res_sign;
     logic [31:0] div_partial_word;
     logic [30:0] div_dividend_low;
@@ -223,8 +222,6 @@ module alu_rv32im (
 
     always_comb begin
         sub_res  = {div_partial_word, div_dividend_msb} - {1'b0, div_divisor};
-        raw_quot = div_quotient;
-        raw_rem  = div_partial_word;
         if (!sub_res_sign) begin
             next_quotient = {div_quotient[30:0], 1'b1};
             next_partial  = sub_res;

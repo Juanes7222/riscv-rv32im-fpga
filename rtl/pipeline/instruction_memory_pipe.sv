@@ -43,8 +43,8 @@ module instruction_memory_pipe #(
     // Quartus implements OUTDATA_REG_A = UNREGISTERED, so the M10K
     // output is combinational anyway.
     localparam logic [31:0] BUBBLE = 32'h00000013;
-    logic [31:0] mem_read = BUBBLE;
-    logic        oob_reg  = 1'b0;
+    logic [31:0] mem_read /* synthesis keep */ = BUBBLE;
+    logic        oob_reg  /* synthesis keep */ = 1'b0;
     always_ff @(posedge clk) begin
         mem_read <= mem[word_index];
         oob_reg  <= addr_out_of_bounds;

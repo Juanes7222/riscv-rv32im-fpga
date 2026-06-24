@@ -19,7 +19,7 @@ module instruction_memory #(
 
     localparam ADDR_BITS = $clog2(IMEM_DEPTH);
 
-    (* ramstyle = "M10K" *) logic [31:0] mem [0:IMEM_DEPTH-1];
+    logic [31:0] mem [0:IMEM_DEPTH-1];
 
     initial begin
         `ifdef IMEM_FILE

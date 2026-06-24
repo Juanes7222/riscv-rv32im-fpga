@@ -30,8 +30,8 @@ set_clock_uncertainty -fall_from [get_clocks clk] \
 # Conservative estimates for FPGA-internal paths; adjust when interfacing
 # with external components (switches, LEDs, HEX displays on DE1-SoC).
 # ---------------------------------------------------------------------------
-set_input_delay  -clock clk -max 2.000 [get_ports {rst}]
-set_input_delay  -clock clk -min 0.500 [get_ports {rst}]
+set_input_delay  -clock clk -max 2.000 [get_ports {rst_n}]
+set_input_delay  -clock clk -min 0.500 [get_ports {rst_n}]
 
 # ---------------------------------------------------------------------------
 # False paths

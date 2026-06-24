@@ -88,8 +88,9 @@ module top_single_cycle #(
     // Memory
     logic [31:0] dm_rd_data;
     // Expose data-memory bus signals for cocotb monitor (flat names expected)
-    logic [31:0] dm_addr;
-    logic [31:0] dm_wdata;
+    // Protect from synthesis trimming — cocotb accesses these via hierarchical refs
+    logic [31:0] dm_addr /* synthesis keep */;
+    logic [31:0] dm_wdata /* synthesis keep */;
 
     // Alias internal signals to expected top-level names
     assign dm_addr  = alu_res;
@@ -151,12 +152,14 @@ module top_single_cycle #(
     logic [63:0] instr_retired;
     logic        program_done;
 
+// synthesis translate_off
 `ifndef SYNTHESIS
     initial begin
         $dumpfile("dump.vcd");
         $dumpvars(0, top_single_cycle);
     end
 `endif
+// synthesis translate_on
 
     perf_counters #(
         .PIPELINE_MODE (1'b0)

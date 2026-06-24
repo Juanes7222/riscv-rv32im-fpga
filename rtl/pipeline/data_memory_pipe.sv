@@ -24,10 +24,16 @@ module data_memory_pipe #(
 
     initial begin
         `ifdef DMEM_FILE
-            $readmemh(`DMEM_FILE, mem_b0);
-            // NOTE: $readmemh loads 32-bit words packed into byte lanes.
-            // For synthesis the initial content is embedded via the
-            // generated .mif file; the sim-only path is simpler.
+            // Load 32-bit words from the .mem file into a temporary array,
+            // then distribute bytes to the four M10K lane memories.
+            logic [31:0] tmp [0:DMEM_DEPTH-1];
+            $readmemh(`DMEM_FILE, tmp);
+            for (int i = 0; i < DMEM_DEPTH; i++) begin
+                mem_b0[i] = tmp[i][7:0];
+                mem_b1[i] = tmp[i][15:8];
+                mem_b2[i] = tmp[i][23:16];
+                mem_b3[i] = tmp[i][31:24];
+            end
         `endif
     end
 
