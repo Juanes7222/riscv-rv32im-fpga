@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 # Generates rtl/shared/mem_config.vh with preprocessor macros for $readmemh path injection (ADR 025).
+#
+# The path written into the header is the one tools (iverilog, Quartus) use
+# when resolving $readmemh filenames.  Tools resolve relative paths against
+# their own working directory.  Pass --relative-to <tool-cwd> to
+# automatically compute a relative path from the tool's working directory to
+# the .mem file.
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -36,6 +43,19 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default=None,
         help="Path to the data memory .mem file (DMEM_FILE macro).",
+    )
+    parser.add_argument(
+        "--relative-to",
+        type=str,
+        default=None,
+        dest="relative_to",
+        help=(
+            "Tool working directory.  When provided, --imem and --dmem are "
+            "converted to paths relative to this directory before being "
+            "written into the header.  Omit to write paths verbatim "
+            "(backward-compatible behaviour).  Forward slashes are used "
+            "regardless of platform."
+        ),
     )
     parser.add_argument(
         "--validate-linux-path",
@@ -83,6 +103,18 @@ def validate_mem_file(sim_path: str, linux_path: str | None, label: str) -> None
         )
 
 
+def _resolve_path(raw: str, relative_to: str | None) -> str:
+    """
+    Convert *raw* to the form that should be written into mem_config.vh.
+
+    If *relative_to* is given, compute a relative path from that directory
+    to *raw* (using forward slashes).  Otherwise return *raw* unchanged.
+    """
+    if relative_to is None:
+        return raw
+    return os.path.relpath(raw, start=relative_to).replace("\\", "/")
+
+
 def render_mem_config(imem_path: str, dmem_path: str) -> str:
     return MEM_CONFIG_TEMPLATE.format(
         imem_path=imem_path,
@@ -99,21 +131,27 @@ def generate_mem_config(
     imem_sim: str,
     dmem_sim: str | None,
     validate_imem: str | None,
-    validate_dmem: str | None
+    validate_dmem: str | None,
+    relative_to: str | None,
 ) -> None:
     validate_mem_file(imem_sim, validate_imem, "IMEM")
 
-    dmem_path = ""
+    dmem_raw = ""
     if dmem_sim is not None:
         validate_mem_file(dmem_sim, validate_dmem, "DMEM")
-        dmem_path = dmem_sim
+        dmem_raw = dmem_sim
 
-    header_content = render_mem_config(imem_sim, dmem_path)
+    # Resolve paths: if --relative-to is given, emit relative paths;
+    # otherwise emit verbatim.
+    imem_path = _resolve_path(imem_sim, relative_to)
+    dmem_path = _resolve_path(dmem_raw, relative_to) if dmem_raw else ""
+
+    header_content = render_mem_config(imem_path, dmem_path)
     write_header_file(header_content)
 
     dmem_status = dmem_path if dmem_path else "(empty - data memory zero-initialized)"
     print(f"[gen_mem_config] Written: {OUTPUT_PATH}")
-    print(f"[gen_mem_config]   IMEM_FILE = {imem_sim}")
+    print(f"[gen_mem_config]   IMEM_FILE = {imem_path}")
     print(f"[gen_mem_config]   DMEM_FILE = {dmem_status}")
 
 
@@ -125,7 +163,13 @@ def main() -> None:
     else:
         OUTPUT_PATH = Path(__file__).resolve().parents[1] / "rtl" / "shared" / "mem_config.vh"
     try:
-        generate_mem_config(args.imem, args.dmem, args.validate_imem, args.validate_dmem)
+        generate_mem_config(
+            args.imem,
+            args.dmem,
+            args.validate_imem,
+            args.validate_dmem,
+            args.relative_to,
+        )
     except (FileNotFoundError, ValueError) as error:
         print(f"[gen_mem_config] ERROR: {error}", file=sys.stderr)
         sys.exit(1)

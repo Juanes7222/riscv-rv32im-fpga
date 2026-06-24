@@ -46,8 +46,13 @@ $(MEM_CONFIG): FORCE
 	if [ -z "$$FIRST_ELF" ]; then \
 	    echo "ERROR: No ELFs in $(BUILD_DIR)/riscv-tests/rv32ui/"; exit 1; \
 	fi; \
-        echo "skip" \
-        python3 $(SCRIPTS_ROOT)/gen_mem_config.py --imem $(BUILD_DIR)/imem.mem --dmem $(BUILD_DIR)/dmem.mem --out $(MEM_CONFIG) \
+	python3 $(SCRIPTS_ROOT)/gen_mem_config.py \
+	    --imem $(BUILD_DIR)/imem.mem \
+	    --dmem $(BUILD_DIR)/dmem.mem \
+	    --relative-to $(PWD) \
+	    --out $(MEM_CONFIG) \
+	    --validate-linux-path $(BUILD_DIR)/imem.mem \
+	    --validate-linux-dmem $(BUILD_DIR)/dmem.mem
 sim: $(MEM_CONFIG)
 
 FORCE:

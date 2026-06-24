@@ -91,7 +91,10 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.
     subprocess.run(
         ["python3", str(SCRIPTS_ROOT / "gen_mem_config.py"),
          "--imem", str(imem_path),
-         "--dmem", str(dmem_path)],
+         "--dmem", str(dmem_path),
+         "--relative-to", os.getcwd(),
+         "--validate-linux-path", str(imem_path),
+         "--validate-linux-dmem", str(dmem_path)],
         check=True,
     )
     return imem_path, dmem_path

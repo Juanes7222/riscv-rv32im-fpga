@@ -26,9 +26,10 @@ QUARTUS_STA = quartus_sta.exe
 SOF_FILE = $(SYNTH_DIR)/output_files/$(PROJECT).sof
 STA_RPT  = $(SYNTH_DIR)/output_files/$(PROJECT).sta.rpt
 
-# Memory depths — must match IMEM_DEPTH and DMEM_DEPTH in RTL parameters (ADR 013)
-IMEM_DEPTH := 4096
-DMEM_DEPTH := 1024
+# Memory depths for synthesis — keep small for fast Quartus compilation.
+# cocotb overrides these via environment variables (16384 / 8192).
+IMEM_DEPTH := 2048
+DMEM_DEPTH := 512
 
 BUILD_DIR ?= build
 
@@ -42,8 +43,9 @@ MEM_CONFIG_VH = rtl/shared/mem_config.vh
 
 $(MEM_CONFIG_VH): $(IMEM_MEM) $(DMEM_MEM)
 	python3 scripts/gen_mem_config.py \
-		--imem $$(wslpath -w $(abspath $(IMEM_MEM)) | tr '\\\\' '/') \
-		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/') \
+		--imem $(abspath $(IMEM_MEM)) \
+		--dmem $(abspath $(DMEM_MEM)) \
+		--relative-to $(abspath $(SYNTH_DIR)) \
 		--validate-linux-path $(abspath $(IMEM_MEM)) \
 		--validate-linux-dmem $(abspath $(DMEM_MEM))
 
@@ -95,8 +97,9 @@ flash: check-elf check-project
 	python3 scripts/elf_to_mem.py $(BUILD_DIR)/program.bin $(IMEM_DEPTH) $(IMEM_MEM)
 	python3 scripts/elf_to_mem.py $(BUILD_DIR)/program.bin $(DMEM_DEPTH) $(DMEM_MEM)
 	python3 scripts/gen_mem_config.py \
-		--imem $$(wslpath -w $(abspath $(IMEM_MEM)) | tr '\\\\' '/') \
-		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/') \
+		--imem $(abspath $(IMEM_MEM)) \
+		--dmem $(abspath $(DMEM_MEM)) \
+		--relative-to $(abspath $(SYNTH_DIR)) \
 		--validate-linux-path $(abspath $(IMEM_MEM)) \
 		--validate-linux-dmem $(abspath $(DMEM_MEM))
 	@SECONDS=0; \
