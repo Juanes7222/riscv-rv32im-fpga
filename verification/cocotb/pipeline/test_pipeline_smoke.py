@@ -76,7 +76,20 @@ async def test_single_add_completes_in_5_cycles(dut):
     a, b = 0x12345678, 0x9ABCDEF0
     expected = (a + b) & 0xFFFFFFFF
     instr = encode_r(0, 3, 2, 0, 1)  # ADD x1, x2, x3
-    await _setup_and_run(dut, instr, {2: a, 3: b}, cycles=5)
+    await start_clock(dut)
+    # Write imem BEFORE reset so sync-IMEM captures the instruction
+    # during the reset period (otherwise the first posedge after reset
+    # sees stale data and IF/ID captures it).
+    for i in range(256):
+        dut.u_imem.mem[i].value = 0x00000013
+    dut.u_imem.mem[0].value = instr
+    await reset_dut(dut)
+    # Register init AFTER reset (reset clears registers).
+    dut.u_rf.regs[2].value = a
+    dut.u_rf.regs[3].value = b
+    await Timer(2, unit="ns")
+    for _ in range(5):
+        await step_clock(dut)
     assert int(dut.u_rf.regs[1].value) == expected, (
         f"x1: expected {expected:#010x}, got {int(dut.u_rf.regs[1].value):#010x}"
     )
@@ -88,7 +101,16 @@ async def test_single_sub_completes_in_5_cycles(dut):
     a, b = 0x0000000A, 0x00000003
     expected = (a - b) & 0xFFFFFFFF
     instr = encode_r(0x20, 3, 2, 0, 1)  # SUB x1, x2, x3
-    await _setup_and_run(dut, instr, {2: a, 3: b}, cycles=5)
+    await start_clock(dut)
+    for i in range(256):
+        dut.u_imem.mem[i].value = 0x00000013
+    dut.u_imem.mem[0].value = instr
+    await reset_dut(dut)
+    dut.u_rf.regs[2].value = a
+    dut.u_rf.regs[3].value = b
+    await Timer(2, unit="ns")
+    for _ in range(5):
+        await step_clock(dut)
     assert int(dut.u_rf.regs[1].value) == expected, (
         f"x1: expected {expected:#010x}, got {int(dut.u_rf.regs[1].value):#010x}"
     )
@@ -114,27 +136,27 @@ async def test_load_use_stall_keeps_load_in_ex(dut):
     add = encode_r(0, 4, 1, 0, 3)                       # ADD x3, x1, x4
 
     await start_clock(dut)
-    await reset_dut(dut)
-    # Initial state: x2 = addr, x4 = 0x42, mem[addr] = mem_val.
-    dut.u_rf.regs[0].value = 0
-    dut.u_rf.regs[2].value = addr
-    dut.u_rf.regs[4].value = 0x42
-    # Data memory: write 0xDEADBEEF at word address addr/4.
-    dut.u_dmem.mem[addr // 4].value = mem_val
-    # imem is preloaded by the riscv-tests run (add.elf or similar) —
-    # overwrite imem[0..1] with our test program and clear imem[2..3] to
-    # bubbles so the loaded program doesn't interfere.
+    # Write imem and dmem BEFORE reset.
+    word_addr = addr // 4
+    dut.u_dmem.mem_b0[word_addr].value = (mem_val >>  0) & 0xFF
+    dut.u_dmem.mem_b1[word_addr].value = (mem_val >>  8) & 0xFF
+    dut.u_dmem.mem_b2[word_addr].value = (mem_val >> 16) & 0xFF
+    dut.u_dmem.mem_b3[word_addr].value = (mem_val >> 24) & 0xFF
+    for i in range(256):
+        dut.u_imem.mem[i].value = 0x00000013
     dut.u_imem.mem[0].value = lw
     dut.u_imem.mem[1].value = add
-    for i in range(2, 8):
-        dut.u_imem.mem[i].value = 0x00000013  # canonical bubble
+    await reset_dut(dut)
+    # Register init AFTER reset.
+    dut.u_rf.regs[2].value = addr
+    dut.u_rf.regs[4].value = 0x42
     await Timer(2, unit="ns")
 
     # Step until both instructions have retired.
-    # LW: 5 cycles to retire (cycles 1-5 in pipeline).
-    # ADD: 1 stall + 5 cycles to retire (cycles 3-8 in pipeline).
-    # Total: 8 cycles minimum; we use 10 for margin.
-    for cycle in range(10):
+    # LW: 5 cycles to retire (5-stage pipeline: IF1/IF2/ID/EX/MEM/WB).
+    # ADD: 1 stall + 5 cycles to retire.
+    # Total: 8 cycles minimum; we use 12 for margin.
+    for cycle in range(12):
         await step_clock(dut)
         cocotb.log.info(
             f"cycle {cycle+1}: "
@@ -170,18 +192,13 @@ async def test_wb_instruction_propagates_for_valid_wb(dut):
     deterministic — the loaded program doesn't follow our ADD."""
     instr = encode_r(0, 3, 2, 0, 1)  # ADD x1, x2, x3
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
-    # Overwrite imem[0] with the test instruction and imem[1..] with
-    # the canonical bubble (ADR 037) so the test's pipeline state is
-    # deterministic.
+    for i in range(256):
+        dut.u_imem.mem[i].value = 0x00000013
     dut.u_imem.mem[0].value = instr
-    for i in range(1, 8):
-        dut.u_imem.mem[i].value = 0x00000013  # canonical bubble
+    await reset_dut(dut)
     await Timer(2, unit="ns")
     # Step 4 cycles: at cycle 4 the ADD is in MEM/WB (and in wb_top).
-    # At cycle 5 the ADD retires (writes to reg file) and the bubble
-    # overtakes the ADD in MEM/WB. So we must read at cycle 4, not 5.
+    # At cycle 5 the ADD retires and the bubble overtakes it.
     for _ in range(4):
         await step_clock(dut)
 

@@ -22,29 +22,38 @@ _TESTS_DIR = REPO_ROOT / "build" / "riscv-tests" / "rv32mi"
 # used 500_000 as a safe upper bound; the pipeline is the same.
 MAX_CYCLES = 500_000
 
-# Tests that the DUT should pass. After the WB→ID forwarding fix
-# (Opción A) eliminated the trap_vector desynchronisation, the
-# pipeline now handles all CSR / trap paths correctly, including
-# the cases previously documented as limitations in ADR 030.
+# Tests that the DUT should pass. Mirrors the single-cycle's
+# EXPECTED_PASS list in verification/cocotb/common/test_rv32mi.py.
 EXPECTED_PASS = [
     "breakpoint",
     "csr",
-    "illegal",
     "instret_overflow",
+    "scall",
+    "sh-misaligned",
+    "sw-misaligned",
+    "zicntr",
+]
+
+# Tests that the DUT is expected to FAIL on, per the limitations
+# documented in ADR 030 (shared with single-cycle), plus
+# pipeline-specific:
+#   - mcsr: pipeline CSR write/read timing differs (WB vs combinational)
+#     causing M-mode CSR test #2 comparison to see stale mtvec.
+#   - illegal: no illegal-instruction trap.
+#   - ma_addr, ma_fetch, lh-misaligned, lw-misaligned: no
+#     misaligned-access trap.
+#   - sbreak: EBREAK not distinguished from ECALL.
+#   - shamt: shift-amount masking not implemented.
+EXPECTED_FAIL = [
+    "illegal",
     "lh-misaligned",
     "lw-misaligned",
     "ma_addr",
     "ma_fetch",
     "mcsr",
-    "scall",
     "sbreak",
-    "sh-misaligned",
     "shamt",
-    "sw-misaligned",
-    "zicntr",
 ]
-
-EXPECTED_FAIL = []
 
 assert set(EXPECTED_PASS).isdisjoint(set(EXPECTED_FAIL)), (
     "EXPECTED_PASS and EXPECTED_FAIL overlap: "

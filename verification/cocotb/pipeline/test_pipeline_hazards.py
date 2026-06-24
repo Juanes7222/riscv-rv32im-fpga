@@ -47,16 +47,6 @@ def _load_model_program(model, words):
         model.store_instruction(i * 4, w)
 
 
-def _preload_dut(dut, model, instructions):
-    dut.u_rf.regs[0].value = 0
-    for i in range(32):
-        dut.u_rf.regs[i].value = model.regs[i]
-    for i, w in enumerate(instructions):
-        dut.u_imem.mem[i].value = w
-    for i in range(len(instructions), len(instructions) + 4):
-        dut.u_imem.mem[i].value = 0x00000013  # bubble padding
-
-
 def _check_all_regs(dut, model, tag):
     for i in range(32):
         v_dut = int(dut.u_rf.regs[i].value)
@@ -77,10 +67,20 @@ async def _run_program(dut, model, instructions, extra_cycles=2):
     cycles for all instructions to retire (4 fill-up + N drain).
     The model is stepped once per instruction."""
     await start_clock(dut)
+
+    # Write imem BEFORE reset (synchronous IMEM pipe module).
+    for i, w in enumerate(instructions):
+        dut.u_imem.mem[i].value = w
+    for i in range(len(instructions), len(instructions) + 4):
+        dut.u_imem.mem[i].value = 0x00000013  # bubble padding
+
     await reset_dut(dut)
 
+    # Register init AFTER reset (reset clears registers).
     _load_model_program(model, instructions)
-    _preload_dut(dut, model, instructions)
+    dut.u_rf.regs[0].value = 0
+    for i in range(32):
+        dut.u_rf.regs[i].value = model.regs[i]
     await Timer(2, unit="ns")
 
     total_cycles = 4 + len(instructions) + extra_cycles
@@ -181,10 +181,25 @@ async def test_load_use_then_forward_mem_wb(dut):
     prog = [lw, add]
 
     await start_clock(dut)
+
+    # Write imem and dmem BEFORE reset (synchronous IMEM/DMEM pipe modules).
+    for i, w in enumerate(prog):
+        dut.u_imem.mem[i].value = w
+    for i in range(len(prog), len(prog) + 4):
+        dut.u_imem.mem[i].value = 0x00000013
+    word_addr = addr // 4
+    dut.u_dmem.mem_b0[word_addr].value = (mem_val >>  0) & 0xFF
+    dut.u_dmem.mem_b1[word_addr].value = (mem_val >>  8) & 0xFF
+    dut.u_dmem.mem_b2[word_addr].value = (mem_val >> 16) & 0xFF
+    dut.u_dmem.mem_b3[word_addr].value = (mem_val >> 24) & 0xFF
+
     await reset_dut(dut)
+
+    # Register init AFTER reset (reset clears registers).
     _load_model_program(model, prog)
-    _preload_dut(dut, model, prog)
-    dut.u_dmem.mem[addr // 4].value = mem_val
+    dut.u_rf.regs[0].value = 0
+    for i in range(32):
+        dut.u_rf.regs[i].value = model.regs[i]
     await Timer(2, unit="ns")
 
     # Need 4 fill-up + 2 instructions + 1 load-use stall + margin = 10 cycles.

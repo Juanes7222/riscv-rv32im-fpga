@@ -52,17 +52,19 @@ async def test_add_with_lui_x12_no_stalls(dut):
     add_x14  = encode_r(0, 12, 11, 0, 14)        # add x14, x11, x12
 
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
-    # Stale values to mimic "previous test" — forwarding must override.
-    dut.u_rf.regs[11].value = 0xffffffff80000000 & 0xFFFFFFFF
-    dut.u_rf.regs[12].value = 0xffffffffffff8000 & 0xFFFFFFFF
+    # Write imem BEFORE reset (synchronous IMEM pipe module).
     dut.u_imem.mem[0].value = addi_x11
     dut.u_imem.mem[1].value = lui_x12
     dut.u_imem.mem[2].value = addi_x12
     dut.u_imem.mem[3].value = add_x14
     for i in range(4, 10):
         dut.u_imem.mem[i].value = 0x00000013
+    await reset_dut(dut)
+    # Register init AFTER reset (reset clears registers).
+    dut.u_rf.regs[0].value = 0
+    # Stale values to mimic "previous test" — forwarding must override.
+    dut.u_rf.regs[11].value = 0xffffffff80000000 & 0xFFFFFFFF
+    dut.u_rf.regs[12].value = 0xffffffffffff8000 & 0xFFFFFFFF
     await Timer(2, unit="ns")
 
     for cycle in range(12):

@@ -62,8 +62,6 @@ async def test_beq_taken_flushes_pipeline(dut):
 
     After enough cycles x5 must still be 0 and x6 must be 0xBEEF."""
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
     _load_prog(dut, [
         0x00000013,                   # 0x00: NOP
         0x00000013,                   # 0x04: NOP
@@ -71,6 +69,8 @@ async def test_beq_taken_flushes_pipeline(dut):
         encode_i(0xDEAD, 0, 0, 5),    # 0x0C: ADDI x5, x0, 0xDEAD
         encode_i(0xBEEF, 0, 0, 6),    # 0x10: ADDI x6, x0, 0xBEEF
     ])
+    await reset_dut(dut)
+    dut.u_rf.regs[0].value = 0
     await Timer(2, unit="ns")
 
     for _ in range(14):
@@ -102,8 +102,6 @@ async def test_beq_not_taken_no_flush(dut):
     sign-extended = 0xFFFFFBCD).  Wait: encode_i masks to 12 bits, so
     0xABCD & 0xFFF = 0xBCD.  The expected value is 0xFFFFFBCD."""
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
     _load_prog(dut, [
         encode_i(1, 0, 0, 1),        # 0x00: ADDI x1, x0, 1
         encode_i(2, 0, 0, 2),        # 0x04: ADDI x2, x0, 2
@@ -111,6 +109,8 @@ async def test_beq_not_taken_no_flush(dut):
         encode_i(0xABCD, 0, 0, 5),   # 0x0C: ADDI x5, x0, 0xABCD
         encode_i(0xEF01, 0, 0, 6),   # 0x10: ADDI x6, x0, 0xEF01
     ])
+    await reset_dut(dut)
+    dut.u_rf.regs[0].value = 0
     await Timer(2, unit="ns")
 
     for _ in range(14):
@@ -141,8 +141,6 @@ async def test_jal_flush(dut):
 
     x5 must remain 0, x1 must be 0x04, x7 must be 0x1234."""
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
     _load_prog(dut, [
         encode_j(0x14, 1),           # 0x00: JAL x1, +0x14
         encode_i(0xBAD, 0, 0, 5),    # 0x04: ADDI x5, x0, 0xBAD
@@ -151,6 +149,8 @@ async def test_jal_flush(dut):
         0x00000013,                   # 0x10: NOP
         encode_i(0x1234, 0, 0, 7),   # 0x14: ADDI x7, x0, 0x1234
     ])
+    await reset_dut(dut)
+    dut.u_rf.regs[0].value = 0
     await Timer(2, unit="ns")
 
     for _ in range(16):
@@ -182,9 +182,6 @@ async def test_jalr_flush(dut):
 
     x5 must remain 0, x7 must be 0xCAFE."""
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
-    dut.u_rf.regs[2].value = 0
     _load_prog(dut, [
         encode_i(0x14, 0, 0, 2),              # 0x00: ADDI x2, x0, 0x14
         encode_i(0, 2, 0, 1, opcode=0b1100111), # 0x04: JALR x1, x2, 0
@@ -193,6 +190,9 @@ async def test_jalr_flush(dut):
         0x00000013,                            # 0x10: NOP
         encode_i(0xCAFE, 0, 0, 7),            # 0x14: ADDI x7, x0, 0xCAFE
     ])
+    await reset_dut(dut)
+    dut.u_rf.regs[0].value = 0
+    dut.u_rf.regs[2].value = 0
     await Timer(2, unit="ns")
 
     for _ in range(16):

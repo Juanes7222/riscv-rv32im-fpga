@@ -1,12 +1,10 @@
 """
 Cocotb test infrastructure for the pipelined RV32IM processor.
 
-The pipeline takes 5 cycles to execute one instruction (IF, ID, EX, MEM,
-WB). For tests that preload a single instruction and check the result,
-the test code must step the clock 5 times. For programs with multiple
-instructions, the test steps the clock until the program finishes (e.g.,
-tohost-based finish for riscv-tests) or until the test's expected number
-of cycles has elapsed.
+The pipeline takes 5 cycles to execute one instruction (IF, ID, EX,
+MEM, WB). The IMEM provides combinational read output so IF/ID captures
+the current value at posedge. For tests that preload a single instruction
+and check the result, the test code must step the clock 5 times.
 
 Two clock/reset patterns are provided:
   - **Manual clock driver** (step_clock, reset_dut): used by the

@@ -45,12 +45,14 @@ def _load_prog(dut, words):
 
 async def _run_and_get_cycles(dut, instructions, initial_regs=None, extra_cycles=4):
     await start_clock(dut)
+    # Write imem BEFORE reset (synchronous IMEM pipe module).
+    _load_prog(dut, instructions)
     await reset_dut(dut)
+    # Register init AFTER reset (reset clears registers).
     dut.u_rf.regs[0].value = 0
     if initial_regs:
         for reg, val in initial_regs.items():
             dut.u_rf.regs[reg].value = val
-    _load_prog(dut, instructions)
     await Timer(2, unit="ns")
     total_cycles = 4 + len(instructions) + extra_cycles
     for _ in range(total_cycles):
@@ -78,14 +80,21 @@ async def test_load_use_increases_cycles(dut):
 
     addr = 0x20
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
-    dut.u_rf.regs[2].value = addr
-    dut.u_dmem.mem[addr // 4].value = 0xAABBCCDD
+    # Write imem and dmem BEFORE reset (synchronous IMEM/DMEM pipe modules).
     _load_prog(dut, [
         encode_i(0, 2, 0b010, 1, opcode=0b0000011),  # LW x1, 0(x2)
         encode_r(0, 1, 1, 0, 3),                       # ADD x3, x1, x1
     ])
+    word_addr = addr // 4
+    mem_val = 0xAABBCCDD
+    dut.u_dmem.mem_b0[word_addr].value = (mem_val >>  0) & 0xFF
+    dut.u_dmem.mem_b1[word_addr].value = (mem_val >>  8) & 0xFF
+    dut.u_dmem.mem_b2[word_addr].value = (mem_val >> 16) & 0xFF
+    dut.u_dmem.mem_b3[word_addr].value = (mem_val >> 24) & 0xFF
+    await reset_dut(dut)
+    # Register init AFTER reset (reset clears registers).
+    dut.u_rf.regs[0].value = 0
+    dut.u_rf.regs[2].value = addr
     await Timer(2, unit="ns")
     for _ in range(12):
         await step_clock(dut)
@@ -107,14 +116,16 @@ async def test_div_increases_cycles(dut):
     M_FUNCT7 = 0x01
     DIV = 0b100
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
-    dut.u_rf.regs[2].value = 100
-    dut.u_rf.regs[3].value = 5
+    # Write imem BEFORE reset (synchronous IMEM pipe module).
     _load_prog(dut, [
         encode_i(0xAB, 0, 0, 10),          # ADDI x10, x0, 0xAB
         encode_r(M_FUNCT7, 3, 2, DIV, 1),  # DIV x1, x2, x3
     ])
+    await reset_dut(dut)
+    # Register init AFTER reset (reset clears registers).
+    dut.u_rf.regs[0].value = 0
+    dut.u_rf.regs[2].value = 100
+    dut.u_rf.regs[3].value = 5
     await Timer(2, unit="ns")
     for _ in range(50):
         await step_clock(dut)
@@ -129,12 +140,14 @@ async def test_div_increases_cycles(dut):
 async def test_counter_monotonicity(dut):
     """cycle_count and instr_retired must increase monotonically."""
     await start_clock(dut)
-    await reset_dut(dut)
-    dut.u_rf.regs[0].value = 0
+    # Write imem BEFORE reset (synchronous IMEM pipe module).
     _load_prog(dut, [
         encode_i(1, 0, 0, 1),   # ADDI x1, x0, 1
         encode_i(2, 0, 0, 2),   # ADDI x2, x0, 2
     ])
+    await reset_dut(dut)
+    # Register init AFTER reset (reset clears registers).
+    dut.u_rf.regs[0].value = 0
     await Timer(2, unit="ns")
 
     prev_cycles = int(dut.u_perf.cycle_count.value)

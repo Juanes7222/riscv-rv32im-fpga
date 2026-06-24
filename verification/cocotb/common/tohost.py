@@ -110,6 +110,20 @@ def _write_mem_array(mem_handle, words: list[int]) -> None:
     for addr, word in enumerate(words):
         mem_handle[addr].value = word
 
+
+def _write_dmem_pipe(dmem, words: list[int]) -> None:
+    """Write words to the pipeline DMEM's four byte-lane arrays.
+
+    The pipeline's data_memory_pipe uses mem_b0..mem_b3 (8-bit arrays)
+    to enable M10K inference. Each 32-bit word is split across the four
+    lanes: mem_b0 = bits[7:0], mem_b1 = bits[15:8], mem_b2 = bits[23:16],
+    mem_b3 = bits[31:24]."""
+    for addr, word in enumerate(words):
+        dmem.mem_b0[addr].value = (word >>  0) & 0xFF
+        dmem.mem_b1[addr].value = (word >>  8) & 0xFF
+        dmem.mem_b2[addr].value = (word >> 16) & 0xFF
+        dmem.mem_b3[addr].value = (word >> 24) & 0xFF
+
 async def _apply_reset(dut, reset_cycles: int = 5) -> None:
     # Assert active-low reset, hold for `reset_cycles` clocks, then deassert.
     dut.rst_n.value = 0
@@ -122,7 +136,14 @@ def reload_memories(dut, imem_path: pathlib.Path, dmem_path: pathlib.Path) -> No
     imem_words = _parse_mem_file(imem_path)
     dmem_words = _parse_mem_file(dmem_path)
     _write_mem_array(dut.u_imem.mem, imem_words)
-    _write_mem_array(dut.u_dmem.mem, dmem_words)
+    # The pipeline DMEM uses four byte-lane arrays (mem_b0..mem_b3) for
+    # M10K inference; the single-cycle DMEM uses a single mem[addr] array.
+    # Try the pipeline path first, fall back to the shared path.
+    try:
+        _ = dut.u_dmem.mem_b0
+        _write_dmem_pipe(dut.u_dmem, dmem_words)
+    except AttributeError:
+        _write_mem_array(dut.u_dmem.mem, dmem_words)
 
 async def reset_and_reload_memories(
     dut,
@@ -149,6 +170,7 @@ async def monitor_tohost(
     """
     tohost_byte_addr = get_tohost_addr(elf_path)
     tohost_word_addr = tohost_byte_addr >> 2
+    cocotb.log.info(f"tohost byte_addr={tohost_byte_addr:#x} word_addr={tohost_word_addr:#x}")
 
     # Detect whether the DUT is the single-cycle or the pipelined design.
     # The pipeline exposes MEM-stage signals; single-cycle exposes top-level
@@ -162,7 +184,7 @@ async def monitor_tohost(
     # In single-cycle designs dm_wr/addr/data are combinational for the
     # current instruction and can change right after the rising edge when PC
     # advances. Sample on falling edge to observe stable intent for the write.
-    for _ in range(max_cycles):
+    for cycle in range(max_cycles):
         await FallingEdge(dut.clk)
         if _pipeline:
             try:
@@ -180,6 +202,16 @@ async def monitor_tohost(
                 dm_addr_val = -1
 
         addr_matches = (dm_addr_val == tohost_byte_addr or dm_addr_val == tohost_word_addr)
+
+        # Debug: log any store in MEM and PC
+        if dm_wr == 1 and cycle < 200:
+            cocotb.log.info(f"Cycle {cycle}: DM write: addr={dm_addr_val:#x} data={int(dut.mem_rs2_data.value if _pipeline else dut.dm_wdata.value):#x}")
+        if cycle % 1000 == 0 and _pipeline:
+            try:
+                pc_val = int(dut.u_pcunit.pc.value)
+                cocotb.log.info(f"Cycle {cycle}: PC={pc_val:#x} dm_wr={dm_wr}")
+            except:
+                pass
 
         if dm_wr == 1 and addr_matches:
             if _pipeline:
