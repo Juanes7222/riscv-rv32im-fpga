@@ -43,7 +43,9 @@ MEM_CONFIG_VH = rtl/shared/mem_config.vh
 $(MEM_CONFIG_VH): $(IMEM_MEM) $(DMEM_MEM)
 	python3 scripts/gen_mem_config.py \
 		--imem $$(wslpath -w $(abspath $(IMEM_MEM)) | tr '\\\\' '/') \
-		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/')
+		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/') \
+		--validate-linux-path $(abspath $(IMEM_MEM)) \
+		--validate-linux-dmem $(abspath $(DMEM_MEM))
 
 # Default target: show help
 all: help
@@ -68,9 +70,17 @@ sync-all:
 	@$(MAKE) sync ARCH=pipeline
 
 
-.PHONY: build
+.PHONY: build build-only
 build: check-project $(MEM_CONFIG_VH)
 	@echo "[$(ARCH)] Starting synthesis..."
+	@SECONDS=0; \
+	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
+	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
+
+# Same as build but skips mem_config.vh generation — use when .mem files
+# already exist and you only want to recompile RTL changes.
+build-only: check-project
+	@echo "[$(ARCH)] Starting synthesis (without mem refresh)..."
 	@SECONDS=0; \
 	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
@@ -86,7 +96,9 @@ flash: check-elf check-project
 	python3 scripts/elf_to_mem.py $(BUILD_DIR)/program.bin $(DMEM_DEPTH) $(DMEM_MEM)
 	python3 scripts/gen_mem_config.py \
 		--imem $$(wslpath -w $(abspath $(IMEM_MEM)) | tr '\\\\' '/') \
-		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/')
+		--dmem $$(wslpath -w $(abspath $(DMEM_MEM)) | tr '\\\\' '/') \
+		--validate-linux-path $(abspath $(IMEM_MEM)) \
+		--validate-linux-dmem $(abspath $(DMEM_MEM))
 	@SECONDS=0; \
 	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
@@ -151,6 +163,50 @@ verify-common:
 
 .PHONY: verify-all
 verify-all: verify-common verify
+
+.PHONY: verify-all-sc
+verify-all-sc:
+	@$(MAKE) verify-common ARCH=single_cycle
+	@$(MAKE) verify ARCH=single_cycle
+
+.PHONY: verify-all-pipe
+verify-all-pipe:
+	@$(MAKE) verify ARCH=pipeline
+
+.PHONY: verify-full
+verify-full: verify-all-sc verify-all-pipe
+	@echo "All verification tests completed."
+
+.PHONY: report
+report:
+	@echo ""
+	@echo "=== Generating Results Report ==="
+	@echo ""
+	@echo "Running all verification tests..."
+	@$(MAKE) verify-full
+	@echo ""
+	@echo "Collecting results and generating report..."
+	@.venv/bin/python3 scripts/collect_results.py --markdown --latex --csv
+	@echo ""
+	@echo "Report generated:"
+	@echo "  results/results_report.md     (Markdown report)"
+	@echo "  results/results_latex.tex     (LaTeX tables for thesis)"
+	@echo "  results/results_verification.csv  (Verification data as CSV)"
+	@echo "  results/results_synthesis.csv     (Synthesis data as CSV)"
+	@echo ""
+
+.PHONY: report-quick
+report-quick:
+	@echo ""
+	@echo "=== Generating Quick Results Report (no test re-run) ==="
+	@.venv/bin/python3 scripts/collect_results.py --markdown --latex --csv
+	@echo ""
+	@echo "Report generated:"
+	@echo "  results/results_report.md     (Markdown report)"
+	@echo "  results/results_latex.tex     (LaTeX tables for thesis)"
+	@echo "  results/results_verification.csv  (Verification data as CSV)"
+	@echo "  results/results_synthesis.csv     (Synthesis data as CSV)"
+	@echo ""
 
 
 .PHONY: results
@@ -306,8 +362,13 @@ help:
 	@echo "  verify             Run architecture-specific cocotb tests"
 	@echo "  verify-common      Run shared RV32IM instruction tests"
 	@echo "  verify-all         Run common and architecture-specific tests"
+	@echo "  verify-all-sc      Run ALL single-cycle tests (common + arch)"
+	@echo "  verify-all-pipe    Run ALL pipeline tests"
+	@echo "  verify-full        Run ALL tests for both architectures"
 	@echo ""
 	@echo "Results"
+	@echo "  report             Run all tests, then generate report + LaTeX tables"
+	@echo "  report-quick       Generate report from existing results (no re-run)"
 	@echo "  results            Show Fmax per replica for ARCH"
 	@echo "  results-all        Show Fmax for both architectures"
 	@echo "  status             Show build and replica status for all archs"

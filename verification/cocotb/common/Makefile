@@ -10,8 +10,8 @@ BUILD_DIR    = $(REPO_ROOT)/build
 MEM_CONFIG   = $(RTL_ROOT)/shared/mem_config.vh
 
 VERILOG_SOURCES = \
-    $(RTL_ROOT)/shared/instruction_memory.sv \
-    $(RTL_ROOT)/shared/data_memory.sv \
+    $(RTL_ROOT)/single_cycle/instruction_memory.sv \
+    $(RTL_ROOT)/single_cycle/data_memory.sv \
     $(RTL_ROOT)/shared/register_file.sv \
     $(RTL_ROOT)/shared/alu_rv32im.sv \
     $(RTL_ROOT)/shared/branch_unit.sv \
