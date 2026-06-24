@@ -1,0 +1,16 @@
+suite,arch,passed,failed,skipped,errors,total,total_time_s
+test_rv32i,single_cycle,37,0,0,0,37,14.3942
+test_rv32m,single_cycle,8,0,0,0,8,3.0967
+test_rv32mi,single_cycle,15,0,0,0,15,5.3085
+test_alu_rv32i,single_cycle,27,0,0,0,27,0.0184
+test_branch,single_cycle,20,0,0,0,20,0.0128
+test_model_vs_dut,single_cycle,4,0,0,0,4,0.0253
+test_cpi_one,single_cycle,45,0,0,0,45,20.4920
+test_pipeline_smoke,pipeline,4,0,0,0,4,0.0278
+test_pipeline_debug,pipeline,1,0,0,0,1,0.0029
+test_pipeline_rv32i,pipeline,37,0,0,0,37,19.7582
+test_pipeline_rv32m,pipeline,8,0,0,0,8,4.2733
+test_pipeline_rv32mi,pipeline,15,0,0,0,15,7.2228
+test_pipeline_hazards,pipeline,7,0,0,0,7,0.0125
+test_pipeline_control,pipeline,4,0,0,0,4,0.0083
+test_pipeline_cpi,pipeline,4,0,0,0,4,0.0115
