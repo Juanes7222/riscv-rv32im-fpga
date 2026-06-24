@@ -10,12 +10,12 @@ BUILD_DIR    = $(REPO_ROOT)/build
 MEM_CONFIG   = $(RTL_ROOT)/shared/mem_config.vh
 
 # RTL sources: shared modules + the pipeline.
-# The shared instruction_memory is loaded with the program via mem_config.vh
-# (which points to build/imem.mem); the test preloads imem by writing
-# dut.u_imem.mem[k] directly before stepping the clock.
+# The pipeline uses the pipe-specific memories (instruction_memory_pipe,
+# data_memory_pipe) which provide M10K-inferable synchronous reads.
+# The test preloads imem by writing dut.u_imem.mem[k] directly;
+# dmem uses four byte-lane arrays (mem_b0..mem_b3) loaded via the
+# reload helper in conftest.
 VERILOG_SOURCES = \
-    $(RTL_ROOT)/shared/instruction_memory.sv \
-    $(RTL_ROOT)/shared/data_memory.sv \
     $(RTL_ROOT)/shared/register_file.sv \
     $(RTL_ROOT)/shared/alu_rv32im.sv \
     $(RTL_ROOT)/shared/branch_unit.sv \
@@ -23,6 +23,8 @@ VERILOG_SOURCES = \
     $(RTL_ROOT)/shared/perf_counter.sv \
     $(RTL_ROOT)/shared/seven_segment.sv \
     $(RTL_ROOT)/shared/csr_file.sv \
+    $(RTL_ROOT)/pipeline/instruction_memory_pipe.sv \
+    $(RTL_ROOT)/pipeline/data_memory_pipe.sv \
     $(RTL_ROOT)/pipeline/control_unit.sv \
     $(RTL_ROOT)/pipeline/if_id_register.sv \
     $(RTL_ROOT)/pipeline/id_ex_register.sv \

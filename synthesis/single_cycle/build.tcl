@@ -24,7 +24,7 @@ set project_name [file rootname [lindex $qpf_files 0]]
 # Compile
 puts ""
 puts "Opening project: $project_name"
-project_open $project_name
+project_open $project_name -force
 
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 

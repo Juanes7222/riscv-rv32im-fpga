@@ -7,7 +7,7 @@ load_package flow
 set project_name    "rv32im_pipeline"
 set device          "5CSEMA5F31C6"
 set family          "Cyclone V"
-set top_level       "rv32im_pipeline"  ;
+set top_level       "top_pipeline"  ;
 
 # Paths relative to this script's location (synthesis/pipeline/)
 set rtl_shared      "../../rtl/shared"
