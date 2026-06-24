@@ -2,7 +2,7 @@
 `ifndef MEM_CONFIG_VH
 `define MEM_CONFIG_VH
 
-`define IMEM_FILE "../../build/imem.mem"
-`define DMEM_FILE "../../build/dmem.mem"
+`define IMEM_FILE "../../../build/imem.mem"
+`define DMEM_FILE "../../../build/dmem.mem"
 
 `endif

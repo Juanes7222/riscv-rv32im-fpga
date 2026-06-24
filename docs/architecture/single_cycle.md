@@ -96,9 +96,24 @@ The processor contains five sequential elements:
 |---------|--------|------|-------|
 | Program counter | `pc_unit` | Register (FF) | 32 bits |
 | Register file | `register_file` | Register array (FF) | 32 × 32 bits |
-| Instruction memory | `instruction_memory` | ROM (M10K) | IMEM_DEPTH × 32 bits |
-| Data memory | `data_memory` | RAM (M10K) | DMEM_DEPTH × 32 bits |
+| Instruction memory | `instruction_memory` | Logic cells (async ROM) † | IMEM_DEPTH × 32 bits |
+| Data memory | `data_memory` | Logic cells (async read / sync write RAM) † | DMEM_DEPTH × 32 bits |
 | Divisor state machine | `alu_rv32im` | FSM + registers | ~70 bits internal |
+
+† The single-cycle microarchitecture requires combinational (asynchronous) read
+for both memories — the instruction word must be available in the same cycle as
+the PC, and load data must be available for write-back in the same cycle.
+Intel Cyclone V M10K blocks always register the read operation internally
+(Intel Corporation, 2016); they cannot implement true combinational read.
+Quartus Prime therefore implements these memories in logic cells (LUTs and
+flip-flops), ignoring the `ramstyle = "M10K"` attribute present in the RTL.
+See [ADR 011](../decisions/011_instruction_memory_async_read.md) and the
+Memory Implementation section below.
+
+The pipelined processor, in contrast, uses dedicated synchronous-read modules
+(`instruction_memory_pipe.sv`, `data_memory_pipe.sv`) that map to M10K blocks
+— 64 for instruction memory and 32 for data memory out of the 308 available
+on the Cyclone V 5CSEMA5F31C6.
 
 The divisor FSM is the only sequential element that is not part of the
 standard single-cycle datapath. It is dormant for all non-division instructions.
@@ -359,7 +374,8 @@ Full per-instruction values: see `docs/architecture/control_signals.md`.
 ## Critical Path Analysis
 
 The longest combinational path determines Fmax after place-and-route. For
-RV32I instructions the critical path is the **load instruction path**:
+RV32I instructions the critical path is the **load instruction path**
+(Patterson & Hennessy, 2017, Section 4.4; Harris & Harris, 2021, Section 7.4.1):
 
 ```
 PC register output
@@ -379,18 +395,87 @@ after place-and-route. The actual critical path is reported in
 `results/single_cycle/` after the first synthesis replica.
 
 The divisor path does **not** appear on the critical path because it is
-implemented as a multi-cycle FSM. Its output is captured in a register and
+implemented as a multi-cycle FSM using a radix-2 restoring division algorithm
+(Weste & Harris, 2010, Section 11.4). Its output is captured in a register and
 presented combinationally to `alu_res` only after `div_busy` de-asserts.
 
 ---
 
 ## Memory Parameters
 
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| `IMEM_DEPTH` | 16384 words | 64 KB — fits CoreMark + riscv-tests (ADR 013) |
-| `DMEM_DEPTH` | 8192 words | 32 KB — fits CoreMark data + stack (ADR 013) |
-| Reset vector | `0x00000000` | First word of instruction memory (ADR 012) |
+| Parameter | Synthesis value | Simulation (cocotb) value | Notes |
+|-----------|-----------------|---------------------------|-------|
+| `IMEM_DEPTH` | 2048 words (8 KB) | 16384 words (64 KB) | Set via `.qsf` `set_parameter` for synthesis; exported as env var for cocotb |
+| `DMEM_DEPTH` | 512 words (2 KB) | 8192 words (32 KB) | Same mechanism |
+| Reset vector | `0x00000000` | `0x00000000` | First word of instruction memory (ADR 012) |
+
+Synthesis uses smaller depths to keep logic-cell utilisation low and reduce
+compilation time. Simulation uses larger depths to test the full address-decoding
+logic and accommodate larger programs (e.g. CoreMark) in CI.
+
+---
+
+## Memory Implementation: Logic Cells vs. M10K
+
+A key architectural difference between the single-cycle and pipeline
+implementations is how memories are realised in the FPGA fabric.
+
+### Why the single-cycle cannot use M10K blocks
+
+The single-cycle datapath requires **combinational (asynchronous) read** for
+both instruction and data memory:
+
+- **Instruction memory:** The PC is presented as an address at the start of the
+  cycle, and the instruction word must be valid at the decode logic inputs in
+  the *same* cycle, without waiting for a clock edge.
+- **Data memory:** For load instructions, the effective address computed by the
+  ALU must produce valid read data at the write-back mux inputs within the same
+  cycle.
+
+Intel Cyclone V M10K blocks are fundamentally synchronous storage elements.
+Every read operation is clocked internally, the address is sampled on a clock
+edge and the data appears at the output a fixed access time later (Intel
+Corporation, 2016, Section 3-4: M10K Memory Blocks). While the output register
+can be bypassed (`OUTDATA_REG_A = "UNREGISTERED"` in the `altsyncram`
+megafunction), the memory array itself is still clocked. A true combinational
+read cannot be mapped to an M10K block.
+
+When Quartus Prime encounters an unpacked array read written as a continuous
+assignment (`assign mem_read = mem[addr]`), it implements the array in logic
+cells, LUTs and flip-flops, irrespective of any `ramstyle` attribute attached
+to the array declaration. The `ramstyle = "M10K"` attribute present in
+`instruction_memory.sv` is silently ignored for this reason.
+
+### How the pipeline uses M10K efficiently
+
+The pipelined processor inserts an IF/ID pipeline register between the
+instruction memory output and the decode stage. This register captures the
+instruction word on the rising clock edge of each cycle. Because the read
+completes during the clock period and the result is sampled at the next edge,
+a synchronous (clocked) read is sufficient. The pipeline modules
+`instruction_memory_pipe.sv` and `data_memory_pipe.sv` describe synchronous
+reads using `always_ff` blocks, which Quartus Prime maps to M10K blocks.
+
+The synthesis results confirm this difference:
+
+| Metric | Single-cycle | Pipeline |
+|--------|-------------|----------|
+| M10K blocks used | 0 | 96 |
+| ALMs (with IMEM_DEPTH=2048, DMEM_DEPTH=512) | ~11 500 | ~2 100 |
+| Fmax (Slow 85°C, quartile-based) | 37.54 MHz | 57.59 MHz |
+
+The single-cycle uses ~11 500 ALMs because the 2048 × 32-bit instruction memory
+requires ~65 000 flip-flops, each mapped to a logic cell. The pipeline uses
+only ~2 100 ALMs because the 16384-word instruction memory fits in 64 M10K
+blocks (each M10K = 10 Kbits, configurable as 1024 × 10 bits).
+
+### References
+
+- Intel Corporation (2016). *Cyclone V Device Handbook, Volume 1: Device
+  Interfaces and Integration*. Section 3-4: M10K Memory Blocks.
+- Intel Corporation (2018). *Quartus Prime Handbook Volume 2: Design
+  Implementation and Optimization*. Section 11: Recommended HDL Coding Styles
+  — Inference of Memory Functions from HDL Code.
 
 ---
 
@@ -419,3 +504,18 @@ presented combinationally to `alu_res` only after `div_busy` de-asserts.
    naturally aligned (LW to 4-byte boundary, LH to 2-byte boundary).
    Misaligned accesses produce undefined results; no exception is raised
    (ADR 020).
+
+---
+
+## References
+
+- Harris, S. L., & Harris, D. M. (2021). *Digital Design and Computer
+  Architecture: RISC-V Edition*. Morgan Kaufmann.
+- Intel Corporation (2016). *Cyclone V Device Handbook, Volume 1: Device
+  Interfaces and Integration*. Section 3-4: M10K Memory Blocks.
+- Intel Corporation (2018). *Quartus Prime Handbook Volume 2: Design
+  Implementation and Optimization*. Section 11: Recommended HDL Coding Styles.
+- Patterson, D. A., & Hennessy, J. L. (2017). *Computer Architecture: A
+  Quantitative Approach* (6th ed.). Morgan Kaufmann.
+- Weste, N. H. E., & Harris, D. M. (2010). *CMOS VLSI Design: A Circuits and
+  Systems Perspective* (4th ed.). Addison-Wesley.
