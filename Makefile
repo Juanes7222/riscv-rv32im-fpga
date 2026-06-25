@@ -33,6 +33,9 @@ DMEM_DEPTH := 512
 
 BUILD_DIR ?= build
 
+# Results output directory for FPGA cross-validation
+CROSS_VAL_DIR = results
+
 # Entry point for the flash pipeline. Override with: make flash ELF=path/to/program.elf
 ELF ?=
 
@@ -86,6 +89,44 @@ build-only: check-project
 	@SECONDS=0; \
 	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
+
+
+# Build with SignalTap II for FPGA validation.
+# First generates the .stp file (via create_stp.tcl), then compiles with it.
+# Usage: make build-fpga ARCH=pipeline
+.PHONY: build-fpga
+build-fpga: check-project $(MEM_CONFIG_VH)
+	@echo "[$(ARCH)] Building with SignalTap II for FPGA validation..."
+	@echo "[$(ARCH)] Generating .stp file..."
+	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t ../../scripts/create_stp.tcl $(ARCH) || \
+		echo "[$(ARCH)] Warning: create_stp.tcl failed. Using existing .stp file if any."
+	@echo "[$(ARCH)] Starting SignalTap compilation..."
+	@SECONDS=0; \
+	$(QUARTUS_SH) -t scripts/build_fpga.tcl $(ARCH); \
+	echo "[$(ARCH)] SignalTap build completed in $$SECONDS seconds"
+
+
+# Capture SignalTap data from the programmed FPGA.
+# Requires the FPGA to be programmed with a SignalTap-enabled .sof.
+# Usage: make capture ARCH=pipeline
+.PHONY: capture
+capture:
+	@echo "[$(ARCH)] Running SignalTap capture..."
+	@mkdir -p $(CROSS_VAL_DIR) 2>/dev/null || true
+	$(QUARTUS_STP:.exe=) -t scripts/run_capture.tcl $(ARCH) $(CROSS_VAL_DIR) || \
+		$(QUARTUS_STP) -t scripts/run_capture.tcl $(ARCH) $(CROSS_VAL_DIR)
+
+
+# Parse captured SignalTap data and compare with cocotb results.
+# Usage: make cross-validate ARCH=pipeline COCOTB_CSV=results/cocotb_pipeline.csv
+.PHONY: cross-validate
+cross-validate:
+	@echo "[$(ARCH)] Cross-validating FPGA vs cocotb..."
+	@.venv/bin/python3 scripts/parse_stp_csv.py \
+		$(CROSS_VAL_DIR)/capture_$(ARCH).csv \
+		$(if $(COCOTB_CSV),--cocotb-csv $(COCOTB_CSV)) \
+		--output-dir $(CROSS_VAL_DIR)
+	@echo "[$(ARCH)] Cross-validation complete. See $(CROSS_VAL_DIR)/cross_validation_$(ARCH).csv"
 
 
 # Full pipeline: ELF -> .bin -> .mem -> mem_config.vh -> synthesis -> program FPGA
@@ -350,8 +391,14 @@ help:
 	@echo "  sync               Re-register RTL source files after adding new modules"
 	@echo "  sync-all           Sync both architectures"
 	@echo "  build              Single synthesis run (requires .mem files)"
+	@echo "  build-fpga         Build with SignalTap II for FPGA validation"
 	@echo "  replicas           Run N_REPLICAS synthesis runs, extract Fmax"
 	@echo "  rebuild            Clean then build"
+	@echo ""
+	@echo "FPGA Validation"
+	@echo "  capture            Capture SignalTap data from programmed FPGA"
+	@echo "  cross-validate     Parse captured data and compare vs cocotb"
+	@echo "                     (set COCOTB_CSV=path to cocotb results CSV)"
 	@echo ""
 	@echo "Programming"
 	@echo "  program            Program FPGA via TCL script (no rebuild)"

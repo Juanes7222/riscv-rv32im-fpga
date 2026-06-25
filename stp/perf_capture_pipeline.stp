@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE signal_tap SYSTEM "signal_tap.dtd">
+
+<!--
+    SignalTap II configuration for pipeline architecture.
+    Trigger on program_done_synced == 1, capture cycle_count and instr_retired.
+
+    If this file causes Quartus errors, open SignalTap II GUI and:
+      1. File > New > SignalTap II Logic Analyzer
+      2. Instance: perf_capture_pipeline
+      3. Clock: clk
+      4. Add signals: u_perf|cycle_count[63:0], u_perf|instr_retired[63:0],
+         u_perf|program_done_synced
+      5. Trigger: program_done_synced == 1
+      6. Sample depth: 1K
+      7. Trigger position: 1
+      8. Save as: stp/perf_capture_pipeline.stp
+-->
+
+<signal_tap>
+ <tap_instance name="perf_capture_pipeline">
+  <clock>
+   <assignment name="clock_pin_name" value="clk"/>
+  </clock>
+  <signal_set name="signals">
+   <assignment name="signal" value="top_pipeline|u_perf|cycle_count[63..0]"/>
+   <assignment name="signal" value="top_pipeline|u_perf|instr_retired[63..0]"/>
+   <assignment name="signal" value="top_pipeline|u_perf|program_done_synced"/>
+  </signal_set>
+  <trigger_set name="trigger_0">
+   <assignment name="trigger_mode" value="advanced"/>
+   <assignment name="trigger_condition" value="top_pipeline|u_perf|program_done_synced == 1"/>
+  </trigger_set>
+  <storage>
+   <assignment name="sample_depth" value="1K"/>
+   <assignment name="trigger_position" value="1"/>
+   <assignment name="ram_type" value="auto"/>
+  </storage>
+ </tap_instance>
+</signal_tap>
