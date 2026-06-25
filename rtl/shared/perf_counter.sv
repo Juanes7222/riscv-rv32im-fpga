@@ -10,9 +10,14 @@ module perf_counters #(
     // Pipeline: connect valid_wb. Tie to 1'b0 when PIPELINE_MODE = 0.
     input  logic        valid_wb,
 
+    // program_done: pulsed high when the benchmark writes to tohost.
+    // Registered inside and exposed for SignalTap II capture.
+    input  logic        program_done,
+
     // Outputs - observed by cocotb via DUT ports; tapped by SignalTap II (ADR 026)
     output logic [63:0] cycle_count,
-    output logic [63:0] instr_retired
+    output logic [63:0] instr_retired,
+    output logic        program_done_synced  // registered for SignalTap trigger
 );
 
     logic instr_retired_en;
@@ -26,11 +31,13 @@ module perf_counters #(
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            cycle_count   <= 64'h0;
-            instr_retired <= 64'h0;
+            cycle_count          <= 64'h0;
+            instr_retired        <= 64'h0;
+            program_done_synced  <= 1'b0;
         end else begin
-            cycle_count   <= cycle_count + 64'h1;
-            instr_retired <= instr_retired + {{63{1'b0}}, instr_retired_en};
+            cycle_count          <= cycle_count + 64'h1;
+            instr_retired        <= instr_retired + {{63{1'b0}}, instr_retired_en};
+            program_done_synced  <= program_done_synced || program_done;
         end
     end
 

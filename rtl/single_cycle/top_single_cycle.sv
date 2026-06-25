@@ -1,6 +1,7 @@
 module top_single_cycle #(
     parameter int IMEM_DEPTH = 16384,
-    parameter int DMEM_DEPTH = 8192
+    parameter int DMEM_DEPTH = 8192,
+    parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
 )(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
@@ -152,6 +153,18 @@ module top_single_cycle #(
     logic [63:0] instr_retired;
     logic        program_done;
 
+    // program_done: detect store of value 1 to TOHOST_ADDR (ADR 026).
+    // In the single-cycle, the store executes in one cycle — alu_res is
+    // the address and rs2_data is the value. Registered to provide a
+    // clean edge for SignalTap II trigger.
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            program_done <= 1'b0;
+        end else if (dm_wr && (alu_res == TOHOST_ADDR) && (rs2_data == 32'd1)) begin
+            program_done <= 1'b1;
+        end
+    end
+
 // synthesis translate_off
 `ifndef SYNTHESIS
     initial begin
@@ -164,12 +177,14 @@ module top_single_cycle #(
     perf_counters #(
         .PIPELINE_MODE (1'b0)
     ) u_perf (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .div_busy     (div_busy),
-        .valid_wb     (1'b0),
-        .cycle_count  (cycle_count),
-        .instr_retired(instr_retired)
+        .clk                  (clk),
+        .rst_n                (rst_n),
+        .div_busy             (div_busy),
+        .valid_wb             (1'b0),
+        .program_done         (program_done),
+        .cycle_count          (cycle_count),
+        .instr_retired        (instr_retired),
+        .program_done_synced  ()
     );
 
     pc u_pc (

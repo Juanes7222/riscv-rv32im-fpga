@@ -4,7 +4,8 @@
 module top_pipeline #(
     parameter string IMEM_FILE  = "program.mem",
     parameter int    IMEM_DEPTH = 16384,
-    parameter int    DMEM_DEPTH = 8192
+    parameter int    DMEM_DEPTH = 8192,
+    parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
 )(
     input  logic        clk,        // 50 MHz — DE1-SoC PIN_AF14
     input  logic        rst_n,      // Active-low synchronous reset — KEY[0]
@@ -179,21 +180,35 @@ module top_pipeline #(
     // Performance counters                                                 //
     logic [63:0] cycle_count;
     logic [63:0] instr_retired;
+    logic        program_done;
 
     // valid_wb: a real instruction retires in WB when it is not a bubble
     // and the pipeline is not stalled.
     logic valid_wb;
     assign valid_wb = (wb_instruction != 32'h00000013) && wb_ru_wr;
 
+    // program_done: detect tohost write in MEM stage (ADR 026).
+    // A store of value 1 to TOHOST_ADDR signals benchmark completion.
+    // Registered to provide a clean edge for SignalTap II trigger.
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            program_done <= 1'b0;
+        end else if (mem_dm_wr && (mem_alu_result == TOHOST_ADDR) && (mem_rs2_data == 32'd1)) begin
+            program_done <= 1'b1;
+        end
+    end
+
     perf_counters #(
         .PIPELINE_MODE (1'b1)
     ) u_perf (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .div_busy     (ex_div_busy),
-        .valid_wb     (valid_wb),
-        .cycle_count  (cycle_count),
-        .instr_retired(instr_retired)
+        .clk                  (clk),
+        .rst_n                (rst_n),
+        .div_busy             (ex_div_busy),
+        .valid_wb             (valid_wb),
+        .program_done         (program_done),
+        .cycle_count          (cycle_count),
+        .instr_retired        (instr_retired),
+        .program_done_synced  ()
     );
 
     // Board I/O                                                            //
