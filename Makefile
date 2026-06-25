@@ -119,9 +119,9 @@ replicas: check-project
 			echo "[$(ARCH)] Replica $$i already exists, skipping. Use make clean-replicas to reset."; \
 			continue; \
 		fi; \
-		echo "[$(ARCH)] --- Replica $$i / $(N_REPLICAS) ---"; \
+		echo "[$(ARCH)] --- Replica $$i / $(N_REPLICAS) (SEED=$$i) ---"; \
 		SECONDS=0; \
-		cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
+		cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl $$i; \
 		cd - > /dev/null; \
 		mkdir -p $$replica_dir; \
 		cp $(STA_RPT) $$replica_dir/timing.rpt 2>/dev/null || \

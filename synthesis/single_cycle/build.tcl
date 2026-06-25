@@ -1,6 +1,7 @@
 # Opens the Quartus project in the current directory and runs a full compile.
 # Requires that setup.tcl has been run at least once beforehand.
-# Usage: quartus_sh -t build.tcl
+# Usage: quartus_sh -t build.tcl [seed]
+#   seed: optional integer seed for the fitter (enables unique P&R per replica)
 
 load_package flow
 
@@ -27,6 +28,13 @@ puts "Opening project: $project_name"
 project_open $project_name -force
 
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+
+# Optional seed argument for unique P&R per replica
+if {$argc > 0} {
+    set seed [lindex $argv 0]
+    puts "Setting SEED = $seed"
+    set_global_assignment -name SEED $seed
+}
 
 puts "Starting compilation..."
 set start_time [clock seconds]
