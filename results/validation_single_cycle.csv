@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
+single_cycle,add.elf,pass,503,503,1.0000,0x708

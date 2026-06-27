@@ -92,11 +92,18 @@ build-only: check-project
 
 
 # Build with SignalTap II for FPGA validation.
-# First generates the .stp file (via create_stp.tcl), then compiles with it.
+# Prerequisite: run 'python scripts/fpga_validate.py --elf <path> --fpga-only' first
+# to generate .mem files and mem_config.vh for the validation program.
 # Usage: make build-fpga ARCH=pipeline
 .PHONY: build-fpga
-build-fpga: check-project $(MEM_CONFIG_VH)
+build-fpga: check-project
 	@echo "[$(ARCH)] Building with SignalTap II for FPGA validation..."
+	@if [ ! -f "$(MEM_CONFIG_VH)" ]; then \
+		echo "Error: $(MEM_CONFIG_VH) not found."; \
+		echo "Run 'python scripts/fpga_validate.py --elf <path> --fpga-only' first."; \
+		exit 1; \
+	fi
+	@echo "[$(ARCH)] Using mem_config.vh: $$(grep 'IMEM_FILE\|DMEM_FILE' $(MEM_CONFIG_VH) | tr -d '\n')"
 	@echo "[$(ARCH)] Generating .stp file..."
 	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t ../../scripts/create_stp.tcl $(ARCH) || \
 		echo "[$(ARCH)] Warning: create_stp.tcl failed. Using existing .stp file if any."

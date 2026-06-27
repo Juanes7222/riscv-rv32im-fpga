@@ -1,0 +1,9 @@
+program,arch,cycle_count,instr_retired,cpi
+raw_stress,pipeline,1435,1004,1.4293
+raw_stress,single_cycle,1148,1148,1.0000
+load_use_stress,pipeline,2236,1453,1.5389
+load_use_stress,single_cycle,1125,1125,1.0000
+branch_stress,pipeline,8005,2003,3.9965
+branch_stress,single_cycle,4004,4004,1.0000
+m_ext_stress,pipeline,1236,158,7.8228
+m_ext_stress,single_cycle,1175,155,7.5806

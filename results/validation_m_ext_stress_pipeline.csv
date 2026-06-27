@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
+pipeline,m_ext_stress.elf,pass,1236,158,7.8228,0x100
