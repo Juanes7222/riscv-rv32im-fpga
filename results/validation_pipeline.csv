@@ -1,2 +1,2 @@
 architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
-pipeline,load_use_stress.elf,pass,2236,1453,1.5389,0x100
+pipeline,coremark.elf,timeout,200001,101039,1.9794,0x5000

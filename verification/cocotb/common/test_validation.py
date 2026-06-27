@@ -74,8 +74,10 @@ async def test_validation(dut):
     await reset_and_reload_memories(dut, imem_path, dmem_path)
     cocotb.log.info("Reset complete, program loaded, starting execution...")
 
-    # Wait for tohost write or timeout
-    result = await monitor_tohost(dut, elf_path, max_cycles=200_000)
+    # Wait for tohost write or timeout.
+    # MAX_CYCLES env var overrides default (200k) — needed for CoreMark.
+    max_cycles = int(os.environ.get("VALIDATION_MAX_CYCLES", 200_000))
+    result = await monitor_tohost(dut, elf_path, max_cycles=max_cycles)
 
     # Read counters AFTER the tohost write (give the pipeline one extra cycle)
     await RisingEdge(dut.clk)

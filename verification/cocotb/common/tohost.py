@@ -65,8 +65,10 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.
     Invokes the same scripts used by 'make flash' in the root Makefile.
     IMEM_DEPTH and DMEM_DEPTH must match RTL parameters (root Makefile: 4096 / 1024).
     """
-    imem_depth = int(os.environ.get("IMEM_DEPTH", 4096))
-    dmem_depth = int(os.environ.get("DMEM_DEPTH", 1024))
+    # In synthesis (rtl/shared/): IMEM_DEPTH=16384, DMEM_DEPTH=8192.
+    # The cocotb Makefiles export these; fallback matches the RTL defaults.
+    imem_depth = int(os.environ.get("IMEM_DEPTH", 16384))
+    dmem_depth = int(os.environ.get("DMEM_DEPTH", 8192))
 
     bin_path  = BUILD_DIR / "program.bin"
     imem_path = BUILD_DIR / "imem.mem"

@@ -1,2 +1,2 @@
 architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
-single_cycle,add.elf,pass,503,503,1.0000,0x708
+single_cycle,coremark.elf,timeout,1500001,1499967,1.0000,0x5000
