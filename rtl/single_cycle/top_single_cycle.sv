@@ -11,7 +11,14 @@ module top_single_cycle #(
     output logic [6:0] seven_seg_display2,
     output logic [6:0] seven_seg_display3,
     output logic [6:0] seven_seg_display4,
-    output logic [6:0] seven_seg_display5
+    output logic [6:0] seven_seg_display5,
+
+    // VGA output (Objective 4)
+    output logic       vga_hsync,
+    output logic       vga_vsync,
+    output logic [7:0] vga_r,
+    output logic [7:0] vga_g,
+    output logic [7:0] vga_b
 );
 
     localparam [4:0] ALU_DIV  = 5'b01110;
@@ -325,5 +332,109 @@ module top_single_cycle #(
         .display (seven_seg_display5)
     );
 
+    // =====================================================================
+    // VGA visualization (Objective 4)
+    // =====================================================================
+
+    logic        vga_pixel_clk;
+    logic        pll_locked;
+    logic [12:0] vmem_wr_addr;
+    logic [15:0] vmem_wr_data;
+    logic        vmem_wr_en;
+
+    // Pixel clock PLL: 50 MHz → 74.25 MHz (720p60)
+    vga_pll u_vga_pll (
+        .clk_in  (clk),
+        .rst_in  (~rst_n),
+        .clk_out (vga_pixel_clk),
+        .locked  (pll_locked)
+    );
+
+    // VGA timing generator (sync only, 1280×720 @ 60 Hz)
+    logic [10:0] vga_hcount;
+    logic [9:0]  vga_vcount;
+    logic        vga_video_on;
+
+    vga_controller_1280x720 u_vga (
+        .clk      (vga_pixel_clk),
+        .reset    (1'b0),              // free-run; no async reset per project rules
+        .hsync    (vga_hsync),
+        .vsync    (vga_vsync),
+        .hcount   (vga_hcount),
+        .vcount   (vga_vcount),
+        .video_on (vga_video_on)
+    );
+
+    // -----------------------------------------------------------------
+    // Text-mode address generator:
+    //   char_row = vcount / 16   (16 pixel rows per text line)
+    //   char_col = hcount / 8    (8 pixel columns per character)
+    //   mem_addr = char_row * 160 + char_col
+    // -----------------------------------------------------------------
+    logic [12:0] vmem_rd_addr;
+    assign vmem_rd_addr = (vga_vcount[9:4] * 11'd160) + vga_hcount[10:3];
+
+    // Single-clock dual-port video memory (M10K) — both ports on pixel clock.
+    // The screen_writer runs in the VGA domain so writes are synchronous.
+    logic [15:0] vmem_rd_data;
+    video_memory u_vmem (
+        .clk      (vga_pixel_clk),
+        .wr_en    (vmem_wr_en),
+        .wr_addr  (vmem_wr_addr),
+        .wr_data  (vmem_wr_data),
+        .rd_addr  (vmem_rd_addr),
+        .rd_data  (vmem_rd_data)
+    );
+
+    // -----------------------------------------------------------------
+    // VGA text-mode pixel generator (font ROM + character buffer)
+    // -----------------------------------------------------------------
+    vga_text_mode u_text_mode (
+        .clk        (vga_pixel_clk),
+        .hcount     (vga_hcount),
+        .vcount     (vga_vcount),
+        .video_on   (vga_video_on),
+        .char_data  (vmem_rd_data),
+        .vga_r      (vga_r),
+        .vga_g      (vga_g),
+        .vga_b      (vga_b)
+    );
+
+    // Round-robin screen writer: updates one character per pixel clock cycle.
+    // Full refresh = 111 cycles (2.22 µs) — far faster than VGA frame rate.
+    screen_writer_single_cycle u_writer (
+        .clk          (vga_pixel_clk),
+        .rst_n        (pll_locked),
+        .pc           (pc),
+        .instruction  (instruction),
+        .next_pc      (pc_plus4),
+        .branch       (branch),
+        .rs1_addr     (rs1_addr),
+        .rs2_addr     (rs2_addr),
+        .rd_addr      (rd_addr),
+        .rs1_data     (rs1_data),
+        .rs2_data     (rs2_data),
+        .imm_out      (imm_out),
+        .imm_src      (imm_src),
+        .opcode       (opcode),
+        .funct3       (funct3),
+        .funct7       (funct7),
+        .ru_wr        (ru_wr),
+        .ru_data_wr_src (ru_data_wr_src),
+        .alu_op       (alu_op),
+        .br_op        (br_op),
+        .alua_src     (alua_src),
+        .alub_src     (alub_src),
+        .dm_ctrl      (dm_ctrl),
+        .dm_wr        (dm_wr),
+        .alu_a        (alu_a),
+        .alu_b        (alu_b),
+        .alu_res      (alu_res),
+        .dm_addr      (alu_res),          // alias: dm_addr = alu_res
+        .data_wr      (rd_data),          // alias for ru_data_wr_src display
+        .vmem_wr_en   (vmem_wr_en),
+        .vmem_wr_addr (vmem_wr_addr),
+        .vmem_wr_data (vmem_wr_data)
+    );
 
 endmodule
