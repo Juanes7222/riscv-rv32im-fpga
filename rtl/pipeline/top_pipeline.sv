@@ -15,7 +15,14 @@ module top_pipeline #(
     output logic [6:0]  seven_seg_display2,
     output logic [6:0]  seven_seg_display3,
     output logic [6:0]  seven_seg_display4,
-    output logic [6:0]  seven_seg_display5
+    output logic [6:0]  seven_seg_display5,
+
+    // VGA outputs (720p60 text mode)
+    output logic        vga_hsync,
+    output logic        vga_vsync,
+    output logic [7:0]  vga_r,
+    output logic [7:0]  vga_g,
+    output logic [7:0]  vga_b
 );
 
     // Internal reset (active-high for modules that require it)            //
@@ -636,5 +643,80 @@ module top_pipeline #(
     // wb_instruction is now driven by the mem_wb_register via the new
     // mem_instruction pipeline field. See ex_mem_register.sv and
     // mem_wb_register.sv for the propagation logic.
+
+    // -----------------------------------------------------------------
+    // VGA text-mode visualization (720p60)
+    // -----------------------------------------------------------------
+    logic        vga_pixel_clk;
+    logic        pll_locked;
+    logic        vmem_wr_en;
+    logic [12:0] vmem_wr_addr;
+    logic [15:0] vmem_wr_data;
+    logic [12:0] vmem_rd_addr;
+    logic [15:0] vmem_rd_data;
+
+    vga_pll u_vga_pll (
+        .clk_in  (clk),
+        .rst_in  (~rst_n),
+        .clk_out (vga_pixel_clk),
+        .locked  (pll_locked)
+    );
+
+    logic [10:0] vga_hcount;
+    logic [9:0]  vga_vcount;
+    logic        vga_video_on;
+
+    vga_controller_1280x720 u_vga (
+        .clk      (vga_pixel_clk),
+        .reset    (1'b0),
+        .hsync    (vga_hsync),
+        .vsync    (vga_vsync),
+        .hcount   (vga_hcount),
+        .vcount   (vga_vcount),
+        .video_on (vga_video_on)
+    );
+
+    assign vmem_rd_addr = (vga_vcount[9:4] * 11'd160) + vga_hcount[10:3];
+
+    video_memory u_vmem (
+        .clk      (vga_pixel_clk),
+        .wr_en    (vmem_wr_en),
+        .wr_addr  (vmem_wr_addr),
+        .wr_data  (vmem_wr_data),
+        .rd_addr  (vmem_rd_addr),
+        .rd_data  (vmem_rd_data)
+    );
+
+    vga_text_mode u_text_mode (
+        .clk        (vga_pixel_clk),
+        .hcount     (vga_hcount),
+        .vcount     (vga_vcount),
+        .video_on   (vga_video_on),
+        .char_data  (vmem_rd_data),
+        .vga_r      (vga_r),
+        .vga_g      (vga_g),
+        .vga_b      (vga_b)
+    );
+
+    screen_writer_pipeline u_writer (
+        .clk            (vga_pixel_clk),
+        .rst_n          (pll_locked),
+        .if_pc          (if_pc),
+        .if_instruction (if_instruction),
+        .id_pc          (id_pc),
+        .id_instruction (id_instruction),
+        .ex_alu_result  (ex_alu_result),
+        .ex_instruction (ex_instruction),
+        .mem_alu_result (mem_alu_result),
+        .mem_dm_rd_data (dmem_rd_data),
+        .wb_rd_data     (wb_rd_data),
+        .wb_rd_addr     (wb_rd_addr),
+        .stall          (stall),
+        .flush          (flush),
+        .load_use_hazard(load_use_hazard),
+        .vmem_wr_en     (vmem_wr_en),
+        .vmem_wr_addr   (vmem_wr_addr),
+        .vmem_wr_data   (vmem_wr_data)
+    );
 
 endmodule
