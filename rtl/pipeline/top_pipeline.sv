@@ -706,24 +706,83 @@ module top_pipeline #(
     );
 
     screen_writer_pipeline u_writer (
-        .clk            (vga_pixel_clk),
-        .rst_n          (pll_locked),
-        .if_pc          (if_pc),
-        .if_instruction (if_instruction),
-        .id_pc          (id_pc),
-        .id_instruction (id_instruction),
-        .ex_alu_result  (ex_alu_result),
-        .ex_instruction (ex_instruction),
-        .mem_alu_result (mem_alu_result),
-        .mem_dm_rd_data (dmem_rd_data),
-        .wb_rd_data     (wb_rd_data),
-        .wb_rd_addr     (wb_rd_addr),
-        .stall          (stall),
-        .flush          (flush),
-        .load_use_hazard(load_use_hazard),
-        .vmem_wr_en     (vmem_wr_en),
-        .vmem_wr_addr   (vmem_wr_addr),
-        .vmem_wr_data   (vmem_wr_data)
+        .clk              (vga_pixel_clk),
+        .rst_n            (pll_locked),
+
+        // FETCH / IF stage
+        .pc               (if_pc),
+        .instruction      (if_instruction),
+        .next_pc          (if_pc + 32'd4),
+        .if_pc            (if_pc),
+        .if_instruction   (if_instruction),
+        .branch           (branch_flush),
+
+        // IF/ID register outputs
+        .id_pc            (id_pc),
+        .id_instruction   (id_instruction),
+
+        // DECODE / ID stage
+        .rs1_addr         (id_rs1_addr),
+        .rs2_addr         (id_rs2_addr),
+        .rd_addr          (id_rd_addr),
+        .data_wr          (wb_rd_data),
+        .ru_wr            (id_ru_wr),
+        .rs1_data         (id_rs1_data),
+        .rs2_data         (id_rs2_data),
+        .imm_out          (id_imm),
+        .imm_src          (id_imm_src),
+        .opcode           (id_instruction[6:0]),
+        .funct3           (id_instruction[14:12]),
+        .funct7           (id_instruction[31:25]),
+
+        // ID/EX register outputs
+        .ex_pc            (ex_pc),
+        .ex_instruction   (ex_instruction),
+        .ex_rs1_data      (ex_rs1_data),
+        .ex_rs2_data      (ex_rs2_data),
+        .ex_imm           (ex_imm),
+
+        // EXECUTE / EX stage
+        .alu_a            (ex_alu_a),
+        .alu_b            (ex_alu_b),
+        .alu_res          (ex_alu_result),
+        .alu_op           (ex_alu_op),
+        .br_op            (ex_br_op),
+
+        // EX/MEM register outputs
+        .mem_rs1_data     (mem_rs1_data),
+        .mem_rs2_data     (mem_rs2_data),
+        .mem_alu_result   (mem_alu_result),
+        .ex_alu_result    (ex_alu_result),
+        .mem_instruction  (mem_instruction),
+        .ex_branch_taken  (ex_branch_taken),
+
+        // MEMORY / MEM stage
+        .dm_addr          (mem_alu_result),
+        .dm_wdata         (mem_rs2_data),
+        .dm_rdata         (dmem_rd_data),
+        .dm_ctrl          (mem_dm_ctrl),
+        .dm_wr            (mem_dm_wr),
+
+        // MEM/WB register outputs
+        .wb_instruction   (wb_instruction),
+        .wb_rd_addr       (wb_rd_addr),
+        .wb_rd_data       (wb_rd_data),
+
+        // WRITEBACK
+        .ru_data_wr_src   (wb_ru_data_wr_src),
+
+        // Hazard / control
+        .stall            (stall),
+        .load_use_hazard  (load_use_hazard),
+        .branch_flush     (branch_flush),
+        .trap_flush       (trap_flush),
+        .flush            (flush),
+
+        // Video memory interface
+        .vmem_wr_en       (vmem_wr_en),
+        .vmem_wr_addr     (vmem_wr_addr),
+        .vmem_wr_data     (vmem_wr_data)
     );
 
 endmodule
