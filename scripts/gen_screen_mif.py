@@ -116,11 +116,17 @@ CATALOG = {
     'id_imm':          ('hex', 32, 8),
     'ex_pc':           ('hex', 32, 8),
     'ex_instruction':  ('hex', 32, 8),
+    'ex_rs1_data':     ('hex', 32, 8),    # ID/EX output - forwarded rs1
+    'ex_rs2_data':     ('hex', 32, 8),    # ID/EX output - forwarded rs2
+    'ex_imm':          ('hex', 32, 8),    # ID/EX output - immediate
     'ex_alu_a':        ('hex', 32, 8),
     'ex_alu_b':        ('hex', 32, 8),
     'ex_alu_result':   ('hex', 32, 8),
     'ex_branch_taken': ('bin',  1, 1),
     'mem_alu_result':  ('hex', 32, 8),
+    'mem_rs1_data':    ('hex', 32, 8),    # EX/MEM output - forwarded rs1
+    'mem_rs2_data':    ('hex', 32, 8),    # EX/MEM output - forwarded rs2
+    'mem_instruction': ('hex', 32, 8),    # EX/MEM output - instruction
     'mem_dm_wr':       ('bin',  1, 1),
     'wb_instruction':  ('hex', 32, 8),
     'wb_rd_addr':      ('hex',  5, 2),
@@ -169,24 +175,38 @@ LABEL_ALIASES: Dict[str, str] = {
     'DataRead':  'dm_rdata',
     'Clockcycles':'cycle_count',
     'CycleCount': 'cycle_count',
+
     'IF_PC':       'if_pc',
     'IF_Instr':    'if_instruction',
+
     'ID_PC':       'id_pc',
     'ID_Instr':    'id_instruction',
+
     'ID_rs1_data': 'id_rs1_data',
     'ID_rs2_data': 'id_rs2_data',
     'ID_imm':      'id_imm',
     'EX_PC':       'ex_pc',
+
     'EX_Instr':    'ex_instruction',
     'EX_ALUA':     'ex_alu_a',
     'EX_ALUB':     'ex_alu_b',
     'EX_ALURes':   'ex_alu_result',
     'EX_Branch':   'ex_branch_taken',
+
     'MEM_ALURes':  'mem_alu_result',
+    'MEM_ALUA':    'mem_rs1_data',
+    'MEM_ALUB':    'mem_rs2_data',
+    'MEM_Instr':   'mem_instruction',
+    'MEM_Branch':  'ex_branch_taken',
     'MEM_DMWr':    'mem_dm_wr',
+
+    'EX_rs1_data': 'ex_rs1_data',
+    'EX_rs2_data': 'ex_rs2_data',
+    'EX_imm':      'ex_imm',
     'WB_Instr':    'wb_instruction',
     'WB_rd':       'wb_rd_addr',
     'WB_rd_data':  'wb_rd_data',
+
     'Stall':       'stall',
     'LoadUse':     'load_use_hazard',
     'BranchFlush': 'branch_flush',
@@ -266,7 +286,7 @@ def find_blocks(grid: List[List[str]]) -> Dict[str, Block]:
     header_names = [
         'Registers', 'Prog. Memory', 'Data Memory',
         'FETCH', 'DECODE', 'EXECUTE', 'MEMORY', 'WRITEBACK',
-        'HALTED', 'HELP', 'Logo', 'FSM', 'TPU',
+        'HALTED', 'HELP', 'Logo', 'FSM', 'TPU', "Counters", "Pipeline", "Control", "Performance"
     ]
     header_names.sort(key=len, reverse=True)
     header_re = re.compile('|'.join(re.escape(h) for h in header_names))
