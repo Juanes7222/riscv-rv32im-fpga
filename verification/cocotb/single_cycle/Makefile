@@ -32,8 +32,14 @@ VERILOG_SOURCES = \
     $(RTL_ROOT)/shared/perf_counter.sv \
     $(RTL_ROOT)/shared/seven_segment.sv \
     $(RTL_ROOT)/shared/csr_file.sv \
+    $(RTL_ROOT)/shared/vga_pll.sv \
+    $(RTL_ROOT)/shared/vga_text_mode.sv \
+    $(RTL_ROOT)/shared/vga_controller.sv \
+    $(RTL_ROOT)/shared/vga_font_rom.sv \
+    $(RTL_ROOT)/shared/video_memory.sv \
     $(RTL_ROOT)/single_cycle/control_unit.sv \
     $(RTL_ROOT)/single_cycle/pc.sv \
+    $(RTL_ROOT)/single_cycle/screen_writer_sc.sv \
     $(RTL_ROOT)/single_cycle/top_single_cycle.sv
 
 COMPILE_ARGS = -I$(RTL_ROOT)/shared
