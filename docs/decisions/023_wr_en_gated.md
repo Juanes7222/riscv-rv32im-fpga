@@ -1,8 +1,8 @@
-# ADR 023 — Register File Write Inhibit During Division (wr_en_gated)
+# ADR 023 - Register File Write Inhibit During Division (wr_en_gated)
 
-**Status:** Accepted (updated 2026-06-12 — timing tables superseded by ADR 031)  
+**Status:** Accepted (updated 2026-06-12 - timing tables superseded by ADR 031)  
 **Date:** 2026-05-02
-**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) — the cycle-by-cycle analysis below is replaced by the corrected timing in ADR 031. In particular, the corner-case CPI is now 2 (not 1), and the `div_busy` formula is `(div_state != DIV_IDLE) || (is_div_op & ~div_processed)`, not `(div_state != DIV_IDLE)`. The normative signal definition of `wr_en_gated = ru_wr & (~is_div | div_done)` is unchanged.
+**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) - the cycle-by-cycle analysis below is replaced by the corrected timing in ADR 031. In particular, the corner-case CPI is now 2 (not 1), and the `div_busy` formula is `(div_state != DIV_IDLE) || (is_div_op & ~div_processed)`, not `(div_state != DIV_IDLE)`. The normative signal definition of `wr_en_gated = ru_wr & (~is_div | div_done)` is unchanged.
 
 ## Context
 
@@ -14,7 +14,7 @@ on the cycle when `div_result` holds the final correct value.
 
 `div_busy` alone cannot gate the write because it is high during both
 `DIV_RUNNING` (result not ready) and `DIV_DONE` (result ready). The correct
-gating signal is `div_done` — a 1-cycle pulse from `alu_rv32im` that fires
+gating signal is `div_done` - a 1-cycle pulse from `alu_rv32im` that fires
 exactly when the result is valid (see [ADR 019](019_alu_rv32im.md)).
 
 ## Decision
@@ -35,17 +35,17 @@ datapath. All other connections are unchanged.
 
 ## Rationale
 
-**Cycle-by-cycle analysis — normal division (CPI = 34):**
+**Cycle-by-cycle analysis - normal division (CPI = 34):**
 
 | Cycle | `div_state` | `is_div` | `div_done` | `~is_div \| div_done` | `wr_en_gated` | Action |
 |-------|------------|----------|------------|----------------------|---------------|--------|
-| 1 (issue) | IDLE | 1 | 0 | 0 | 0 | ✅ Inhibited — result not ready |
-| 2–33 (RUNNING) | RUNNING | 1 | 0 | 0 | 0 | ✅ Inhibited — result not ready |
+| 1 (issue) | IDLE | 1 | 0 | 0 | 0 | ✅ Inhibited - result not ready |
+| 2–33 (RUNNING) | RUNNING | 1 | 0 | 0 | 0 | ✅ Inhibited - result not ready |
 | 34 (DONE) | DONE | 1 | 1 | 1 | `ru_wr` | ✅ Writes correct result |
-| 35+ | IDLE | 1 | 0 | 0 | 0 | ✅ Inhibited — already written |
+| 35+ | IDLE | 1 | 0 | 0 | 0 | ✅ Inhibited - already written |
 | Non-division | IDLE | 0 | 0 | 1 | `ru_wr` | ✅ Normal pass-through |
 
-**Corner cases (div-by-zero, signed overflow) — CPI = 1:**
+**Corner cases (div-by-zero, signed overflow) - CPI = 1:**
 
 | Cycle | `div_state` | `is_div` | `div_done` | `wr_en_gated` | Action |
 |-------|------------|----------|------------|---------------|--------|
@@ -81,7 +81,7 @@ register_file u_rf (
     .rs2_addr (rs2_addr),
     .rd_addr  (rd_addr),
     .rd_data  (rd_data),
-    .wr_en    (wr_en_gated),   // gated — not ru_wr
+    .wr_en    (wr_en_gated),   // gated - not ru_wr
     .rs1_data (rs1_data),
     .rs2_data (rs2_data)
 );

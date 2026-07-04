@@ -1,8 +1,8 @@
-# ADR 024 — Performance Counters and Measurement Infrastructure
+# ADR 024 - Performance Counters and Measurement Infrastructure
 
 **Status:** Accepted  
 **Date:** 2026-05-04  
-**Revision:** 3 — `program_done` changed from combinational to registered output
+**Revision:** 3 - `program_done` changed from combinational to registered output
 
 ## Context
 
@@ -172,7 +172,7 @@ module perf_counters #(
     input  logic        dm_wr,
     input  logic [31:0] alu_res,
 
-    // Outputs — observed by SignalTap II (ADR 026)
+    // Outputs - observed by SignalTap II (ADR 026)
     output logic [63:0] cycle_count,
     output logic [63:0] instr_retired,
     output logic        program_done
@@ -185,7 +185,7 @@ module perf_counters #(
 // Combinational
 program_done = dm_wr & (alu_res == TOHOST_ADDR);
 
-// Increment enable — resolved statically at elaboration
+// Increment enable - resolved statically at elaboration
 generate
   if (PIPELINE_MODE == 1'b0)
     assign instr_retired_en = ~div_busy;
@@ -284,7 +284,7 @@ set_false_path -from [all_registers] -to [get_registers {*perf_counters*}]
   Adding it afterward requires re-running all five replicas for both
   microarchitectures.
 - The `valid_wb` signal must be designed into the pipeline register chain from
-  the start — a 1-bit tag propagated from IF to WB; bubbles carry `valid_wb = 0`.
+  the start - a 1-bit tag propagated from IF to WB; bubbles carry `valid_wb = 0`.
 - `program_done` is observable by cocotb testbenches. The testbench monitors this
   signal to detect benchmark completion, replacing any ad-hoc end-of-simulation
   detection.

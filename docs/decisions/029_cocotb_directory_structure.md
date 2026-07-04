@@ -1,4 +1,4 @@
-# ADR 029 — cocotb Directory Structure and Makefile Convention
+# ADR 029 - cocotb Directory Structure and Makefile Convention
 
 **Status:** Accepted  
 **Date:** 2026-05-11  
@@ -17,7 +17,7 @@ The two layers serve different purposes:
 
 - **`common/`**: ISA conformance tests. Runs the full riscv-tests suite
   (RV32I + RV32M) against the DUT. Identical tests run against single-cycle
-  and pipeline — the DUT module is the only difference.
+  and pipeline - the DUT module is the only difference.
 - **`single_cycle/`**: Architecture-specific tests. Exercises properties that
   only make sense for the single-cycle design: CPI=1 for every instruction,
   no stall cycles, performance counter sanity.
@@ -51,7 +51,7 @@ verification/cocotb/
 ```
 
 
-### Makefile contract (common/Makefile — canonical form)
+### Makefile contract (common/Makefile - canonical form)
 
 ```makefile
 # verification/cocotb/common/Makefile

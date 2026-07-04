@@ -175,7 +175,7 @@ module alu_rv32im (
                 DIV_RUNNING: begin
                     div_done_r <= 1'b0;
                     // Update quotient and partial on every iteration,
-                    // including the last one — the LSB of the quotient is
+                    // including the last one - the LSB of the quotient is
                     // produced on iteration 31 and would otherwise be lost
                     // because we leave DIV_RUNNING on the same cycle.
                     div_partial  <= next_partial;

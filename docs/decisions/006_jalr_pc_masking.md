@@ -1,4 +1,4 @@
-# ADR 006 — JALR LSB Masking Assigned to branch_unit
+# ADR 006 - JALR LSB Masking Assigned to branch_unit
 
 **Status:** Accepted  
 **Date:** 2026-04-24

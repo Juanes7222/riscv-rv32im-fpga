@@ -1,4 +1,4 @@
-# ADR 013 — Instruction and Data Memory Sizes
+# ADR 013 - Instruction and Data Memory Sizes
 
 **Status:** Accepted  
 **Date:** 2026-04-24
@@ -42,12 +42,12 @@ the visualization module. This does not trigger the synthesis overflow
 suspension criterion.
 
 **Address bus width:**  
-- Instruction memory: `IMEM_DEPTH = 16384` → word address requires 14 bits
-  → byte address range `0x00000000 – 0x0000FFFF` (16-bit address space).
+- Instruction memory: `IMEM_DEPTH = 16384` --> word address requires 14 bits
+  --> byte address range `0x00000000 – 0x0000FFFF` (16-bit address space).
   The PC presents a 32-bit address; the instruction memory uses `addr[15:2]`
   internally and ignores `addr[1:0]` (always zero for aligned instructions)
   and `addr[31:16]` (out-of-range accesses are undefined behavior).
-- Data memory: `DMEM_DEPTH = 8192` → word address requires 13 bits → byte
+- Data memory: `DMEM_DEPTH = 8192` --> word address requires 13 bits --> byte
   address range `0x00000000 – 0x00007FFF`. The data memory uses `addr[14:2]`
   internally.
 

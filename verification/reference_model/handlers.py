@@ -272,7 +272,7 @@ def _div_rem_common(cpu, instr, signed):
     a = cpu.regs[instr.rs1]
     b = cpu.regs[instr.rs2]
     if b == 0:
-        return a, 0xFFFFFFFF  # (rem, div) — by-zero: div=-1, rem=dividend
+        return a, 0xFFFFFFFF  # (rem, div) - by-zero: div=-1, rem=dividend
     if signed and a == 0x80000000 and b == 0xFFFFFFFF:
         return 0, 0x80000000  # overflow: rem=0, div=INT_MIN
     sa = _sign_extend(a, 32)

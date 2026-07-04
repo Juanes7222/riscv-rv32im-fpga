@@ -1,4 +1,4 @@
-# ADR 015 — Register File: FF Array Implementation
+# ADR 015 - Register File: FF Array Implementation
 
 **Status:** Accepted  
 **Date:** 2026-05-02
@@ -36,7 +36,7 @@ Cyclone V primitives. The added complexity provides no benefit for a 32-word
 memory.
 
 **2. Resource cost is negligible.**  
-32 registers × 32 bits = 1024 flip-flops. The Cyclone V 5CSEMA5F31C6 has
+32 registers x 32 bits = 1024 flip-flops. The Cyclone V 5CSEMA5F31C6 has
 approximately 41 000 logic registers. The register file consumes roughly 2.5%
 of available flip-flops, well within budget for both microarchitectures
 simultaneously.
@@ -57,11 +57,11 @@ on the description style and tool version.
 ## Implementation Contract
 
 ```systemverilog
-// Read ports — purely combinational, outside any always block
+// Read ports - purely combinational, outside any always block
 assign rs1_data = (rs1_addr == 5'b0) ? 32'b0 : regs[rs1_addr];
 assign rs2_data = (rs2_addr == 5'b0) ? 32'b0 : regs[rs2_addr];
 
-// Write port — synchronous, x0 protected by gate on write address
+// Write port - synchronous, x0 protected by gate on write address
 always_ff @(posedge clk) begin
     if (!rst_n) begin
         for (int i = 1; i < 32; i++) regs[i] <= 32'b0;

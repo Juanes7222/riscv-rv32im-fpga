@@ -1,8 +1,8 @@
-# ADR 019 — ALU RV32IM: Interface, MULHSU, and Division Strategy
+# ADR 019 - ALU RV32IM: Interface, MULHSU, and Division Strategy
 
-**Status:** Accepted (updated 2026-06-12 — division FSM corrected per ADR 031)  
+**Status:** Accepted (updated 2026-06-12 - division FSM corrected per ADR 031)  
 **Date:** 2026-05-02
-**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) — the division FSM, the `div_done` timing table, the `div_busy` formula, the combinational `next_quotient` / `next_partial` signals, and the corner-case CPI (now 2, not 1) are all governed by ADR 031. The combinational multiplier, the MULHSU 33-bit approach, the module interface (`clk`, `rst_n`, `div_busy`, `div_done` ports), and the radix-2 restoring algorithm description remain as stated here.
+**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) - the division FSM, the `div_done` timing table, the `div_busy` formula, the combinational `next_quotient` / `next_partial` signals, and the corner-case CPI (now 2, not 1) are all governed by ADR 031. The combinational multiplier, the MULHSU 33-bit approach, the module interface (`clk`, `rst_n`, `div_busy`, `div_done` ports), and the radix-2 restoring algorithm description remain as stated here.
 
 ## Context
 
@@ -17,7 +17,7 @@ the division implementation strategy.
 **1. The module interface includes `clk`, `rst_n`, `div_busy`, and `div_done`.**  
 All port signals are declared as `logic`. `div_busy` is the stall signal for
 the PC unit and the pipeline hazard unit. `div_done` is a registered 1-cycle
-pulse that fires on the `DIV_DONE → DIV_IDLE` transition and is used by
+pulse that fires on the `DIV_DONE --> DIV_IDLE` transition and is used by
 `top_single_cycle` to gate the register file write enable (see
 [ADR 023](023_wr_en_gated.md)).
 
@@ -43,7 +43,7 @@ write cycle (DONE state, result valid) from the 32 incorrect write cycles
 (RUNNING state, result not yet valid). `div_busy` remains high during both
 RUNNING and DONE, so it cannot gate the write alone. `div_done` is a
 registered 1-cycle pulse aligned with the cycle that `div_result` holds the
-correct final value — the exact write window needed by the register file.
+correct final value - the exact write window needed by the register file.
 See [ADR 023](023_wr_en_gated.md) for the complete timing analysis.
 
 **`clk`, `rst_n`, `div_busy`:**  
@@ -59,8 +59,8 @@ with `b[32] = 0`. See [ADR 009](009_mulhsu_33bit_extension.md).
 
 **Radix-2 restoring division:**  
 A combinational `/` synthesized by Quartus produces a ~32-level carry chain,
-reducing Fmax to 20–30 MHz — making it a function of divider depth rather
-than the IF→WB datapath under comparison. See [ADR 008](008_m_extension_implementation.md).
+reducing Fmax to 20–30 MHz - making it a function of divider depth rather
+than the IF-->WB datapath under comparison. See [ADR 008](008_m_extension_implementation.md).
 
 **Module-scope intermediate signals:**  
 Quartus Prime has inconsistent support for variables declared inside
@@ -76,7 +76,7 @@ See [alu_rv32im.md](../../rtl/shared/alu_rv32im.sv)
 
 `div_done` is a registered output (FF). It pulses high for exactly one clock
 cycle in two cases:
-1. **Normal division (CPI = 34):** fires on the DONE cycle — the same cycle
+1. **Normal division (CPI = 34):** fires on the DONE cycle - the same cycle
    that `div_result` receives its correct final value and `div_state` returns
    to IDLE.
 2. **Corner cases (CPI = 1):** fires on the IDLE cycle itself, immediately

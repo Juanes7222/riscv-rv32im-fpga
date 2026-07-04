@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-gen_screen_mif.py — Formal visual-template compiler for RISC-V console.
+gen_screen_mif.py - Formal visual-template compiler for RISC-V console.
 
 Reads RiscVScreenV3.xlsx and produces two deterministic artifacts:
 
@@ -15,18 +15,18 @@ The Excel/CSV is the single source of truth.  The script does NOT "draw" the
 screen; it extracts a machine-readable slot specification.  There are two
 kinds of slots:
 
-  * Tagged slots   — a known label (e.g. "ALUA", "Opcode") followed by a
+  * Tagged slots   - a known label (e.g. "ALUA", "Opcode") followed by a
                      writable placeholder run.  The label determines the
                      RTL signal name; the placeholder only fixes position
                      and width.
-  * Tabular slots  — repetitive blocks (Registers, Prog. Memory, Data Memory)
+  * Tabular slots  - repetitive blocks (Registers, Prog. Memory, Data Memory)
                      parsed by row-pattern, not by coordinate.
 
 Placeholder conventions
 -----------------------
-  X…X  (run of X) → hex field.  Width must be even for byte-aligned values.
-  B…B  (run of B) → binary field.  Width must match the RTL signal width.
-  A-B  (legacy)   → column range, still accepted during transition.
+  X…X  (run of X) --> hex field.  Width must be even for byte-aligned values.
+  B…B  (run of B) --> binary field.  Width must match the RTL signal width.
+  A-B  (legacy)   --> column range, still accepted during transition.
 
 The script fails hard when:
   • a known label has no detectable placeholder,
@@ -45,31 +45,24 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import openpyxl
 
-# ---------------------------------------------------------------------------
 # Geometry
-# ---------------------------------------------------------------------------
 SCREEN_W = 160
 SCREEN_H = 45
 CELLS = SCREEN_W * SCREEN_H           # 7 200
 ADDR_BITS = 13                        # 2**13 = 8192 > 7200
 
-# ---------------------------------------------------------------------------
 # Video word: {attribute[15:8], char[7:0]}
-# ---------------------------------------------------------------------------
 ATTR_STATIC = 0x07   # white on black
 ATTR_DYNAMIC = 0x0F  # bright white on black (placeholder for runtime)
 
 
-# ---------------------------------------------------------------------------
 # Signal catalog
-# ---------------------------------------------------------------------------
-# Each entry:  rtl_name → (fmt, signal_bits, display_min_chars)
+# Each entry:  rtl_name --> (fmt, signal_bits, display_min_chars)
 #   fmt: 'hex' | 'bin'
 #   signal_bits: width of the actual RTL wire
 #   display_min_chars: minimum chars needed to show the value
 #
 # Visual labels that map to the same rtl_name are listed in LABEL_ALIASES.
-# ---------------------------------------------------------------------------
 CATALOG = {
     # Fetch / PC
     'pc':          ('hex', 32, 8),
@@ -251,11 +244,9 @@ class Block:
     col_end: int        # right column (exclusive)
 
 
-# ---------------------------------------------------------------------------
-# Step 1 — Read worksheet into a normalised character grid
-# ---------------------------------------------------------------------------
+# Step 1 - Read worksheet into a normalised character grid
 def read_grid(ws) -> List[List[str]]:
-    """Build a SCREEN_H × SCREEN_W grid from the worksheet."""
+    """Build a SCREEN_H x SCREEN_W grid from the worksheet."""
     grid: List[List[str]] = [[' ' for _ in range(SCREEN_W)] for _ in range(SCREEN_H)]
     for r in range(1, SCREEN_H + 1):
         for c in range(1, SCREEN_W + 1):
@@ -267,13 +258,11 @@ def read_grid(ws) -> List[List[str]]:
     return grid
 
 
-# ---------------------------------------------------------------------------
-# Step 2 — Detect block headers and delimit their horizontal bounds
-# ---------------------------------------------------------------------------
+# Step 2 - Detect block headers and delimit their horizontal bounds
 def find_blocks(grid: List[List[str]]) -> Dict[str, Block]:
     """Scan the grid for known block-header text and determine each block's
     horizontal extent by looking for the enclosing '|' separators on the
-    header row.  Returns a map header_name → Block."""
+    header row.  Returns a map header_name --> Block."""
     header_names = [
         'Registers', 'Prog. Memory', 'Data Memory',
         'FETCH', 'DECODE', 'EXECUTE', 'MEMORY', 'WRITEBACK',
@@ -311,9 +300,7 @@ def find_blocks(grid: List[List[str]]) -> Dict[str, Block]:
     return blocks
 
 
-# ---------------------------------------------------------------------------
-# Step 3 — Tagged-slot detection (label + placeholder) in free areas
-# ---------------------------------------------------------------------------
+# Step 3 - Tagged-slot detection (label + placeholder) in free areas
 def detect_tagged_slots(grid: List[List[str]],
                         occupied: Set[Tuple[int, int]],
                         catalog: Dict[str, Tuple[str, int, int]]) -> List[Slot]:
@@ -424,9 +411,7 @@ def detect_tagged_slots(grid: List[List[str]],
     return slots
 
 
-# ---------------------------------------------------------------------------
-# Step 4 — Tabular blocks: Registers
-# ---------------------------------------------------------------------------
+# Step 4 - Tabular blocks: Registers
 def parse_registers(grid: List[List[str]],
                     block: Block,
                     occupied: Set[Tuple[int, int]]) -> List[Slot]:
@@ -475,9 +460,7 @@ def parse_registers(grid: List[List[str]],
     return slots
 
 
-# ---------------------------------------------------------------------------
-# Step 5 — Tabular blocks: Prog. Memory & Data Memory
-# ---------------------------------------------------------------------------
+# Step 5 - Tabular blocks: Prog. Memory & Data Memory
 def parse_memory_table(grid: List[List[str]],
                        block: Block,
                        occupied: Set[Tuple[int, int]],
@@ -544,9 +527,7 @@ def parse_memory_table(grid: List[List[str]],
     return slots
 
 
-# ---------------------------------------------------------------------------
-# Step 6 — Validation
-# ---------------------------------------------------------------------------
+# Step 6 - Validation
 def validate_slots(slots: List[Slot]) -> None:
     """Fail hard on overlaps or width violations."""
     occupied: Dict[Tuple[int, int], Slot] = {}
@@ -582,9 +563,7 @@ def validate_slots(slots: List[Slot]) -> None:
             )
 
 
-# ---------------------------------------------------------------------------
-# Step 7 — Build artifacts
-# ---------------------------------------------------------------------------
+# Step 7 - Build artifacts
 def build_mif(grid: List[List[str]], slots: List[Slot], out_path: Path) -> None:
     """Write a Quartus-compatible .mif file."""
     buf = [(ATTR_STATIC << 8) | 0x20 for _ in range(CELLS)]
@@ -627,9 +606,7 @@ def write_field_map(slots: List[Slot], out_path: Path) -> None:
         json.dump(payload, fp, indent=2)
 
 
-# ---------------------------------------------------------------------------
 # Main
-# ---------------------------------------------------------------------------
 def main() -> int:
     ap = argparse.ArgumentParser(
         description='Compile RiscVScreenV3.xlsx into video-memory artifacts.'
@@ -686,7 +663,7 @@ def main() -> int:
     build_mif(grid, slots, Path(args.out_mif))
     write_field_map(slots, Path(args.out_fields))
 
-    print(f'OK: {len(slots)} slots → {args.out_mif} + {args.out_fields}')
+    print(f'OK: {len(slots)} slots --> {args.out_mif} + {args.out_fields}')
     return 0
 
 

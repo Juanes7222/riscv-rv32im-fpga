@@ -189,7 +189,7 @@ async def test_wb_instruction_propagates_for_valid_wb(dut):
     mem_config.vh's IMEM_FILE (a previously-built riscv-test ELF).
     We overwrite imem[0] with our test instruction AND overwrite
     imem[1..7] with bubbles so the test's pipeline state is
-    deterministic — the loaded program doesn't follow our ADD."""
+    deterministic - the loaded program doesn't follow our ADD."""
     instr = encode_r(0, 3, 2, 0, 1)  # ADD x1, x2, x3
     await start_clock(dut)
     for i in range(256):

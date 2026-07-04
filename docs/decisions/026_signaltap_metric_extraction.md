@@ -1,4 +1,4 @@
-# ADR 026 — Metric Extraction: SignalTap II via JTAG as Definitive Mechanism
+# ADR 026 - Metric Extraction: SignalTap II via JTAG as Definitive Mechanism
 
 **Status:** Accepted  
 **Date:** 2026-05-04
@@ -61,7 +61,7 @@ set_global_assignment -name USE_SIGNALTAP_FILE stp/perf_capture.stp
 ### Automation Script: `scripts/run_capture.tcl`
 
 ```tcl
-# run_capture.tcl — invoked as: quartus_stp -t scripts/run_capture.tcl
+# run_capture.tcl - invoked as: quartus_stp -t scripts/run_capture.tcl
 # Captures one sample after program_done trigger and exports to CSV.
 
 package require ::quartus::stp
@@ -142,7 +142,7 @@ subprocess.run(
     check=True
 )
 
-print(f"Replica {args.replica} complete → {args.out}")
+print(f"Replica {args.replica} complete --> {args.out}")
 ```
 
 ### Python Parser: `scripts/parse_stp_csv.py`
@@ -184,7 +184,7 @@ uses approximately:
 
 | Resource | Estimated consumption |
 |----------|-----------------------|
-| M10K blocks | 1 (minimum, 128 bits × 1 sample fits in one M10K) |
+| M10K blocks | 1 (minimum, 128 bits x 1 sample fits in one M10K) |
 | Logic Elements (LEs) | ~150-250 (trigger logic + JTAG interface) |
 | Fmax impact | None, SignalTap reads via JTAG, off the critical path |
 
@@ -196,7 +196,7 @@ is < 0.3 % of LEs and < 0.3 % of M10K, negligible relative to the processor itse
 These requirements are normative for the experimental protocol:
 
 1. **Identical `.stp` configuration** for both microarchitectures and all benchmarks.
-   The `.stp` file is not modified between treatments — only the loaded program changes.
+   The `.stp` file is not modified between treatments - only the loaded program changes.
 
 2. **SignalTap overhead is reported separately** in the resource utilization tables.
    Each table must include two rows:
@@ -223,9 +223,9 @@ These requirements are normative for the experimental protocol:
 
 | File | Action |
 |------|--------|
-| `stp/perf_capture.stp` | New — SignalTap II configuration file |
-| `scripts/run_capture.tcl` | New — TCL automation script |
-| `scripts/run_replica.py` | New — end-to-end replica orchestration |
-| `scripts/parse_stp_csv.py` | New — CSV parser for SignalTap export |
-| `projects/single_cycle/rv32im_sc.qsf` | Modified — add STP assignments |
-| `projects/pipeline/rv32im_pl.qsf` | Modified — add STP assignments |
+| `stp/perf_capture.stp` | New - SignalTap II configuration file |
+| `scripts/run_capture.tcl` | New - TCL automation script |
+| `scripts/run_replica.py` | New - end-to-end replica orchestration |
+| `scripts/parse_stp_csv.py` | New - CSV parser for SignalTap export |
+| `projects/single_cycle/rv32im_sc.qsf` | Modified - add STP assignments |
+| `projects/pipeline/rv32im_pl.qsf` | Modified - add STP assignments |

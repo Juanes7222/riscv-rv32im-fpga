@@ -8,7 +8,7 @@ from conftest import start_clock, apply_reset
 _TESTS_DIR = REPO_ROOT / "build" / "riscv-tests" / "rv32um"
 
 # DIV stalls: CPI=34 per division instruction (ADR 008).
-# Most rv32um tests execute dozens of division instances → budget accordingly.
+# Most rv32um tests execute dozens of division instances --> budget accordingly.
 MAX_CYCLES_MUL = 200_000
 MAX_CYCLES_DIV = 500_000
 

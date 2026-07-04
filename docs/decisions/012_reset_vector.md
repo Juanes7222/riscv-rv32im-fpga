@@ -1,4 +1,4 @@
-# ADR 012 — Reset Vector: 0x00000000
+# ADR 012 - Reset Vector: 0x00000000
 
 **Status:** Accepted  
 **Date:** 2026-04-24
@@ -6,7 +6,7 @@
 ## Context
 
 When the processor comes out of reset, the PC must be loaded with a defined
-address — the reset vector — from which it begins fetching instructions. The
+address - the reset vector - from which it begins fetching instructions. The
 choice of reset vector determines where the linker must place the entry point
 of every program that runs on the processor, including the riscv-tests suite
 and CoreMark.
@@ -46,4 +46,4 @@ register is loaded with `32'h0000_0000`.
   (`mtvec`) writes the result code to a `tohost` symbol. The cocotb testbench
   monitors the data memory write address for a write to `tohost` (defined
   in the linker script) to determine pass/fail. The processor therefore
-  must implement a minimal CSR file and trap mechanism — see ADR 030.
+  must implement a minimal CSR file and trap mechanism - see ADR 030.

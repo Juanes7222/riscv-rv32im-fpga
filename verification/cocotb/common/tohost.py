@@ -169,9 +169,9 @@ async def monitor_tohost(
     Monitor the DUT data memory write bus for a write to the tohost symbol.
 
     Returns:
-        "pass"       — tohost written with 1
-        "timeout"    — max_cycles elapsed with no tohost write
-        str(testnum) — tohost written with failure code; TESTNUM = value >> 1
+        "pass"       - tohost written with 1
+        "timeout"    - max_cycles elapsed with no tohost write
+        str(testnum) - tohost written with failure code; TESTNUM = value >> 1
     """
     tohost_byte_addr = get_tohost_addr(elf_path)
     tohost_word_addr = tohost_byte_addr >> 2

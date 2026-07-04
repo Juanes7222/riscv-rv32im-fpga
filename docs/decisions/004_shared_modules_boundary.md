@@ -1,4 +1,4 @@
-# ADR 004 — Boundary Between Shared and Microarchitecture-Specific Modules
+# ADR 004 - Boundary Between Shared and Microarchitecture-Specific Modules
 
 **Status:** Accepted  
 **Date:** 2026-04-24

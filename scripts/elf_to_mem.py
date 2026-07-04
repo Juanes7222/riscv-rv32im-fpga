@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 WORD_SIZE_BYTES = 4
-NOP_WORD = "00002013"  # ADDI x0, x0, 0 — fills memory beyond program end
+NOP_WORD = "00002013"  # ADDI x0, x0, 0 - fills memory beyond program end
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -86,7 +86,7 @@ def convert_binary_to_mem(bin_path: Path, depth: int, mem_path: Path) -> None:
     program_word_count = len(program_words)
     padding_word_count = depth - program_word_count
     print(
-        f"[elf_to_mem] {bin_path.name} → {mem_path} "
+        f"[elf_to_mem] {bin_path.name} --> {mem_path} "
         f"({program_word_count} program words + {padding_word_count} NOP padding, "
         f"total {depth} words)"
     )

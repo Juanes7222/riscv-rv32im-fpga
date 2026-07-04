@@ -1,4 +1,4 @@
-# ADR 021 — Data Memory: Word-Addressed Organization with Byte Enables
+# ADR 021 - Data Memory: Word-Addressed Organization with Byte Enables
 
 **Status:** Accepted  
 **Date:** 2026-05-02
@@ -108,8 +108,8 @@ correctly aligned.
   automatically from the array size and access pattern.
 - The module is shared between both microarchitectures without modification.
 - The combinational read extraction block is part of the critical load
-  instruction path: `ALU → data_memory → (extract+extend) → wb_mux`.
+  instruction path: `ALU --> data_memory --> (extract+extend) --> wb_mux`.
   Its depth is 1 mux level (byte/halfword selection) plus 1 sign-extension
-  operation — typically 1–2 LUT levels.
+  operation - typically 1–2 LUT levels.
 - Misaligned accesses produce undefined results. No exception is raised.
   This must be noted in the experimental protocol.

@@ -4,12 +4,12 @@
 // Structure: loop with DIV (34 cycles) + MUL (1 cycle).
 // Pipeline stalls during DIV but not during MUL.
 //
-// Per iteration: 1×div + 1×mul + 1×addi + 1×bne = 4 instructions
-// Counted: 1×div + 1×mul + 1×addi = 3
-// N = 30 → 90 counted instructions
-// Pipeline cycles: 30 × (34 div stall + 1 mul + 1 addi + 1 bne) >> 30 × 37
-// But bne is also stalled during div, so cycles = 30 × (34 div + 1 mul + 2 post-mul)
-// = 30 × 37 = 1110 cycles for 90 counted = CPI ≈ 12.3
+// Per iteration: 1xdiv + 1xmul + 1xaddi + 1xbne = 4 instructions
+// Counted: 1xdiv + 1xmul + 1xaddi = 3
+// N = 30 --> 90 counted instructions
+// Pipeline cycles: 30 x (34 div stall + 1 mul + 1 addi + 1 bne) >> 30 x 37
+// But bne is also stalled during div, so cycles = 30 x (34 div + 1 mul + 2 post-mul)
+// = 30 x 37 = 1110 cycles for 90 counted = CPI ≈ 12.3
 
 .section .text.init
 .globl _start

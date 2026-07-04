@@ -1,4 +1,4 @@
-# ADR 032 — Single-Cycle CPI=1 Test Layer (test_cpi_one)
+# ADR 032 - Single-Cycle CPI=1 Test Layer (test_cpi_one)
 
 **Status:** Accepted
 **Date:** 2026-06-12
@@ -10,14 +10,14 @@
 
 The cocotb test suite is split into two layers (per ADR 029):
 
-- `verification/cocotb/common/` — ISA conformance via riscv-tests. 45 ELFs
+- `verification/cocotb/common/` - ISA conformance via riscv-tests. 45 ELFs
   (37 RV32I + 8 RV32M), each loaded as a binary, run to a write to
   `tohost`, and verified to have written the value `1` (pass). This layer
   proves that the DUT implements the spec correctly. It does *not* prove
   anything about the microarchitecture: the same 45 ELFs would pass on
   any correct RV32IM implementation, single-cycle or 30-stage pipeline.
 
-- `verification/cocotb/single_cycle/` — microarchitecture-specific tests.
+- `verification/cocotb/single_cycle/` - microarchitecture-specific tests.
   The only test that currently belongs here is `test_cpi_one`, which
   verifies the single-cycle architectural invariant:
   `cycle_count == instr_retired` for every instruction except
@@ -43,8 +43,8 @@ run. Three independent defects:
    `instr_count` name.
 3. **Missing setup.** The test called `apply_reset` directly without
    `start_clock` or memory reload. The riscv-tests `common/test_rv32i.py`
-   pattern is `start_clock → generate_mem_for_elf → reset_and_reload_memories
-   → apply_reset → monitor_tohost`; the `single_cycle/test/test_cpi_one.py`
+   pattern is `start_clock --> generate_mem_for_elf --> reset_and_reload_memories
+   --> apply_reset --> monitor_tohost`; the `single_cycle/test/test_cpi_one.py`
    skipped the first three, so the DUT would run with whatever memories
    the previous test left in place.
 
@@ -62,7 +62,7 @@ necessary but not sufficient for the thesis' Objective 1
 
 ## Decision
 
-### Fix 1 — `verification/cocotb/single_cycle/test/test_cpi_one.py`
+### Fix 1 - `verification/cocotb/single_cycle/test/test_cpi_one.py`
 
 Replace the broken imports with the same `from <module> import …` style
 that `common/test_rv32i.py` uses. Rename `dut.instr_count.value` to
@@ -79,7 +79,7 @@ write, asserts the program passed, and then checks the
 `cycle_count` / `instr_retired` invariant. Division tests log the
 effective CPI instead of asserting strict equality.
 
-### Fix 2 — `verification/cocotb/single_cycle/Makefile`
+### Fix 2 - `verification/cocotb/single_cycle/Makefile`
 
 Create a new `Makefile` that mirrors `common/Makefile` (same RTL
 sources, same `mem_config.vh` handling) but with:
@@ -102,7 +102,7 @@ the embedded Python does not find the test module. The venv's
 interpreter can locate the `cocotb` package itself; the venv's
 `lib-dynload` is found by `LIBPYTHON_LOC` separately.
 
-### Limitation — perf_counter signals are internal
+### Limitation - perf_counter signals are internal
 
 `cycle_count` and `instr_retired` are `logic [63:0]` declared inside
 `top_single_cycle.sv` and driven by the `perf_counters` instance.
@@ -132,8 +132,8 @@ verification artefact for Objective 1 of the thesis.
 
 ### Why the test uses the same setup as the RV32I tests
 
-The five-step setup (`start_clock → generate_mem_for_elf →
-reset_and_reload_memories → apply_reset → monitor_tohost`) is the
+The five-step setup (`start_clock --> generate_mem_for_elf -->
+reset_and_reload_memories --> apply_reset --> monitor_tohost`) is the
 canonical "boot a fresh ELF into a clean DUT and run it to
 completion" sequence that the cocotb `common/` layer established.
 Reusing it means a single change to the boot flow (e.g., a new
@@ -147,7 +147,7 @@ bug that affects one affects the other and is caught early.
 `cycle_count` and `instr_retired` are 64 bits each. Promoting them
 to top-level outputs of `top_single_cycle.sv` would consume 128
 output pins that the DE1-SoC's pinout does not have free (the
-board has 10 LEDs + 6 × 7-segment displays = 52 outputs already
+board has 10 LEDs + 6 x 7-segment displays = 52 outputs already
 assigned). Adding 128 more would force a synthesis-side pin
 re-mapping. Hierarchy read in Icarus is free, requires no RTL
 change, and works today.

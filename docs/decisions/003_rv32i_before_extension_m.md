@@ -1,4 +1,4 @@
-# ADR 003 — RV32I First, Extension M as Second Iteration
+# ADR 003 - RV32I First, Extension M as Second Iteration
 
 **Status:** Accepted (updated 2026-05-02 for consistency with ADR 018)  
 **Date:** 2026-04-24
@@ -16,7 +16,7 @@ in a separate iteration after RV32I is verified.
 The control unit is first implemented and verified for **RV32I only**. M
 extension opcodes are enabled in the control unit in a second iteration,
 after all `rv32ui` riscv-tests pass. The ALU is not subject to this
-iteration boundary — it includes M-extension logic from the first commit.
+iteration boundary - it includes M-extension logic from the first commit.
 
 ## Rationale
 

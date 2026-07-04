@@ -1,4 +1,4 @@
-# ADR 035 — Branch Instruction-Level Cocotb Tests (test_branch)
+# ADR 035 - Branch Instruction-Level Cocotb Tests (test_branch)
 
 **Status:** Accepted
 **Date:** 2026-06-12
@@ -25,7 +25,7 @@ Branches are a different class from ALU operations:
 - **Two-state assertion.** Unlike ALU tests that check a 32-bit
   destination value, branch tests check that the PC is one of two
   values: 4 (fall through) or `imm` (taken). The asymmetry (4 vs
-  `imm`) is the test's primary diagnostic — if the wrong branch
+  `imm`) is the test's primary diagnostic - if the wrong branch
   direction is taken, the assertion fires with "PC: expected
   0x00000100, got 0x00000004" (or vice versa).
 
@@ -117,7 +117,7 @@ without truncation, yielding 0xFFFFFFF8.
 
 ### Why 20 tests is the right number
 
-The 6 branch instructions × ~3 scenarios per instruction (taken,
+The 6 branch instructions x ~3 scenarios per instruction (taken,
 not taken, edge case) = 18-24 tests. The 20 tests cover:
 
 - Each branch's "happy path" (taken and not taken).

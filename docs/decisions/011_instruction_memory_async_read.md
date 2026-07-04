@@ -1,4 +1,4 @@
-# ADR 011 — Instruction Memory: Asynchronous Read
+# ADR 011 - Instruction Memory: Asynchronous Read
 
 **Status:** Accepted  
 **Date:** 2026-04-24
@@ -26,8 +26,8 @@ whenever the address input is stable.
 ## Rationale
 
 **1. Required by the single-cycle datapath.**  
-In the single-cycle processor, the entire instruction execution — fetch,
-decode, execute, memory access, write-back — occurs within a single clock
+In the single-cycle processor, the entire instruction execution - fetch,
+decode, execute, memory access, write-back - occurs within a single clock
 cycle. A synchronous instruction memory would require the PC to be presented
 one cycle before the instruction is needed, which is structurally incompatible
 with a single-cycle design. The only alternative would be to add an implicit

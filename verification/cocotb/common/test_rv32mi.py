@@ -16,7 +16,7 @@ Each test ELF exercises one piece of the M-mode machinery:
     same, at the data-memory bus.
   - shamt: shift-amount decoding (rv32im only, no shamt>31).
   - zicntr: read semantics of cycle / instret CSRs (the DUT exposes
-    these via perf_counters, not via the CSR file — see ADR 024).
+    these via perf_counters, not via the CSR file - see ADR 024).
   - instret_overflow: instret rolls over correctly.
 
 The pmpaddr test is omitted because the DUT does not implement PMP.
@@ -26,7 +26,7 @@ Test classification
 -------------------
 The DUT only implements a minimal M-mode trap path (ADR 030). Several
 features that the rv32mi suite checks are documented as
-"limitations" of the DUT — illegal-instruction traps, misaligned-access
+"limitations" of the DUT - illegal-instruction traps, misaligned-access
 traps, the EBREAK-vs-ECALL distinction, and the rv32im shamt-illegal
 trap. The tests for these features are in EXPECTED_FAIL; the test
 suite reports PASS for them when the DUT fails (the expected

@@ -1,5 +1,5 @@
 /* CoreMark linker script for RV32IM bare-metal.
-   Harvard architecture: .text → IMEM, .data/.tohost → DMEM.
+   Harvard architecture: .text --> IMEM, .data/.tohost --> DMEM.
    The linker sees a flat address space; we assign unique addresses to all
    sections.  .text at 0x0, tohost at 0x5000 (well above .text end for ~9 KB
    CoreMark), data at 0x6000, stack at top of 32 KB DMEM (0x8000). */

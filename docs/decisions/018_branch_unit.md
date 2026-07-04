@@ -1,4 +1,4 @@
-# ADR 018 — Branch Unit: Interface and Implementation
+# ADR 018 - Branch Unit: Interface and Implementation
 
 **Status:** Accepted  
 **Date:** 2026-05-02
@@ -45,15 +45,15 @@ In SystemVerilog, `logic` vectors are unsigned by default. A comparison
 unsigned. No `$unsigned()` cast is needed. Adding it would be redundant and
 would suggest that unsigned behavior requires active intervention, which is
 misleading. Signed comparisons (BLT, BGE) do require `$signed()` because the
-default is unsigned — that asymmetry is intentional and correct.
+default is unsigned - that asymmetry is intentional and correct.
 
 **`mask_pc_lsb` belongs in branch_unit:**  
-`mask_pc_lsb` is a function of `br_op` alone — specifically of whether the
+`mask_pc_lsb` is a function of `br_op` alone - specifically of whether the
 instruction is JALR. The branch unit already decodes `br_op` to determine
 `branch_type`. Placing `mask_pc_lsb` here avoids adding a parallel decode path
 in either the control unit (which would need an extra output for a signal that
 is purely a consequence of br_op) or the pc_unit (which should not decode
-instruction type — it only consumes the result). The branch unit is the natural
+instruction type - it only consumes the result). The branch unit is the natural
 and only owner of this signal (see [ADR 006](006_jalr_pc_masking.md)).
 
 ## Normative RTL Specification

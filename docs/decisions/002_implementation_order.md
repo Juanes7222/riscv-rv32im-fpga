@@ -1,4 +1,4 @@
-# ADR 002 — Single-Cycle Before Pipeline
+# ADR 002 - Single-Cycle Before Pipeline
 
 **Status:** Accepted  
 **Date:** 2026-04-24

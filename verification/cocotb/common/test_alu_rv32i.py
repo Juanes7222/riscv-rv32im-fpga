@@ -7,7 +7,7 @@ the riscv-tests ELF loading infrastructure. Each test:
   1. Drives clk manually via the `step_clock` / `reset_dut` helpers
      imported from conftest (the cocotb Clock + RisingEdge pattern
      interferes with the register/imem deposits needed for
-     instruction-level tests — see the "Clock and reset" section
+     instruction-level tests - see the "Clock and reset" section
      in conftest.py and ADR 034).
   2. Sets the initial register state by writing directly to
      dut.u_rf.regs[k] (the register file instance in top_single_cycle).
@@ -43,7 +43,7 @@ the Clock coroutine yields on every Timer.
 
 The riscv-tests layer (test_rv32i.py, test_rv32m.py, test_rv32mi.py)
 does NOT have this problem because it uses `monitor_tohost` to
-wait for a tohost write — the cocotb Clock + RisingEdge pattern
+wait for a tohost write - the cocotb Clock + RisingEdge pattern
 works fine for that style of test.
 
 ## Hierarchy access
@@ -147,7 +147,7 @@ async def _setup_and_execute(dut, instruction, initial_regs=None,
     #    that was not set as an input and that is not the destination
     #    must be exactly 0. x0 is excluded because the register file
     #    never initialises regs[0] (its reset loop is `for (i=1; i<32; i++)`),
-    #    so the internal storage is X even after reset — but the read
+    #    so the internal storage is X even after reset - but the read
     #    port is hardwired to return 0 for x0, which is the
     #    architecturally-meaningful value.
     for i in range(1, 32):
@@ -186,7 +186,7 @@ async def test_add_unsigned_overflow_wraps(dut):
         instruction=encode_r(0x00, 3, 2, 0x0, 1),
         initial_regs={2: 0xFFFFFFFF, 3: 0x00000001},
         dest_reg=1,
-        expected_value=0x00000000,  # 0xFFFFFFFF + 1 = 0x1_00000000 → truncates to 0
+        expected_value=0x00000000,  # 0xFFFFFFFF + 1 = 0x1_00000000 --> truncates to 0
     )
 
 

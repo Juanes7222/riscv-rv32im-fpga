@@ -169,7 +169,7 @@ module csr_file (
     end
 
     // Trap target / MRET return address
-    // mtvec MODE[1:0] forced to 00 (direct) — ADR 006.
+    // mtvec MODE[1:0] forced to 00 (direct) - ADR 006.
     // trap_target and mepc_value are output ports, assigned directly.
     assign trap_target = {mtvec[31:2], 2'b00};
     assign mepc_value  = mepc;

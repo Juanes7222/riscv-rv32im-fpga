@@ -97,13 +97,13 @@ module data_memory_pipe #(
     logic [31:0] mem_word_reg;
 
     always_ff @(posedge clk) begin
-        // Write — only affected byte lanes
+        // Write - only affected byte lanes
         if (dm_wr && be[0]) mem_b0[word_addr] <= wr_data_rep[7:0];
         if (dm_wr && be[1]) mem_b1[word_addr] <= wr_data_rep[15:8];
         if (dm_wr && be[2]) mem_b2[word_addr] <= wr_data_rep[23:16];
         if (dm_wr && be[3]) mem_b3[word_addr] <= wr_data_rep[31:24];
 
-        // Read — always read from all four lanes
+        // Read - always read from all four lanes
         rd_b0 <= mem_b0[word_addr];
         rd_b1 <= mem_b1[word_addr];
         rd_b2 <= mem_b2[word_addr];

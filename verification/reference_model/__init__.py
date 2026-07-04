@@ -4,12 +4,12 @@ Python reference model for the RV32IM ISA.
 This package provides a functional model of the RV32IM CPU that can
 be used to verify the SystemVerilog DUTs in this project. The model
 matches the DUT's behavior exactly (including a few known non-standard
-choices in the DUT, like mepc = pc+4 on trap entry — see csr.py).
+choices in the DUT, like mepc = pc+4 on trap entry - see csr.py).
 
 Main components:
   - CPU:           CPU state and step() method.
-  - decode:        32-bit raw → Instruction.
-  - HANDLERS:      dict of instruction name → handler function.
+  - decode:        32-bit raw --> Instruction.
+  - HANDLERS:      dict of instruction name --> handler function.
   - encoders:      R/I/S/B/U/J-type encoders.
   - CSRFile:       machine-mode CSR file.
 

@@ -1,4 +1,4 @@
-# ADR 036 — Python Reference Model for RV32IM (verification/reference_model/)
+# ADR 036 - Python Reference Model for RV32IM (verification/reference_model/)
 
 **Status:** Accepted
 **Date:** 2026-06-17
@@ -23,7 +23,7 @@ This is a valid methodology but it has two limitations:
    to compute the expected value. For complex scenarios (a
    program that runs 50 instructions), computing the expected
    state at the end requires walking through the program by
-   hand — error-prone and tedious.
+   hand - error-prone and tedious.
 
 2. **Weak diagnostics for long programs.** When a 50-instruction
    test fails, the failure is "x5 is wrong at the end". The
@@ -31,8 +31,8 @@ This is a valid methodology but it has two limitations:
    divergence. A differential test against a reference model
    catches the divergence at the exact step where it occurs.
 
-A **reference model** — a separate, independent implementation
-of the ISA in a different language — solves both problems:
+A **reference model** - a separate, independent implementation
+of the ISA in a different language - solves both problems:
 
 - The model is the "expected value" generator. No hand-computation
   per test.
@@ -51,7 +51,7 @@ the model-vs-DUT comparison style.
 ### The reference model
 
 The model is a pure-Python implementation of the RV32IM ISA.
-It is decoupled from any clock or reset concept — it is a
+It is decoupled from any clock or reset concept - it is a
 functional model that takes one step per Python call.
 
 **Files** (`verification/reference_model/`):
@@ -60,7 +60,7 @@ functional model that takes one step per Python call.
 |------|------|-------|
 | `__init__.py`   | Public API exports | ~50 |
 | `cpu.py`        | `CPU` class: state + `step()` method | ~120 |
-| `decoder.py`    | `decode(raw) → Instruction` | ~190 |
+| `decoder.py`    | `decode(raw) --> Instruction` | ~190 |
 | `handlers.py`   | All instruction handlers (RV32I + M + traps + CSR) | ~280 |
 | `csr.py`        | `CSRFile` class (machine-mode CSRs) | ~150 |
 | `encoders.py`   | R/I/S/B/U/J-type encoders + `encode_csr` | ~85 |

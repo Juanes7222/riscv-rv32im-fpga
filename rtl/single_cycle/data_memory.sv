@@ -34,7 +34,7 @@ module data_memory #(
     assign access_width = dm_ctrl[1:0];
     assign zero_ext     = dm_ctrl[2];
 
-    // Address extractions — Icarus workaround for constant selects in always_*
+    // Address extractions - Icarus workaround for constant selects in always_*
     logic [12:0] word_addr;
     logic        addr_bit1;
     logic [1:0]  addr_bits10;

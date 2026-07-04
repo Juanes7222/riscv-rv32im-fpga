@@ -1,4 +1,4 @@
-# Control Unit Truth Table — RV32IM Single-Cycle
+# Control Unit Truth Table - RV32IM Single-Cycle
 
 This table is the authoritative reference for every control signal value for
 every instruction in the RV32IM instruction set. It is the direct input for
@@ -13,12 +13,12 @@ coding `rtl/single_cycle/control_unit.sv`.
 | `alua_src` | 2 | `00`=rs1, `01`=PC, `10`=zero (ADR 005) |
 | `alub_src` | 1 | `0`=rs2, `1`=immediate |
 | `alu_op` | 5 | See ALU encoding in `shared_modules.md` |
-| `br_op` | 5 | `{branch_type[1:0], funct3[2:0]}` — `_` is visual separator only |
+| `br_op` | 5 | `{branch_type[1:0], funct3[2:0]}` - `_` is visual separator only |
 | `dm_wr` | 1 | `1` = write data memory |
 | `dm_ctrl` | 3 | See `data_memory` in `shared_modules.md` |
 | `ru_data_wr_src` | 2 | `00`=ALU result, `01`=mem data, `10`=PC+4 |
 
-`—` means don't-care: the signal value does not affect the result for that
+`-` means don't-care: the signal value does not affect the result for that
 instruction and can be set to any value in the implementation (defaulting to
 `0` is recommended for synthesis quality).
 
@@ -31,16 +31,16 @@ Opcode `7'b0110011`. Operands: `alu_a = rs1`, `alu_b = rs2`.
 
 | Instruction | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `alu_op` | `br_op` | `dm_wr` | `dm_ctrl` | `ru_data_wr_src` |
 |-------------|---------|-----------|------------|------------|----------|---------|---------|-----------|-----------------|
-| ADD  | 1 | — | 00 | 0 | `00000` | `00_000` | 0 | — | 00 |
-| SUB  | 1 | — | 00 | 0 | `00001` | `00_000` | 0 | — | 00 |
-| SLL  | 1 | — | 00 | 0 | `00010` | `00_000` | 0 | — | 00 |
-| SLT  | 1 | — | 00 | 0 | `00011` | `00_000` | 0 | — | 00 |
-| SLTU | 1 | — | 00 | 0 | `00100` | `00_000` | 0 | — | 00 |
-| XOR  | 1 | — | 00 | 0 | `00101` | `00_000` | 0 | — | 00 |
-| SRL  | 1 | — | 00 | 0 | `00110` | `00_000` | 0 | — | 00 |
-| SRA  | 1 | — | 00 | 0 | `00111` | `00_000` | 0 | — | 00 |
-| OR   | 1 | — | 00 | 0 | `01000` | `00_000` | 0 | — | 00 |
-| AND  | 1 | — | 00 | 0 | `01001` | `00_000` | 0 | — | 00 |
+| ADD  | 1 | - | 00 | 0 | `00000` | `00_000` | 0 | - | 00 |
+| SUB  | 1 | - | 00 | 0 | `00001` | `00_000` | 0 | - | 00 |
+| SLL  | 1 | - | 00 | 0 | `00010` | `00_000` | 0 | - | 00 |
+| SLT  | 1 | - | 00 | 0 | `00011` | `00_000` | 0 | - | 00 |
+| SLTU | 1 | - | 00 | 0 | `00100` | `00_000` | 0 | - | 00 |
+| XOR  | 1 | - | 00 | 0 | `00101` | `00_000` | 0 | - | 00 |
+| SRL  | 1 | - | 00 | 0 | `00110` | `00_000` | 0 | - | 00 |
+| SRA  | 1 | - | 00 | 0 | `00111` | `00_000` | 0 | - | 00 |
+| OR   | 1 | - | 00 | 0 | `01000` | `00_000` | 0 | - | 00 |
+| AND  | 1 | - | 00 | 0 | `01001` | `00_000` | 0 | - | 00 |
 
 ---
 
@@ -51,14 +51,14 @@ DIV/DIVU/REM/REMU assert `div_busy` until result is valid (ADR 008).
 
 | Instruction | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `alu_op` | `br_op` | `dm_wr` | `dm_ctrl` | `ru_data_wr_src` |
 |-------------|---------|-----------|------------|------------|----------|---------|---------|-----------|-----------------|
-| MUL    | 1 | — | 00 | 0 | `01010` | `00_000` | 0 | — | 00 |
-| MULH   | 1 | — | 00 | 0 | `01011` | `00_000` | 0 | — | 00 |
-| MULHSU | 1 | — | 00 | 0 | `01100` | `00_000` | 0 | — | 00 |
-| MULHU  | 1 | — | 00 | 0 | `01101` | `00_000` | 0 | — | 00 |
-| DIV    | 1 | — | 00 | 0 | `01110` | `00_000` | 0 | — | 00 |
-| DIVU   | 1 | — | 00 | 0 | `01111` | `00_000` | 0 | — | 00 |
-| REM    | 1 | — | 00 | 0 | `10000` | `00_000` | 0 | — | 00 |
-| REMU   | 1 | — | 00 | 0 | `10001` | `00_000` | 0 | — | 00 |
+| MUL    | 1 | - | 00 | 0 | `01010` | `00_000` | 0 | - | 00 |
+| MULH   | 1 | - | 00 | 0 | `01011` | `00_000` | 0 | - | 00 |
+| MULHSU | 1 | - | 00 | 0 | `01100` | `00_000` | 0 | - | 00 |
+| MULHU  | 1 | - | 00 | 0 | `01101` | `00_000` | 0 | - | 00 |
+| DIV    | 1 | - | 00 | 0 | `01110` | `00_000` | 0 | - | 00 |
+| DIVU   | 1 | - | 00 | 0 | `01111` | `00_000` | 0 | - | 00 |
+| REM    | 1 | - | 00 | 0 | `10000` | `00_000` | 0 | - | 00 |
+| REMU   | 1 | - | 00 | 0 | `10001` | `00_000` | 0 | - | 00 |
 
 ---
 
@@ -69,23 +69,23 @@ Opcode `7'b0010011`. Operands: `alu_a = rs1`, `alu_b = imm (I-type)`.
 
 | Instruction | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `alu_op` | `br_op` | `dm_wr` | `dm_ctrl` | `ru_data_wr_src` |
 |-------------|---------|-----------|------------|------------|----------|---------|---------|-----------|-----------------|
-| ADDI | 1 | `000` | 00 | 1 | `00000` | `00_000` | 0 | — | 00 |
-| SLTI | 1 | `000` | 00 | 1 | `00011` | `00_000` | 0 | — | 00 |
-| SLTIU| 1 | `000` | 00 | 1 | `00100` | `00_000` | 0 | — | 00 |
-| XORI | 1 | `000` | 00 | 1 | `00101` | `00_000` | 0 | — | 00 |
-| ORI  | 1 | `000` | 00 | 1 | `01000` | `00_000` | 0 | — | 00 |
-| ANDI | 1 | `000` | 00 | 1 | `01001` | `00_000` | 0 | — | 00 |
-| SLLI | 1 | `000` | 00 | 1 | `00010` | `00_000` | 0 | — | 00 |
-| SRLI | 1 | `000` | 00 | 1 | `00110` | `00_000` | 0 | — | 00 |
-| SRAI | 1 | `000` | 00 | 1 | `00111` | `00_000` | 0 | — | 00 |
+| ADDI | 1 | `000` | 00 | 1 | `00000` | `00_000` | 0 | - | 00 |
+| SLTI | 1 | `000` | 00 | 1 | `00011` | `00_000` | 0 | - | 00 |
+| SLTIU| 1 | `000` | 00 | 1 | `00100` | `00_000` | 0 | - | 00 |
+| XORI | 1 | `000` | 00 | 1 | `00101` | `00_000` | 0 | - | 00 |
+| ORI  | 1 | `000` | 00 | 1 | `01000` | `00_000` | 0 | - | 00 |
+| ANDI | 1 | `000` | 00 | 1 | `01001` | `00_000` | 0 | - | 00 |
+| SLLI | 1 | `000` | 00 | 1 | `00010` | `00_000` | 0 | - | 00 |
+| SRLI | 1 | `000` | 00 | 1 | `00110` | `00_000` | 0 | - | 00 |
+| SRAI | 1 | `000` | 00 | 1 | `00111` | `00_000` | 0 | - | 00 |
 
-> **Note — SLLI/SRLI/SRAI:** The shift amount is `imm[4:0]` = `instruction[24:20]`.
+> **Note - SLLI/SRLI/SRAI:** The shift amount is `imm[4:0]` = `instruction[24:20]`.
 > The full I-type immediate is generated by `imm_gen`; the ALU uses only
 > `alu_b[4:0]` as the shift amount internally. The upper bits of `alu_b` are
 > ignored by the ALU for shift operations.
 
-> **Note — SRAI vs SRLI:** Both use `imm_src = 3'b000` (I-type). The control
-> unit distinguishes them via `funct7[5]`: `0` → SRLI, `1` → SRAI.
+> **Note - SRAI vs SRLI:** Both use `imm_src = 3'b000` (I-type). The control
+> unit distinguishes them via `funct7[5]`: `0` --> SRLI, `1` --> SRAI.
 
 ---
 
@@ -95,8 +95,8 @@ Opcode `7'b0010011`. Operands: `alu_a = rs1`, `alu_b = imm (I-type)`.
 
 | Instruction | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `alu_op` | `br_op` | `dm_wr` | `dm_ctrl` | `ru_data_wr_src` |
 |-------------|---------|-----------|------------|------------|----------|---------|---------|-----------|-----------------|
-| LUI   | 1 | `011` | **10** | 1 | `00000` | `00_000` | 0 | — | 00 |
-| AUIPC | 1 | `011` | 01 | 1 | `00000` | `00_000` | 0 | — | 00 |
+| LUI   | 1 | `011` | **10** | 1 | `00000` | `00_000` | 0 | - | 00 |
+| AUIPC | 1 | `011` | 01 | 1 | `00000` | `00_000` | 0 | - | 00 |
 
 > **LUI:** `alu_a = 0`, `alu_b = {imm[31:12], 12'b0}`, result = `0 + imm` = `imm`.  
 > **AUIPC:** `alu_a = PC`, `alu_b = {imm[31:12], 12'b0}`, result = `PC + imm`.
@@ -109,8 +109,8 @@ Opcode `7'b0010011`. Operands: `alu_a = rs1`, `alu_b = imm (I-type)`.
 
 | Instruction | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `alu_op` | `br_op` | `dm_wr` | `dm_ctrl` | `ru_data_wr_src` |
 |-------------|---------|-----------|------------|------------|----------|---------|---------|-----------|-----------------|
-| JAL  | 1 | `100` | 01 | 1 | `00000` | `10_000` | 0 | — | 10 |
-| JALR | 1 | `000` | 00 | 1 | `00000` | `11_000` | 0 | — | 10 |
+| JAL  | 1 | `100` | 01 | 1 | `00000` | `10_000` | 0 | - | 10 |
+| JALR | 1 | `000` | 00 | 1 | `00000` | `11_000` | 0 | - | 10 |
 
 > **JAL:** ALU computes `PC + J_imm` (jump target). `branch_unit` sees
 > `br_op[4:3] = 2'b10` and asserts `branch = 1` unconditionally.  
@@ -128,12 +128,12 @@ Branch condition evaluated by `branch_unit` on `rs1_data` / `rs2_data` directly.
 
 | Instruction | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `alu_op` | `br_op` | `dm_wr` | `dm_ctrl` | `ru_data_wr_src` |
 |-------------|---------|-----------|------------|------------|----------|---------|---------|-----------|-----------------|
-| BEQ  | 0 | `010` | 01 | 1 | `00000` | `01_000` | 0 | — | — |
-| BNE  | 0 | `010` | 01 | 1 | `00000` | `01_001` | 0 | — | — |
-| BLT  | 0 | `010` | 01 | 1 | `00000` | `01_100` | 0 | — | — |
-| BGE  | 0 | `010` | 01 | 1 | `00000` | `01_101` | 0 | — | — |
-| BLTU | 0 | `010` | 01 | 1 | `00000` | `01_110` | 0 | — | — |
-| BGEU | 0 | `010` | 01 | 1 | `00000` | `01_111` | 0 | — | — |
+| BEQ  | 0 | `010` | 01 | 1 | `00000` | `01_000` | 0 | - | - |
+| BNE  | 0 | `010` | 01 | 1 | `00000` | `01_001` | 0 | - | - |
+| BLT  | 0 | `010` | 01 | 1 | `00000` | `01_100` | 0 | - | - |
+| BGE  | 0 | `010` | 01 | 1 | `00000` | `01_101` | 0 | - | - |
+| BLTU | 0 | `010` | 01 | 1 | `00000` | `01_110` | 0 | - | - |
+| BGEU | 0 | `010` | 01 | 1 | `00000` | `01_111` | 0 | - | - |
 
 > `ru_data_wr_src` is don't-care because `ru_wr = 0`.
 
@@ -162,9 +162,9 @@ Opcode `7'b0100011`. ALU computes address: `rs1 + S_imm`.
 
 | Instruction | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `alu_op` | `br_op` | `dm_wr` | `dm_ctrl` | `ru_data_wr_src` |
 |-------------|---------|-----------|------------|------------|----------|---------|---------|-----------|-----------------|
-| SB | 0 | `001` | 00 | 1 | `00000` | `00_000` | 1 | `000` | — |
-| SH | 0 | `001` | 00 | 1 | `00000` | `00_000` | 1 | `001` | — |
-| SW | 0 | `001` | 00 | 1 | `00000` | `00_000` | 1 | `010` | — |
+| SB | 0 | `001` | 00 | 1 | `00000` | `00_000` | 1 | `000` | - |
+| SH | 0 | `001` | 00 | 1 | `00000` | `00_000` | 1 | `001` | - |
+| SW | 0 | `001` | 00 | 1 | `00000` | `00_000` | 1 | `010` | - |
 
 ---
 
@@ -189,10 +189,10 @@ where needed) resolves the specific instruction.
 
 | Context | `funct7` check | Meaning |
 |---------|---------------|---------|
-| R-type `funct3 = 000` | `funct7[0] == 1` → M-ext; `funct7[5] == 1` → SUB; else → ADD |
-| R-type `funct3 = 101` | `funct7[0] == 1` → DIVU; `funct7[5] == 1` → SRA; else → SRL |
-| All other R-type funct3 | `funct7[0] == 1` → M-ext; else → base RV32I |
-| I-type `funct3 = 101` | `funct7[5] == 1` → SRAI; else → SRLI |
+| R-type `funct3 = 000` | `funct7[0] == 1` --> M-ext; `funct7[5] == 1` --> SUB; else --> ADD |
+| R-type `funct3 = 101` | `funct7[0] == 1` --> DIVU; `funct7[5] == 1` --> SRA; else --> SRL |
+| All other R-type funct3 | `funct7[0] == 1` --> M-ext; else --> base RV32I |
+| I-type `funct3 = 101` | `funct7[5] == 1` --> SRAI; else --> SRLI |
 
 > Always check `funct7[0]` before `funct7[5]` in R-type to correctly
 > distinguish M-extension from base instructions. `funct7 = 7'b0000001`

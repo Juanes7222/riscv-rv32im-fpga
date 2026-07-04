@@ -1,4 +1,4 @@
-// VGA font ROM — 256 characters × 16 rows, 8 bits per row (8×16 font).
+// VGA font ROM - 256 characters x 16 rows, 8 bits per row (8x16 font).
 // Synchronous read so Quartus infers block ROM (M10K or MLAB).
 // Initialised from vga_font_rom.hex (raw hex, one byte per line).
 
@@ -8,7 +8,7 @@ module vga_font_rom (
     output logic [7:0]  data
 );
 
-    // 4096 entries: 256 chars × 16 rows each.
+    // 4096 entries: 256 chars x 16 rows each.
     (* ramstyle = "M10K, no_rw_check" *)
     logic [7:0] mem [0:4095];
 

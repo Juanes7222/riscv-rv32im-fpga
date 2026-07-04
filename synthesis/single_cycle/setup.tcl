@@ -42,6 +42,9 @@ foreach sv_file [glob -nocomplain "$rtl_arch/*.sv"] {
 # Timing constraints
 set_global_assignment -name SDC_FILE $constraints_sdc
 
+# Video memory initialisation (screen template for VGA visualisation)
+set_global_assignment -name MIF_FILE screen.mif
+
 
 # Use all available CPU cores for faster compilation
 set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL

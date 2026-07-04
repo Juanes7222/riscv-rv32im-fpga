@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-collect_results.py — Run verification tests and collect synthesis/verification
+collect_results.py - Run verification tests and collect synthesis/verification
 results for the RV32IM thesis. Generates LaTeX tables and Markdown reports.
 
 Usage:
@@ -454,7 +454,7 @@ def collect_verification_results(arch: str) -> Dict[str, SuiteSummary]:
     suites = {}
 
     if arch == "single_cycle":
-        # Common tests: ISA, ALU, branch, model-vs-dut — run with top_single_cycle
+        # Common tests: ISA, ALU, branch, model-vs-dut - run with top_single_cycle
         common_xml = VERIF_DIR / "common" / "results.xml"
         common_suites = parse_results_xml(common_xml)
         suites.update(common_suites)
@@ -787,7 +787,7 @@ def generate_latex_report(all_results: Dict[str, ArchitectureResults]) -> str:
 def generate_markdown_report(all_results: Dict[str, ArchitectureResults]) -> str:
     """Generate a human-readable Markdown summary report."""
     lines = []
-    lines.append("# RV32IM FPGA — Results Report")
+    lines.append("# RV32IM FPGA - Results Report")
     lines.append("")
     lines.append(f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}*")
     lines.append("")
@@ -825,12 +825,12 @@ def generate_markdown_report(all_results: Dict[str, ArchitectureResults]) -> str
         if sc_suite and sc_suite.total > 0:
             sc_str = f"{sc_suite.passed}/{sc_suite.failed+sc_suite.errors}/{sc_suite.total}"
         else:
-            sc_str = "—"
+            sc_str = "-"
 
         if pipe_suite and pipe_suite.total > 0:
             pipe_str = f"{pipe_suite.passed}/{pipe_suite.failed+pipe_suite.errors}/{pipe_suite.total}"
         else:
-            pipe_str = "—"
+            pipe_str = "-"
 
         # Color indicators
         sc_indicator = "✅" if (sc_suite and sc_suite.failed == 0 and sc_suite.errors == 0 and sc_suite.total > 0) else "❌" if (sc_suite and sc_suite.total > 0) else "⬜"
@@ -864,8 +864,8 @@ def generate_markdown_report(all_results: Dict[str, ArchitectureResults]) -> str
     ]
 
     for label, attr, fmt in synth_metrics:
-        sc_val = fmt.format(getattr(sc_synth, attr, "—")) if sc_synth else "—"
-        pipe_val = fmt.format(getattr(pipe_synth, attr, "—")) if pipe_synth else "—"
+        sc_val = fmt.format(getattr(sc_synth, attr, "-")) if sc_synth else "-"
+        pipe_val = fmt.format(getattr(pipe_synth, attr, "-")) if pipe_synth else "-"
         lines.append(f"| {label} | {sc_val} | {pipe_val} |")
 
     lines.append("")
@@ -887,24 +887,24 @@ def generate_markdown_report(all_results: Dict[str, ArchitectureResults]) -> str
     )
 
     for i in range(max_replicas):
-        sc_val = f"{sc_r.fmax_values[i]:.2f}" if sc_r and i < sc_r.count else "—"
-        pipe_val = f"{pipe_r.fmax_values[i]:.2f}" if pipe_r and i < pipe_r.count else "—"
+        sc_val = f"{sc_r.fmax_values[i]:.2f}" if sc_r and i < sc_r.count else "-"
+        pipe_val = f"{pipe_r.fmax_values[i]:.2f}" if pipe_r and i < pipe_r.count else "-"
         lines.append(f"| Replica {i+1} | {sc_val} | {pipe_val} |")
 
     # Summary row: mean ± stddev
     sc_mean = f"{sc_r.mean:.2f} ± {sc_r.stddev:.2f}" if sc_r and sc_r.count > 1 else (
-        f"{sc_r.mean:.2f}" if sc_r and sc_r.count == 1 else "—"
+        f"{sc_r.mean:.2f}" if sc_r and sc_r.count == 1 else "-"
     )
     pipe_mean = f"{pipe_r.mean:.2f} ± {pipe_r.stddev:.2f}" if pipe_r and pipe_r.count > 1 else (
-        f"{pipe_r.mean:.2f}" if pipe_r and pipe_r.count == 1 else "—"
+        f"{pipe_r.mean:.2f}" if pipe_r and pipe_r.count == 1 else "-"
     )
     lines.append(f"| **Mean ± σ** | **{sc_mean}** | **{pipe_mean}** |")
 
     # Min/Max rows
-    sc_min = f"{sc_r.minimum:.2f}" if sc_r and sc_r.count > 0 else "—"
-    sc_max = f"{sc_r.maximum:.2f}" if sc_r and sc_r.count > 0 else "—"
-    pipe_min = f"{pipe_r.minimum:.2f}" if pipe_r and pipe_r.count > 0 else "—"
-    pipe_max = f"{pipe_r.maximum:.2f}" if pipe_r and pipe_r.count > 0 else "—"
+    sc_min = f"{sc_r.minimum:.2f}" if sc_r and sc_r.count > 0 else "-"
+    sc_max = f"{sc_r.maximum:.2f}" if sc_r and sc_r.count > 0 else "-"
+    pipe_min = f"{pipe_r.minimum:.2f}" if pipe_r and pipe_r.count > 0 else "-"
+    pipe_max = f"{pipe_r.maximum:.2f}" if pipe_r and pipe_r.count > 0 else "-"
     lines.append(f"| Min | {sc_min} | {pipe_min} |")
     lines.append(f"| Max | {sc_max} | {pipe_max} |")
 

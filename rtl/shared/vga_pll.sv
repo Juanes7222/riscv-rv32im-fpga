@@ -1,10 +1,10 @@
-// VGA PLL — generates 74.25 MHz pixel clock for 720p60 from 50 MHz input.
+// VGA PLL - generates 74.25 MHz pixel clock for 720p60 from 50 MHz input.
 // Instantiates the ALTPLL megafunction directly via Verilog parameters;
 // no IP Catalog GUI required. Quartus synthesizes this for Cyclone V.
 //
 // Configuration:
-//   F_out = F_in × multiply_by / divide_by = 50 × 297 / 200 = 74.25 MHz
-//   VCO = F_in × multiply_by / N ≈ 50 × 297 / 20 = 742.5 MHz (within 600–1600 MHz)
+//   F_out = F_in x multiply_by / divide_by = 50 x 297 / 200 = 74.25 MHz
+//   VCO = F_in x multiply_by / N ≈ 50 x 297 / 20 = 742.5 MHz (within 600–1600 MHz)
 //   Input period: 20000 ps (50 MHz)
 //   Compensation: CLK0, mode: NORMAL
 //
@@ -23,7 +23,7 @@ module vga_pll (
 );
 
 // --------------------------------------------------------------------------
-// Simulation branch — defined inside translate_off so Quartus never sees it.
+// Simulation branch - defined inside translate_off so Quartus never sees it.
 // The `define SIMULATION will be visible only to non-Quartus compilers
 // (Icarus, ModelSim, etc.).
 // --------------------------------------------------------------------------
@@ -35,7 +35,7 @@ module vga_pll (
 
     // 50 MHz / 74.25 MHz = 200/297 ≈ 0.6734.
     // Toggle every ~0.337 input cycles. Count 0..336 (337 cycles) per toggle
-    // gives 50 MHz / (2 × 337) ≈ 74.18 MHz (<0.1% error; fine for simulation).
+    // gives 50 MHz / (2 x 337) ≈ 74.18 MHz (<0.1% error; fine for simulation).
     logic [8:0] sim_cnt;
 
     always_ff @(posedge clk_in) begin
@@ -54,7 +54,7 @@ module vga_pll (
 
 `else
 // --------------------------------------------------------------------------
-// Synthesis model — ALTPLL megafunction instantiation (Cyclone V).
+// Synthesis model - ALTPLL megafunction instantiation (Cyclone V).
 // Quartus automatically chooses the pre-scale (N) and post-scale (C0)
 // counters to keep the VCO within the Cyclone V range (600–1600 MHz).
 // For f_in=50 MHz: VCO ≈ 742.5 MHz with N=20, C0=10.

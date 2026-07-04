@@ -1,4 +1,4 @@
-# ADR 010 — Unified SystemVerilog Style: logic + always_comb
+# ADR 010 - Unified SystemVerilog Style: logic + always_comb
 
 **Status:** Accepted  
 **Date:** 2026-04-24

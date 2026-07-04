@@ -42,6 +42,10 @@ foreach sv_file [glob -nocomplain "$rtl_arch/*.sv"] {
 # Timing constraints
 set_global_assignment -name SDC_FILE $constraints_sdc
 
+# Video memory initialisation and font ROM hex
+set_global_assignment -name MIF_FILE screen.mif
+set_global_assignment -name HEX_FILE ../../rtl/shared/vga_font_rom.hex
+
 # Synthesis settings
 # Identical to single_cycle to satisfy the homogeneous protocol requirement.
 # Do not change these settings independently between architectures.

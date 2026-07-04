@@ -1,4 +1,4 @@
-# ADR 028 — Pass/Fail Convention: tohost Symbol Monitoring in cocotb
+# ADR 028 - Pass/Fail Convention: tohost Symbol Monitoring in cocotb
 
 **Status:** Accepted  
 **Date:** 2026-05-11  
@@ -43,7 +43,7 @@ timeout <--> no write to tohost within MAX_CYCLES
 
 `MAX_CYCLES` is set to `200_000` cycles. This is sufficient for the longest
 riscv-tests binary (division corner cases) at the worst-case simulated
-frequency, with a 10× safety margin.
+frequency, with a 10x safety margin.
 
 ---
 
@@ -75,7 +75,7 @@ for _ in range(MAX_CYCLES):
         if result == 1:
             # PASS
         else:
-            # FAIL — testnum = result >> 1
+            # FAIL - testnum = result >> 1
 # TIMEOUT if loop exhausted
 ```
 

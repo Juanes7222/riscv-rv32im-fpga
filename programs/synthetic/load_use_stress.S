@@ -1,12 +1,12 @@
 // Synthetic benchmark: load-use hazard stress.
 // Tests load-use stall penalty in the pipeline.
 //
-// Structure: write test data to DMEM, then loop with load→use sequences.
-// Each iteration: 4×lw + 4×addi + 1×addi(decrement) + 1×bne
-// Load-use hazard: lw value used by next instruction → 1 stall cycle
+// Structure: write test data to DMEM, then loop with load-->use sequences.
+// Each iteration: 4xlw + 4xaddi + 1xaddi(decrement) + 1xbne
+// Load-use hazard: lw value used by next instruction --> 1 stall cycle
 //
-// Per iteration counted (ru_wr=1): 4×lw + 4×addi + 1×addi = 9
-// N = 111 → 999 counted instructions + ~111 stall cycles
+// Per iteration counted (ru_wr=1): 4xlw + 4xaddi + 1xaddi = 9
+// N = 111 --> 999 counted instructions + ~111 stall cycles
 
 .section .text.init
 .globl _start
@@ -25,7 +25,7 @@ _start:
     li      x5, 111         // iteration count
 
 loop:
-    lw      x10, 0x200(x0)  // load → stall if followed by RAW
+    lw      x10, 0x200(x0)  // load --> stall if followed by RAW
     addi    x11, x10, 1     // load-use: 1 stall in pipeline
 
     lw      x12, 0x204(x0)  // load

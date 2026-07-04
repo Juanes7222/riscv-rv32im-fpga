@@ -1,4 +1,4 @@
-# ADR 017 — Immediate Generator: Interface and Implementation
+# ADR 017 - Immediate Generator: Interface and Implementation
 
 **Status:** Accepted  
 **Date:** 2026-05-02
@@ -33,8 +33,8 @@ The output is driven by an `always_comb` block. Per ADR 010, all signals are
 
 **Full 32-bit input:**  
 The instantiating module (`top_single_cycle.sv` and later the pipeline ID
-stage) connects the raw instruction bus directly to every consumer — control
-unit, register file address fields, and immediate generator — without
+stage) connects the raw instruction bus directly to every consumer - control
+unit, register file address fields, and immediate generator - without
 pre-processing. Accepting the full word keeps all field extraction inside
 the module boundary and prevents the top-level from carrying knowledge of
 which bits encode the immediate. This is consistent with how `control_unit`

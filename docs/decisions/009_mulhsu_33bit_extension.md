@@ -1,11 +1,11 @@
-# ADR 009 — MULHSU Implemented via 33-Bit Sign/Zero Extension
+# ADR 009 - MULHSU Implemented via 33-Bit Sign/Zero Extension
 
 **Status:** Accepted  
 **Date:** 2026-04-24
 
 ## Context
 
-MULHSU computes the upper 32 bits of a signed × unsigned 32-bit multiplication.
+MULHSU computes the upper 32 bits of a signed x unsigned 32-bit multiplication.
 A naive implementation using Verilog/SystemVerilog type casting produces
 incorrect results because of how the language resolves mixed signed/unsigned
 expressions: when one operand is declared `signed` and the other `unsigned`,
@@ -23,7 +23,7 @@ assign mul_result_su = a_signed * b_unsigned;  // Both treated as unsigned
 ## Decision
 
 MULHSU is implemented by **sign-extending operand A to 33 bits and
-zero-extending operand B to 33 bits**, then performing a signed 33×33
+zero-extending operand B to 33 bits**, then performing a signed 33x33
 multiplication:
 
 ```systemverilog

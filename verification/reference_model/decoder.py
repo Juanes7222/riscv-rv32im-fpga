@@ -1,5 +1,5 @@
 """
-RV32IM instruction decoder: 32-bit raw encoding → Instruction named tuple.
+RV32IM instruction decoder: 32-bit raw encoding --> Instruction named tuple.
 
 The Instruction dataclass carries only the fields needed by the
 executor; raw fields (opcode, rd, rs1, rs2, funct3, funct7) are
@@ -37,7 +37,7 @@ def _sign_extend(value, bits):
 # Lookup tables
 # ──────────────────────────────────────────────────────────────────────
 
-# (funct3, funct7) → name for OP_REG (R-type)
+# (funct3, funct7) --> name for OP_REG (R-type)
 _R_TYPE = {
     (0b000, 0b0000000): "ADD",
     (0b000, 0b0100000): "SUB",
@@ -59,7 +59,7 @@ _R_TYPE = {
     (0b111, 0b0000001): "REMU",
 }
 
-# funct3 → name for OP_IMM (I-type ALU)
+# funct3 --> name for OP_IMM (I-type ALU)
 _I_TYPE_ALU = {
     0b000: "ADDI",
     0b010: "SLTI",
@@ -69,7 +69,7 @@ _I_TYPE_ALU = {
     0b111: "ANDI",
 }
 
-# funct3 → name for OP_LOAD
+# funct3 --> name for OP_LOAD
 _LOADS = {
     0b000: "LB",
     0b001: "LH",
@@ -78,14 +78,14 @@ _LOADS = {
     0b101: "LHU",
 }
 
-# funct3 → name for OP_STORE
+# funct3 --> name for OP_STORE
 _STORES = {
     0b000: "SB",
     0b001: "SH",
     0b010: "SW",
 }
 
-# funct3 → name for OP_BRANCH
+# funct3 --> name for OP_BRANCH
 _BRANCHES = {
     0b000: "BEQ",
     0b001: "BNE",

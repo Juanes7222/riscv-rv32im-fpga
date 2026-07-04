@@ -1,4 +1,4 @@
-# ADR 001 — Harvard Memory Architecture
+# ADR 001 - Harvard Memory Architecture
 
 **Status:** Accepted  
 **Date:** 2026-04-24

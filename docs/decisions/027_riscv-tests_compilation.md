@@ -1,4 +1,4 @@
-# ADR 027 — riscv-tests Compilation for Reset Vector 0x00000000
+# ADR 027 - riscv-tests Compilation for Reset Vector 0x00000000
 
 **Status:** Accepted  
 **Date:** 2026-05-11  
@@ -22,7 +22,7 @@ contains the framework macros (`RVTEST_RV32U`, `TESTNUM`, `RVTEST_PASS`,
 the trap handler installed at boot time writes the result code to a symbol
 named `tohost` and then loops forever. The processor **must** implement
 `ecall`/`mret` and a minimal CSR file (`mtvec`, `mepc`, `mcause`,
-`mstatus.MPP`) — see ADR 030.
+`mstatus.MPP`) - see ADR 030.
 
 The only change required is the base address in the linker script.
 
@@ -76,14 +76,14 @@ tests in the RV32I and RV32M suites and writes ELFs to `build/riscv-tests/`.
 
 ## Normative Specification
 
-### Tests compiled (RV32I — rv32ui)
+### Tests compiled (RV32I - rv32ui)
 
 `add`, `addi`, `and`, `andi`, `auipc`, `beq`, `bge`, `bgeu`, `blt`, `bltu`,
 `bne`, `jal`, `jalr`, `lb`, `lbu`, `lh`, `lhu`, `lui`, `lw`, `or`, `ori`,
 `sb`, `sh`, `sll`, `slli`, `slt`, `slti`, `sltiu`, `sltu`, `sra`, `srai`,
 `srl`, `srli`, `sub`, `sw`, `xor`, `xori`
 
-### Tests compiled (RV32M — rv32um)
+### Tests compiled (RV32M - rv32um)
 
 `div`, `divu`, `mul`, `mulh`, `mulhsu`, `mulhu`, `rem`, `remu`
 
@@ -95,7 +95,7 @@ All ELFs land in `build/riscv-tests/{rv32ui,rv32um}/`. The `.mem` conversion
 ### Constraints
 
 - The linker script is committed at `verification/riscv-tests/link.ld`.  
-- The `riscv-tests` submodule is pinned to a specific commit hash — it is never
+- The `riscv-tests` submodule is pinned to a specific commit hash - it is never
   updated silently.  
 - No modifications are made to any file inside the submodule itself. All
   project-specific overrides live outside the submodule directory.

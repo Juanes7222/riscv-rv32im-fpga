@@ -73,7 +73,7 @@ CoreMark's data size is controlled by the `seed5` calculation, **not** by
 
 ```c
 if (seed5 == 0) seed5 = 7;
-ee_s32 num_errors = seed5 & 0x7;           // 7 → bits 0+1+2 → divisor = 3
+ee_s32 num_errors = seed5 & 0x7;           // 7 --> bits 0+1+2 --> divisor = 3
 ee_s32 size = 2000 / num_errors;           // 2000 / 3 = 666 (blksize)
 ```
 

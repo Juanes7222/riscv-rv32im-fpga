@@ -96,7 +96,7 @@ module top_single_cycle #(
     // Memory
     logic [31:0] dm_rd_data;
     // Expose data-memory bus signals for cocotb monitor (flat names expected)
-    // Protect from synthesis trimming — cocotb accesses these via hierarchical refs
+    // Protect from synthesis trimming - cocotb accesses these via hierarchical refs
     logic [31:0] dm_addr /* synthesis keep */;
     logic [31:0] dm_wdata /* synthesis keep */;
 
@@ -135,7 +135,7 @@ module top_single_cycle #(
 
     assign alu_b = alub_src ? imm_out : rs2_data;
 
-    // ADR 027: CSR write data mux — rs1_data vs zimm for immediate forms
+    // ADR 027: CSR write data mux - rs1_data vs zimm for immediate forms
     assign csr_wdata = csr_imm ? {27'b0, instruction[19:15]} : rs1_data;
 
     // ADR 027: Gate csr_wr for CSRRS/CSRRC with rs1 == x0 (read-only per spec)
@@ -145,7 +145,7 @@ module top_single_cycle #(
                     ~( (funct3 == 3'b010 || funct3 == 3'b011) &&
                         (rs1_addr == 5'b0) );
 
-    // ADR 027: rd_data mux — adds WB_CSR path, removes hardcoded OP_SYSTEM=0
+    // ADR 027: rd_data mux - adds WB_CSR path, removes hardcoded OP_SYSTEM=0
     always_comb begin
         case (ru_data_wr_src)
             WB_ALU:  rd_data = alu_res;
@@ -161,7 +161,7 @@ module top_single_cycle #(
     logic        program_done;
 
     // program_done: detect store of value 1 to TOHOST_ADDR (ADR 026).
-    // In the single-cycle, the store executes in one cycle — alu_res is
+    // In the single-cycle, the store executes in one cycle - alu_res is
     // the address and rs2_data is the value. Registered to provide a
     // clean edge for SignalTap II trigger.
     always_ff @(posedge clk) begin
@@ -342,7 +342,7 @@ module top_single_cycle #(
     logic [15:0] vmem_wr_data;
     logic        vmem_wr_en;
 
-    // Pixel clock PLL: 50 MHz → 74.25 MHz (720p60)
+    // Pixel clock PLL: 50 MHz --> 74.25 MHz (720p60)
     vga_pll u_vga_pll (
         .clk_in  (clk),
         .rst_in  (~rst_n),
@@ -350,7 +350,7 @@ module top_single_cycle #(
         .locked  (pll_locked)
     );
 
-    // VGA timing generator (sync only, 1280×720 @ 60 Hz)
+    // VGA timing generator (sync only, 1280x720 @ 60 Hz)
     logic [10:0] vga_hcount;
     logic [9:0]  vga_vcount;
     logic        vga_video_on;
@@ -374,7 +374,7 @@ module top_single_cycle #(
     logic [12:0] vmem_rd_addr;
     assign vmem_rd_addr = (vga_vcount[9:4] * 11'd160) + vga_hcount[10:3];
 
-    // Single-clock dual-port video memory (M10K) — both ports on pixel clock.
+    // Single-clock dual-port video memory (M10K) - both ports on pixel clock.
     // The screen_writer runs in the VGA domain so writes are synchronous.
     logic [15:0] vmem_rd_data;
     video_memory u_vmem (
@@ -401,7 +401,7 @@ module top_single_cycle #(
     );
 
     // Round-robin screen writer: updates one character per pixel clock cycle.
-    // Full refresh = 111 cycles (2.22 µs) — far faster than VGA frame rate.
+    // Full refresh = 111 cycles (2.22 µs) - far faster than VGA frame rate.
     screen_writer_single_cycle u_writer (
         .clk          (vga_pixel_clk),
         .rst_n        (pll_locked),

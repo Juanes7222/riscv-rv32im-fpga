@@ -25,7 +25,7 @@ module vga_text_mode (
         video_on_d1<= video_on;
     end
 
-    // Font ROM address: char_code × 16 + row_in_char
+    // Font ROM address: char_code x 16 + row_in_char
     logic [11:0] font_addr;
     assign font_addr = {char_data[7:0], vcount_d1[3:0]};
 

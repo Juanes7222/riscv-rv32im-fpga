@@ -1,4 +1,4 @@
-# ADR 016 — Register File: All Registers Reset to Zero
+# ADR 016 - Register File: All Registers Reset to Zero
 
 **Status:** Accepted  
 **Date:** 2026-05-02
@@ -27,7 +27,7 @@ reset logic initialize to `x` (unknown). Any instruction that reads an
 uninitialized register propagates `x` through the ALU, control signals, and
 memory address lines. The first riscv-tests binary begins executing before any
 register has been written by the program, so even a single uninitialized
-register can corrupt the entire test result — producing a failing simulation
+register can corrupt the entire test result - producing a failing simulation
 that is indistinguishable from a real RTL bug. Resetting all registers to zero
 eliminates this class of false failures entirely.
 

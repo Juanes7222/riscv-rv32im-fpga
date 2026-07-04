@@ -1,4 +1,4 @@
-# ADR 020 — Data Memory: Asynchronous Read
+# ADR 020 - Data Memory: Asynchronous Read
 
 **Status:** Accepted  
 **Date:** 2026-05-02
@@ -22,7 +22,7 @@ available without a clock edge.
 
 **Single-cycle requirement:**  
 In the single-cycle datapath, the load instruction path is:
-`PC → instruction_memory → control_unit → register_file → ALU → data_memory → wb_mux → register_file`.
+`PC --> instruction_memory --> control_unit --> register_file --> ALU --> data_memory --> wb_mux --> register_file`.
 Every stage in this path is combinational. A synchronous memory read would
 require a second clock cycle to capture the result, breaking the CPI = 1
 invariant for load instructions.
@@ -49,7 +49,7 @@ first-class supported configuration, not a workaround.
 
 ## Consequences
 
-- The load instruction path (`ALU → data_memory → wb_mux`) is purely
+- The load instruction path (`ALU --> data_memory --> wb_mux`) is purely
   combinational and contributes to the critical path for Fmax measurement.
   This is the expected and desired behavior for the single-cycle design.
 - Write operations remain synchronous: data is written to memory on the

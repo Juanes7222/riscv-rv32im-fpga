@@ -7,7 +7,7 @@ a homogeneous measurement protocol for Fmax, effective CPI, throughput and
 resource utilization, and a pipeline state visualization module designed as a
 teaching aid for computer architecture courses.
 
-> Undergraduate thesis — Ingeniería de Sistemas y Computación  
+> Undergraduate thesis - Ingeniería de Sistemas y Computación  
 > Universidad Tecnológica de Pereira, Colombia, 2026
 
 ---
@@ -63,7 +63,7 @@ logic.
 `rtl/shared/` contains modules instantiated without modification by both
 microarchitectures: the ALU, the register file, instruction memory, and data
 memory. Keeping shared modules here is a prerequisite of the experimental
-protocol — any measured performance difference must be attributable to
+protocol - any measured performance difference must be attributable to
 microarchitecture, not to variation in secondary components.
 
 ### `verification/`
@@ -80,7 +80,7 @@ against the Python reference model.
 
 `verification/cocotb/pipeline/` holds testbenches that exercise hazard
 scenarios (RAW dependencies, load-use stalls, branch flushes) and inspect
-inter-stage register values — signals that do not exist in the single-cycle
+inter-stage register values - signals that do not exist in the single-cycle
 design.
 
 `verification/riscv-tests/` is a Git submodule pointing to the official
@@ -115,7 +115,7 @@ so that all measurements are reproducible.
 
 ### `results/`
 
-Raw data from each synthesis and execution replica — one file per
+Raw data from each synthesis and execution replica - one file per
 treatment/benchmark/replica combination. Processed tables and statistical
 summaries are generated from these files by scripts in `scripts/` and are not
 stored here. The separation ensures that analysis can be rerun without

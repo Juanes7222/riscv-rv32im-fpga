@@ -1,4 +1,4 @@
-# ADR 039 — Pipeline Critical Bug Fixes (stall/flush separation, register propagation, trap flush)
+# ADR 039 - Pipeline Critical Bug Fixes (stall/flush separation, register propagation, trap flush)
 
 **Status:** Accepted
 **Date:** 2026-06-17
@@ -21,10 +21,10 @@ created to verify them.
 
 ## The four critical bugs
 
-### Bug 1 — `id_ex_register` conflated `stall` and `flush` (incomplete fix)
+### Bug 1 - `id_ex_register` conflated `stall` and `flush` (incomplete fix)
 
 **Symptom:** The original `id_ex_register.sv` had
-`if (rst || flush || stall) begin ... BUBBLE ... end` — i.e., it
+`if (rst || flush || stall) begin ... BUBBLE ... end` - i.e., it
 inserted the canonical bubble on EITHER flush OR stall. This was wrong
 in two ways depending on which hazard is active:
 
@@ -35,7 +35,7 @@ in two ways depending on which hazard is active:
 - **For `load_use_hazard`** (single-cycle stall): the standard MIPS
   solution bubbles `id_ex` (the LOAD is in EX and needs to advance to
   MEM; the consumer in ID will then enter EX in the next cycle and
-  forward from MEM/WB). Bubbling `id_ex` here is correct — and the
+  forward from MEM/WB). Bubbling `id_ex` here is correct - and the
   original code happened to do the right thing for the wrong reason.
 
 **The naive fix** (replace `if (... || stall)` with `else if (!stall)`,
@@ -59,11 +59,11 @@ This is the standard MIPS load-use stall pattern, plus a separate hold
 for division. ADR 037's distinction between "stall" (hold) and
 "bubble insertion" is preserved by using two separate signals.
 
-### Bug 2 — `EX/MEM` and `MEM/WB` registers had no `stall` input
+### Bug 2 - `EX/MEM` and `MEM/WB` registers had no `stall` input
 
 **Symptom:** The `top_pipeline.sv` wired the `stall` signal only to
 `pc_unit`, `if_id_register`, and `id_ex_register`. The `ex_mem_register`
-and `mem_wb_register` had no `stall` input — they advanced on every
+and `mem_wb_register` had no `stall` input - they advanced on every
 clock edge. This meant that during a `div_busy` (the DIV sits in EX
 for 34 cycles), the instructions in MEM and WB continued to advance,
 desynchronising the pipeline.
@@ -73,7 +73,7 @@ desynchronising the pipeline.
 contents (same semantics as `if_id_register`'s `stall`). The
 top-level wires `stall && !trap_flush` to both.
 
-### Bug 3 — `wb_instruction` declared but never driven
+### Bug 3 - `wb_instruction` declared but never driven
 
 **Symptom:** The top-level declared `wb_instruction` (used by
 `valid_wb` in `perf_counters` and by the 7-segment displays) but did
@@ -83,7 +83,7 @@ showed garbage.
 
 The author acknowledged the issue in a comment at the bottom of
 `top_pipeline.sv` ("`mem_wb_register` already outputs
-`ex_instruction → mem_instruction → wb_instruction` if you added
+`ex_instruction --> mem_instruction --> wb_instruction` if you added
 that port; see note below."), but the actual propagation was never
 wired.
 
@@ -98,11 +98,11 @@ wired.
    `mem_wb_register` (set to BUBBLE on reset, otherwise to
    `mem_instruction`).
 4. Wired the three signals in `top_pipeline.sv`:
-   `id_ex.ex_instruction → ex_mem.ex_instruction`,
-   `ex_mem.mem_instruction → mem_wb.mem_instruction`,
+   `id_ex.ex_instruction --> ex_mem.ex_instruction`,
+   `ex_mem.mem_instruction --> mem_wb.mem_instruction`,
    `mem_wb.wb_instruction` is the top-level `wb_instruction`.
 
-### Bug 4 — Trap flush did not reach `EX/MEM`
+### Bug 4 - Trap flush did not reach `EX/MEM`
 
 **Symptom:** `flush` was wired only to `if_id_register` and
 `id_ex_register`. When an `ECALL` or `MRET` resolved in WB
@@ -116,7 +116,7 @@ trap handler took control, corrupting the architectural state.
 - Added a `flush` input to `ex_mem_register` (writes the canonical
   bubble on flush).
 - The top-level wires `flush = trap_flush` to `ex_mem_register.flush`
-  (NOT `branch_flush` — see below).
+  (NOT `branch_flush` - see below).
 - The `mem_wb_register` is intentionally NOT flushed: the trap is
   IN WB at the cycle the flush is asserted, so the trap must be
   allowed to commit normally. Bubbling `mem_wb_register` would lose
@@ -167,12 +167,12 @@ top-level's wiring reflects this asymmetry:
 
 Created `verification/cocotb/pipeline/` with:
 
-- `Makefile` — adapted from the common monocycle Makefile, pointing
+- `Makefile` - adapted from the common monocycle Makefile, pointing
   at `top_pipeline.sv` and the pipeline submodules.
-- `conftest.py` — `start_clock`, `step_clock`, `reset_dut` helpers
+- `conftest.py` - `start_clock`, `step_clock`, `reset_dut` helpers
   (same pattern as the monocycle conftest, but no shared imports
   needed for the initial smoke tests).
-- `test_pipeline_smoke.py` — 4 tests verifying the bug fixes:
+- `test_pipeline_smoke.py` - 4 tests verifying the bug fixes:
   1. `test_single_add_completes_in_5_cycles`: a single ADD
      retires correctly after 5 cycles (basic pipeline timing).
   2. `test_single_sub_completes_in_5_cycles`: same for SUB.
@@ -180,7 +180,7 @@ Created `verification/cocotb/pipeline/` with:
      load-use hazard; the LOAD's data is correctly forwarded to
      the ADD via MEM/WB after a 1-cycle stall.
   4. `test_wb_instruction_propagates_for_valid_wb`: validates
-     bug fix #3 — `wb_instruction` is the ADD in WB, not X.
+     bug fix #3 - `wb_instruction` is the ADD in WB, not X.
 
 The tests use the same manual clock driver pattern as
 `test_alu_rv32i.py` and `test_branch.py` (per ADR 034).

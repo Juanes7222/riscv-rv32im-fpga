@@ -162,7 +162,7 @@ async def test_beq_different_operands_not_taken(dut):
 
 @cocotb.test()
 async def test_beq_zero_operands_taken(dut):
-    """BEQ x0, x0, +0x100: branch always taken (0 == 0) — the canonical
+    """BEQ x0, x0, +0x100: branch always taken (0 == 0) - the canonical
     unconditional-branch idiom in RISC-V assembly."""
     await _setup_and_execute_branch(
         dut,

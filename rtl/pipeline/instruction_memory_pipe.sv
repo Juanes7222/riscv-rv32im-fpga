@@ -22,7 +22,7 @@ module instruction_memory_pipe #(
         `endif
     end
 
-    // Word index extraction — keep outside always_ff for Icarus compat
+    // Word index extraction - keep outside always_ff for Icarus compat
     logic [ADDR_BITS-1:0] word_index;
     assign word_index = addr[ADDR_BITS+1:2];
 
@@ -39,7 +39,7 @@ module instruction_memory_pipe #(
     // ── Registered read (triggers M10K inference) ─────────────────
     // The always_ff tells Quartus "memory read pattern here", which
     // causes M10K ROM inference.  The registered value itself is not
-    // used — it exists solely to satisfy the synthesis pattern.
+    // used - it exists solely to satisfy the synthesis pattern.
     // Quartus implements OUTDATA_REG_A = UNREGISTERED, so the M10K
     // output is combinational anyway.
     localparam logic [31:0] BUBBLE = 32'h00000013;

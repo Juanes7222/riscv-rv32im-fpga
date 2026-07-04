@@ -1,4 +1,4 @@
-# ADR 041: Pipeline data-hazard limitation — producer 3+ cycles ahead
+# ADR 041: Pipeline data-hazard limitation - producer 3+ cycles ahead
 
 ## Status
 Accepted (limitation documented, no fix implemented in this ADR).
@@ -31,7 +31,7 @@ For the `beq` at `0x1c`:
   MEM at T+3, WB at T+4). Register-file write at the END of T+4.
 - The `addi` at `0x18` is 1 cycle after the `beq` in program order. In
   normal flow (no prior stall), the `addi` would be in `EX/MEM` when the
-  `beq` is in `EX`. The `EX/MEM → EX` forwarding would deliver `t6=11`.
+  `beq` is in `EX`. The `EX/MEM --> EX` forwarding would deliver `t6=11`.
 
 **The actual problem** is the chain of `mem_raw`/`wb_raw` stalls from
 *previous* `beq` instructions:
@@ -47,11 +47,11 @@ held in `IF`. The `addi` at `0x18` never reaches `EX/MEM` before the
 consumer `beq` at `0x1c` enters `EX`.
 
 When the `beq` at `0x1c` finally advances to `EX`, the `addi` at `0x18`
-is in `ID/EX` (or `IF/ID`). The `EX/MEM → EX` forwarding doesn't help
-because the `addi` is not in `EX/MEM` yet. The `MEM/WB → EX` forwarding
+is in `ID/EX` (or `IF/ID`). The `EX/MEM --> EX` forwarding doesn't help
+because the `addi` is not in `EX/MEM` yet. The `MEM/WB --> EX` forwarding
 delivers `t6=9` (from the earlier `addi` at `0x10`, which is in `WB`).
-The `beq` compares `t5=11` (from `csrrs`) against `t6=9` (stale value) —
-**not equal** — and falls through to `0x20`, `0x24`, `0x2c`, `0x30`, `0x34`,
+The `beq` compares `t5=11` (from `csrrs`) against `t6=9` (stale value) -
+**not equal** - and falls through to `0x20`, `0x24`, `0x2c`, `0x30`, `0x34`,
 `0x38` (handle_exception). The program writes `gp=0 | 1337 = 0x539` to
 tohost, and the test reports `TESTNUM=668`.
 
@@ -67,7 +67,7 @@ The deadlock mechanism: the `ex_raw` stall holds `IF/ID` and `PC` for
 2+ cycles. During those cycles, the producer (the `addi` at `0x18`) is
 held in `IF` because the `IF/ID` register is held. The `addi` never reaches
 `EX`. The next cycle, the `ex_raw` hazard is still asserted (the
-instruction in `EX` is *not* the `addi` at `0x18` — it's whatever was
+instruction in `EX` is *not* the `addi` at `0x18` - it's whatever was
 fetched *before* the stall began). The stall is re-asserted, `IF/ID` is
 held again, the `addi` still doesn't advance. The pipeline is in a
 circular dependency: the consumer cannot advance because the producer
@@ -112,7 +112,7 @@ The current pipeline passes:
   this limitation in the `trap_vector`.
 
 The monocycle is unaffected: it passes 111/111 riscv-tests because it has
-no pipeline and no forwarding — the producer writes the register file
+no pipeline and no forwarding - the producer writes the register file
 before the consumer reads it, by construction.
 
 ## Consequences

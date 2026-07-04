@@ -7,9 +7,9 @@ module top_pipeline #(
     parameter int    DMEM_DEPTH = 8192,
     parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
 )(
-    input  logic        clk,        // 50 MHz — DE1-SoC PIN_AF14
-    input  logic        rst_n,      // Active-low synchronous reset — KEY[0]
-    output logic [9:0]  ledr,       // if_pc[9:0] — same convention as single-cycle
+    input  logic        clk,        // 50 MHz - DE1-SoC PIN_AF14
+    input  logic        rst_n,      // Active-low synchronous reset - KEY[0]
+    output logic [9:0]  ledr,       // if_pc[9:0] - same convention as single-cycle
     output logic [6:0]  seven_seg_display0,
     output logic [6:0]  seven_seg_display1,
     output logic [6:0]  seven_seg_display2,
@@ -48,7 +48,7 @@ module top_pipeline #(
     logic [31:0] if_instruction;
 
     // IMEM address mux: bypass PC register on flush to capture redirect
-    // target immediately (sync IMEM captures at posedge — must see target
+    // target immediately (sync IMEM captures at posedge - must see target
     // during the flush cycle, not one cycle later).
     logic [31:0] imem_addr;
 
@@ -111,7 +111,7 @@ module top_pipeline #(
     logic        ex_branch_taken, ex_mask_pc_lsb;
     logic [31:0] ex_pc_plus4;
 
-    // Division detection — used in ID/EX stall logic (mirrors ADR 023)
+    // Division detection - used in ID/EX stall logic (mirrors ADR 023)
     // ex_alu_op is checked directly; no separate ex_is_div signal needed.
 
     // EX/MEM register outputs                                              //
@@ -134,7 +134,7 @@ module top_pipeline #(
     logic [1:0]  mem_csr_op;
     logic        mem_csr_imm;
 
-    // MEM stage — DMEM registered output (aligned with MEM/WB outputs)
+    // MEM stage - DMEM registered output (aligned with MEM/WB outputs)
     logic [31:0] dmem_rd_data;
 
     // MEM/WB register outputs                                              //
@@ -549,7 +549,7 @@ module top_pipeline #(
     // MEM/WB register                                                      //
     // stall: holds current contents during div stall. The trap itself
     // is in WB when trap_flush is asserted, so the trap must be allowed
-    // to commit normally — MEM/WB is not flushed.
+    // to commit normally - MEM/WB is not flushed.
     // Note: dm_rd_data bypasses MEM/WB; the DMEM registered output feeds
     // the WB mux directly.  mem_dm_rd_data is tied to 0 for port compat.
     mem_wb_register u_mem_wb (

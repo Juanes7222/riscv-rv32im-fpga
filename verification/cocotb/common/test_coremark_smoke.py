@@ -116,7 +116,7 @@ async def test_coremark_smoke(dut):
     cocotb.log.info(f"  Final PC:      0x{last_pc:x}")
 
     if pc_stuck_count >= 500:
-        cocotb.log.error("PC was stuck — possible infinite loop")
+        cocotb.log.error("PC was stuck - possible infinite loop")
         ran_ok = False
 
     assert ran_ok, "CoreMark smoke test FAILED: PC stuck or unexpected behavior"

@@ -377,7 +377,7 @@ def test_program_fibonacci():
     We don't manually assemble; we place raw encodings.
     """
     cpu = CPU()
-    # ADDI x1, x0, 0  →  imm=0, rs1=0, funct3=0, rd=1
+    # ADDI x1, x0, 0  -->  imm=0, rs1=0, funct3=0, rd=1
     cpu.store_instruction(0,  encode_i(0, 0, 0, 1))
     # ADDI x2, x0, 1
     cpu.store_instruction(4,  encode_i(1, 0, 0, 2))

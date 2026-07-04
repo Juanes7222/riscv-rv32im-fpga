@@ -8,7 +8,7 @@
 // the trap itself must be allowed to commit normally (it owns the CSR writes
 // to mepc, mcause, mtval). Bubbling MEM/WB would lose the trap instruction.
 // The flush is wired to EX/MEM (which holds the instruction that was in EX
-// when the trap resolved — one cycle younger than the trap).
+// when the trap resolved - one cycle younger than the trap).
 module mem_wb_register (
     input  logic        clk,
     input  logic        rst,

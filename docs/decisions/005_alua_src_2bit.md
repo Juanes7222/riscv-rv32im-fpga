@@ -1,4 +1,4 @@
-# ADR 005 — ALU Operand-A Source Extended to 2 Bits
+# ADR 005 - ALU Operand-A Source Extended to 2 Bits
 
 **Status:** Accepted  
 **Date:** 2026-04-24

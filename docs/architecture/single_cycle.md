@@ -26,7 +26,7 @@ not exposed as ports.
 ```systemverilog
 module top_single_cycle (
     input  logic clk,    // 50 MHz oscillator from DE1-SoC (PIN_AF14)
-    input  logic rst_n   // Active-low synchronous reset — connected to KEY[0]
+    input  logic rst_n   // Active-low synchronous reset - connected to KEY[0]
 );
 ```
 
@@ -78,7 +78,7 @@ following reasons:
 
 3. **A fully combinational divisor is not a valid design option** for this
    project because it would make measured Fmax a function of divider depth
-   rather than of the IF→ID→EX→MEM→WB datapath, undermining the experimental
+   rather than of the IF-->ID-->EX-->MEM-->WB datapath, undermining the experimental
    validity of the pipeline vs. single-cycle comparison.
 
 The single-cycle label in this project refers to the execution model for the
@@ -95,13 +95,13 @@ The processor contains five sequential elements:
 | Element | Module | Type | Width |
 |---------|--------|------|-------|
 | Program counter | `pc_unit` | Register (FF) | 32 bits |
-| Register file | `register_file` | Register array (FF) | 32 × 32 bits |
-| Instruction memory | `instruction_memory` | Logic cells (async ROM) † | IMEM_DEPTH × 32 bits |
-| Data memory | `data_memory` | Logic cells (async read / sync write RAM) † | DMEM_DEPTH × 32 bits |
+| Register file | `register_file` | Register array (FF) | 32 x 32 bits |
+| Instruction memory | `instruction_memory` | Logic cells (async ROM) † | IMEM_DEPTH x 32 bits |
+| Data memory | `data_memory` | Logic cells (async read / sync write RAM) † | DMEM_DEPTH x 32 bits |
 | Divisor state machine | `alu_rv32im` | FSM + registers | ~70 bits internal |
 
 † The single-cycle microarchitecture requires combinational (asynchronous) read
-for both memories — the instruction word must be available in the same cycle as
+for both memories - the instruction word must be available in the same cycle as
 the PC, and load data must be available for write-back in the same cycle.
 Intel Cyclone V M10K blocks always register the read operation internally
 (Intel Corporation, 2016); they cannot implement true combinational read.
@@ -112,7 +112,7 @@ Memory Implementation section below.
 
 The pipelined processor, in contrast, uses dedicated synchronous-read modules
 (`instruction_memory_pipe.sv`, `data_memory_pipe.sv`) that map to M10K blocks
-— 64 for instruction memory and 32 for data memory out of the 308 available
+- 64 for instruction memory and 32 for data memory out of the 308 available
 on the Cyclone V 5CSEMA5F31C6.
 
 The divisor FSM is the only sequential element that is not part of the
@@ -152,7 +152,7 @@ standard single-cycle datapath. It is dormant for all non-division instructions.
 | `alu_op` | 5 | `control_unit` | ALU operation code |
 | `br_op` | 5 | `control_unit` | `{branch_type[1:0], funct3[2:0]}` |
 | `dm_wr` | 1 | `control_unit` | Data memory write enable |
-| `dm_ctrl` | 3 | `control_unit` | funct3 passed directly — encodes size and sign (ADR 021) |
+| `dm_ctrl` | 3 | `control_unit` | funct3 passed directly - encodes size and sign (ADR 021) |
 | `ru_data_wr_src` | 2 | `control_unit` | Write-back mux: `00`=ALU, `01`=mem, `10`=PC+4 |
 
 ### Execute
@@ -233,7 +233,7 @@ alu_b = rs2_data  (alub_src = 0)
 alu_res = rs1 OP rs2
 next_pc = pc + 4  (branch = 0)
 register[rd] = alu_res  (ru_wr = 1, ru_data_wr_src = 00)
-div_busy = 0  — result valid this cycle
+div_busy = 0  - result valid this cycle
 CPI = 1
 ```
 
@@ -241,7 +241,7 @@ CPI = 1
 
 ```
 Same datapath as R-type base.
-div_busy = 0  — combinational result, valid this cycle
+div_busy = 0  - combinational result, valid this cycle
 CPI = 1
 ```
 
@@ -251,10 +251,10 @@ CPI = 1
 Same control signals as R-type base.
 
 FSM transitions after issue:
-  Cycle 1       : DIV_IDLE → DIV_RUNNING, div_busy asserts
+  Cycle 1       : DIV_IDLE --> DIV_RUNNING, div_busy asserts
   Cycles 2..32  : DIV_RUNNING (31 remaining iterations), div_busy = 1
-  Cycle 33      : DIV_RUNNING → DIV_DONE, div_busy = 1
-  Cycle 34      : DIV_DONE → DIV_IDLE, div_busy de-asserts
+  Cycle 33      : DIV_RUNNING --> DIV_DONE, div_busy = 1
+  Cycle 34      : DIV_DONE --> DIV_IDLE, div_busy de-asserts
                   alu_res = div_result (correct final value)
                   PC advances, register[rd] = alu_res (ru_wr = 1)
 
@@ -276,7 +276,7 @@ CPI = 1
 ### LUI
 
 ```
-alu_a = 32'b0    (alua_src = 10 — constant zero, ADR 005)
+alu_a = 32'b0    (alua_src = 10 - constant zero, ADR 005)
 alu_b = imm_out  (U-type: {imm[31:12], 12'b0})
 alu_res = 0 + imm_out = imm_out
 register[rd] = alu_res  (ru_wr = 1)
@@ -322,7 +322,7 @@ CPI = 1
 ```
 alu_a = pc       (alua_src = 01)
 alu_b = imm_out  (B-type signed offset)
-alu_res = pc + B_offset  (branch target — computed in parallel with condition)
+alu_res = pc + B_offset  (branch target - computed in parallel with condition)
 branch_unit evaluates condition on rs1_data / rs2_data directly (ADR 007)
 next_pc = branch ? alu_res : pc_plus4
 ru_wr = 0, dm_wr = 0
@@ -359,15 +359,15 @@ Full per-instruction values: see `docs/architecture/control_signals.md`.
 
 | Instruction class | `ru_wr` | `imm_src` | `alua_src` | `alub_src` | `br_op[4:3]` | `dm_wr` | `ru_data_wr_src` |
 |-------------------|---------|-----------|------------|------------|--------------|---------|-----------------|
-| R-type / M-ext | 1 | — | `00` | 0 | `00` | 0 | `00` |
+| R-type / M-ext | 1 | - | `00` | 0 | `00` | 0 | `00` |
 | I-type ALU | 1 | `000` | `00` | 1 | `00` | 0 | `00` |
 | LUI | 1 | `011` | **`10`** | 1 | `00` | 0 | `00` |
 | AUIPC | 1 | `011` | `01` | 1 | `00` | 0 | `00` |
 | JAL | 1 | `100` | `01` | 1 | `10` | 0 | `10` |
 | JALR | 1 | `000` | `00` | 1 | `11` | 0 | `10` |
-| Branch | 0 | `010` | `01` | 1 | `01` | 0 | — |
+| Branch | 0 | `010` | `01` | 1 | `01` | 0 | - |
 | Load | 1 | `000` | `00` | 1 | `00` | 0 | `01` |
-| Store | 0 | `001` | `00` | 1 | `00` | 1 | — |
+| Store | 0 | `001` | `00` | 1 | `00` | 1 | - |
 
 ---
 
@@ -379,14 +379,14 @@ RV32I instructions the critical path is the **load instruction path**
 
 ```
 PC register output
-  → instruction_memory (combinational read, ADR 011)
-  → control_unit (combinational decode on opcode/funct3/funct7)
-  → register_file (combinational read on rs1_addr)
-  → alu_a_mux
-  → alu_rv32im (ADD: combinational adder)
-  → data_memory (combinational read + byte extraction, ADR 019, ADR 020)
-  → wb_mux
-  → register_file setup time
+  --> instruction_memory (combinational read, ADR 011)
+  --> control_unit (combinational decode on opcode/funct3/funct7)
+  --> register_file (combinational read on rs1_addr)
+  --> alu_a_mux
+  --> alu_rv32im (ADD: combinational adder)
+  --> data_memory (combinational read + byte extraction, ADR 019, ADR 020)
+  --> wb_mux
+  --> register_file setup time
 ```
 
 For MUL/MULH/MULHSU/MULHU, the DSP-block multiplication path may compete
@@ -464,10 +464,10 @@ The synthesis results confirm this difference:
 | ALMs (with IMEM_DEPTH=2048, DMEM_DEPTH=512) | ~11 500 | ~2 100 |
 | Fmax (Slow 85°C, quartile-based) | 37.54 MHz | 57.59 MHz |
 
-The single-cycle uses ~11 500 ALMs because the 2048 × 32-bit instruction memory
+The single-cycle uses ~11 500 ALMs because the 2048 x 32-bit instruction memory
 requires ~65 000 flip-flops, each mapped to a logic cell. The pipeline uses
 only ~2 100 ALMs because the 16384-word instruction memory fits in 64 M10K
-blocks (each M10K = 10 Kbits, configurable as 1024 × 10 bits).
+blocks (each M10K = 10 Kbits, configurable as 1024 x 10 bits).
 
 ### References
 
@@ -475,7 +475,7 @@ blocks (each M10K = 10 Kbits, configurable as 1024 × 10 bits).
   Interfaces and Integration*. Section 3-4: M10K Memory Blocks.
 - Intel Corporation (2018). *Quartus Prime Handbook Volume 2: Design
   Implementation and Optimization*. Section 11: Recommended HDL Coding Styles
-  — Inference of Memory Functions from HDL Code.
+  - Inference of Memory Functions from HDL Code.
 
 ---
 

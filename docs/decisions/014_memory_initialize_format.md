@@ -1,4 +1,4 @@
-# ADR 014 — Memory Initialization Format: `.mem` via `objcopy -O binary` + Python Script
+# ADR 014 - Memory Initialization Format: `.mem` via `objcopy -O binary` + Python Script
 
 **Status:** Accepted  
 **Date:** 2026-04-25
@@ -23,7 +23,7 @@ Three conversion options were evaluated:
 The single memory initialization format for this project is **`.mem`**,
 generated via the following pipeline:
 
-ELF → (objcopy -O binary) → .bin → (scripts/elf_to_mem.py) → .mem
+ELF --> (objcopy -O binary) --> .bin --> (scripts/elf_to_mem.py) --> .mem
 
 
 `scripts/elf_to_mem.py` reads the `.bin` file as 4-byte little-endian words
@@ -34,7 +34,7 @@ prerequisite step before each testbench run.
 
 ## Rationale
 
-**Option 2 rejected — toolchain fragility.**  
+**Option 2 rejected - toolchain fragility.**  
 `--verilog-data-width=4` is not available in all versions of GNU Binutils, and
 the output format of `objcopy -O verilog` varies across toolchain versions.
 This is incompatible with the reproducibility requirement of the experimental
@@ -42,7 +42,7 @@ protocol (minimum five synthesis replicas per treatment, per the project
 methodology). A toolchain version change could silently alter the file format
 without a detectable error until functional verification fails.
 
-**Option 3 rejected — dual-artifact risk.**  
+**Option 3 rejected - dual-artifact risk.**  
 Maintaining `.mif` for synthesis and `.mem` for simulation introduces the risk
 that simulation and hardware load different binaries. This class of
 desynchronization is difficult to detect: a testbench may pass while the
@@ -50,7 +50,7 @@ synthesized design fails for reasons unrelated to the RTL. For a
 single-developer project, the maintenance burden of two parallel converters is
 not justified.
 
-**Option 1 selected — full control and consistency.**  
+**Option 1 selected - full control and consistency.**  
 `objcopy -O binary` is stable across all modern versions of GNU Binutils and
 is included in the standard RISC-V toolchain. It produces a flat memory image
 whose mapping to 32-bit words is deterministic. The Python script is explicit

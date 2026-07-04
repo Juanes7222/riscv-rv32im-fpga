@@ -1,4 +1,4 @@
-# ADR 007 — Branch Unit Receives rs1/rs2 Directly from Register File
+# ADR 007 - Branch Unit Receives rs1/rs2 Directly from Register File
 
 **Status:** Accepted  
 **Date:** 2026-04-24
@@ -24,7 +24,7 @@ which runs in parallel on the ALU and is unrelated to the branch condition
 evaluation.
 
 Connecting the branch unit after the muxes would mean that for branch
-instructions, `alua_src` must be set to something that passes rs1 through —
+instructions, `alua_src` must be set to something that passes rs1 through -
 which reintroduces coupling between the ALU path and the branch path. Direct
 connection from the register file is structurally cleaner and avoids this
 dependency.

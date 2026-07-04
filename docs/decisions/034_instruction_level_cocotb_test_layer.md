@@ -1,4 +1,4 @@
-# ADR 034 — Instruction-Level Cocotb Test Layer (test_alu_rv32i)
+# ADR 034 - Instruction-Level Cocotb Test Layer (test_alu_rv32i)
 
 **Status:** Accepted
 **Date:** 2026-06-12
@@ -11,13 +11,13 @@
 The cocotb test suite at `verification/cocotb/common/` previously
 covered three layers of correctness checks:
 
-- **riscv-tests rv32ui** (37 ELFs) — ISA conformance for the
+- **riscv-tests rv32ui** (37 ELFs) - ISA conformance for the
   base integer instructions. Each ELF runs to completion, the cocotb
   monitor detects the `tohost` write, the test passes or fails
   based on the written value. Coarse-grained: a failure on
   `xor.elf` says "test 23 failed" but not which operand pair.
-- **riscv-tests rv32um** (8 ELFs) — same, for M-extension.
-- **riscv-tests rv32mi** (15 ELFs) — same, for M-mode interrupt
+- **riscv-tests rv32um** (8 ELFs) - same, for M-extension.
+- **riscv-tests rv32mi** (15 ELFs) - same, for M-mode interrupt
   and CSR (added in ADR 033).
 
 These three layers prove the DUT implements the spec correctly at
@@ -28,7 +28,7 @@ combinations that the program happens to exercise.
 
 > ```
 > verification/cocotb/
->   common/        — instruction-level tests valid for both architectures
+>   common/        - instruction-level tests valid for both architectures
 > ```
 
 The "instruction-level tests" are cocotb tests that exercise one
@@ -90,9 +90,9 @@ async def test_add_positive_operands(dut):
 
 The `_setup_and_execute` helper (in the same file, ~30 lines):
 
-1. `await start_clock(dut)` — start the cocotb Clock (needed for
+1. `await start_clock(dut)` - start the cocotb Clock (needed for
    the cocotb framework to know about the clock signal).
-2. `await _reset(dut, hold_cycles=2)` — assert `rst_n=0`,
+2. `await _reset(dut, hold_cycles=2)` - assert `rst_n=0`,
    step 2 clock cycles (the DUT resets all regs to 0 and PC to
    0), deassert `rst_n` to 1.
 3. Set `dut.u_rf.regs[k] = initial_value` for each input register.
@@ -101,9 +101,9 @@ The `_setup_and_execute` helper (in the same file, ~30 lines):
    initialised).
 4. Set `dut.u_imem.mem[0] = instruction` to load the test
    instruction at PC=0.
-5. `await Timer(2, unit="ns")` — let the simulator apply the
+5. `await Timer(2, unit="ns")` - let the simulator apply the
    deposits before the next clock edge.
-6. `await _step(dut)` — toggle `clk` for one full period (10 ns).
+6. `await _step(dut)` - toggle `clk` for one full period (10 ns).
    The DUT fetches the instruction at PC=0, executes it, writes
    the result to `dest_reg`.
 7. Assert `dut.u_rf.regs[dest_reg].value == expected_value`.
@@ -156,7 +156,7 @@ coroutine's drives at each cycle.
 
 The riscv-tests layer (test_rv32i.py, test_rv32m.py,
 test_rv32mi.py) does not have this problem because it uses
-`monitor_tohost` to wait for a `tohost` write — the cocotb
+`monitor_tohost` to wait for a `tohost` write - the cocotb
 Clock + RisingEdge pattern works fine for that style of test.
 
 ### Why `regs[0]` is excluded from the no-side-effect check
@@ -185,7 +185,7 @@ The test explicitly initialises `regs[0] = 0` in the helper
 *after* reset, so the "writes to x0 are ignored" assertion works.
 The "no other register was modified" loop excludes `regs[0]`
 because x0 is not modified by any instruction (writes are
-ignored per the ISA spec) — the exclusion is a no-side-effect
+ignored per the ISA spec) - the exclusion is a no-side-effect
 loosening, not a check omission.
 
 ### Why this file lives in `common/`
@@ -260,10 +260,10 @@ instruction). 27 tests cover the most important ALU operations
 with 2-5 scenarios per operation.
 
 Out of scope for this ADR but follow-up files:
-- `test_branch.py` — BEQ/BNE/BLT/BGE/BLTU/BGEU.
-- `test_jump.py` — JAL/JALR.
-- `test_load_store.py` — LB/LH/LW/LBU/LHU/SB/SH/SW.
-- `test_alu_rv32m.py` — MUL/MULH/MULHSU/MULHU/DIV/DIVU/REM/REMU
+- `test_branch.py` - BEQ/BNE/BLT/BGE/BLTU/BGEU.
+- `test_jump.py` - JAL/JALR.
+- `test_load_store.py` - LB/LH/LW/LBU/LHU/SB/SH/SW.
+- `test_alu_rv32m.py` - MUL/MULH/MULHSU/MULHU/DIV/DIVU/REM/REMU
   (would need a different test pattern: DIV takes 34 cycles,
   so the test must step the clock 34 times after writing the
   instruction).
@@ -273,7 +273,7 @@ These follow the same pattern. ~30 tests each.
 ### Why the `regs[0]` quirk is documented (not fixed in RTL)
 
 The DUT's reset loop is `for (i=1; i<32; i++)`, not `for (i=0;
-i<32; i++)`. This is a minor RTL bug — the riscv-tests `env/p/`
+i<32; i++)`. This is a minor RTL bug - the riscv-tests `env/p/`
 boot code uses `INIT_XREG` to initialise all 32 registers, and
 that works because the boot code writes each register explicitly
 (via `li xN, 0`). The riscv-tests pass.
@@ -333,7 +333,7 @@ riscv-tests layer cannot provide.
 - **`regs[0]` is explicitly initialised in the helper.** The DUT
   has a minor RTL bug (reset loop starts at `i=1`), but it is
   out of scope for this ADR to fix. Fixing the RTL is a 1-line
-  change (`for (int i = 1; i < 32; i++)` → `for (int i = 0; i < 32; i++)`).
+  change (`for (int i = 1; i < 32; i++)` --> `for (int i = 0; i < 32; i++)`).
   When that fix is applied, the `dut.u_rf.regs[0].value = 0`
   line in the helper can be removed.
 

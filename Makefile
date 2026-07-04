@@ -26,7 +26,7 @@ QUARTUS_STA = quartus_sta.exe
 SOF_FILE = $(SYNTH_DIR)/output_files/$(PROJECT).sof
 STA_RPT  = $(SYNTH_DIR)/output_files/$(PROJECT).sta.rpt
 
-# Memory depths for synthesis — keep small for fast Quartus compilation.
+# Memory depths for synthesis - keep small for fast Quartus compilation.
 # cocotb overrides these via environment variables (16384 / 8192).
 IMEM_DEPTH := 2048
 DMEM_DEPTH := 512
@@ -82,7 +82,7 @@ build: check-project $(MEM_CONFIG_VH)
 	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
 
-# Same as build but skips mem_config.vh generation — use when .mem files
+# Same as build but skips mem_config.vh generation - use when .mem files
 # already exist and you only want to recompile RTL changes.
 build-only: check-project
 	@echo "[$(ARCH)] Starting synthesis (without mem refresh)..."
@@ -393,7 +393,7 @@ help:
 	@echo "  ARCH defaults to 'single_cycle' if not specified."
 	@echo ""
 	@echo "Synthesis & Flash"
-	@echo "  flash ELF=<path>   Full pipeline: ELF → .mem → synthesis → program FPGA"
+	@echo "  flash ELF=<path>   Full pipeline: ELF --> .mem --> synthesis --> program FPGA"
 	@echo "  setup              Create Quartus project (run once per arch)"
 	@echo "  sync               Re-register RTL source files after adding new modules"
 	@echo "  sync-all           Sync both architectures"

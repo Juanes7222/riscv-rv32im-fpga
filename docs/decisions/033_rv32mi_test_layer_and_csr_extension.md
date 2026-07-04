@@ -1,4 +1,4 @@
-# ADR 033 — RV32MI Test Layer + CSR Register File Extension
+# ADR 033 - RV32MI Test Layer + CSR Register File Extension
 
 **Status:** Accepted
 **Date:** 2026-06-12
@@ -18,7 +18,7 @@ introduced, was not built and not run. Adding it would:
    minimal CSR file (mstatus, mtvec, mepc, mcause) and trap
    handling (ECALL, EBREAK, MRET). The riscv-tests `env/p/`
    framework exercises this path indirectly through every ELF's
-   boot code (ecall → trap → tohost), but never checks the corner
+   boot code (ecall --> trap --> tohost), but never checks the corner
    cases: which CSRs exist, whether CSRRS/CSRRC/CSRRSI/CSRRCWI
    honour the `rs1=x0` / `uimm=0` "no write" rule, whether mcause
    captures the correct cause, whether mepc captures pc+4, etc.
@@ -42,7 +42,7 @@ introduced, was not built and not run. Adding it would:
 
 ## Decision
 
-### Decision 1 — Build `rv32mi` ELFs
+### Decision 1 - Build `rv32mi` ELFs
 
 Add a `rv32mi` target to `verification/riscv-tests/Makefile` that
 compiles 15 of the 16 riscv-tests `rv32mi-p-*` ELFs. The `pmpaddr`
@@ -52,10 +52,10 @@ The CFLAGS are extended from `-march=rv32im_zicsr` to
 `-march=rv32im_zicsr_zicntr` because `instret_overflow.S` and
 `zicntr.S` reference the Zicntr extension's cycle / instret CSRs
 (they compile but the DUT returns 0 for those CSRs since the
-counters are exposed via `perf_counters` not the CSR file — see
+counters are exposed via `perf_counters` not the CSR file - see
 ADR 024).
 
-### Decision 2 — Extend the CSR file with 8 new registers
+### Decision 2 - Extend the CSR file with 8 new registers
 
 `rtl/shared/csr_file.sv` is extended to include the CSRs that the
 `rv32mi` suite actually reads or writes. New registers:
@@ -108,7 +108,7 @@ instret value; it loops for a fixed number of iterations and
 expects to finish before instret wraps, which the single-cycle
 design does (the test takes <3000 cycles, well below 2^32).
 
-### Decision 3 — Add `test_rv32mi.py` with expected-fail handling
+### Decision 3 - Add `test_rv32mi.py` with expected-fail handling
 
 `verification/cocotb/common/test_rv32mi.py` is created with 15
 parametrized tests. The tests are split into two lists:
@@ -123,7 +123,7 @@ the same as `test_rv32i.py` / `test_rv32m.py`: assert `result ==
 "pass"`. For an `expected_outcome == "fail"` test, the logic
 asserts `result != "pass"`. If the DUT *unexpectedly* passes an
 expected-fail test (i.e., the limitation has been lifted), the
-cocotb assertion fires and the test fails — this is the signal
+cocotb assertion fires and the test fails - this is the signal
 that the `EXPECTED_FAIL` list should be updated. The cocotb test
 log records the actual `result` for each expected-fail test (e.g.,
 `[rv32mi/shamt] expected-fail confirmed (result=3)`).
@@ -149,8 +149,8 @@ The `common/Makefile`'s `COCOTB_TEST_MODULES` is updated from
 
 ### Why extend the CSR file rather than skip the failing tests
 
-The 8 CSRs added to the CSR file are tiny (8 × 32-bit registers,
-no new logic, no synthesis impact — they are just 256 bits of
+The 8 CSRs added to the CSR file are tiny (8 x 32-bit registers,
+no new logic, no synthesis impact - they are just 256 bits of
 storage). The cost of adding them is one small RTL change; the
 cost of skipping the corresponding `rv32mi` tests is the loss of
 direct verification of features that ADR 030 already implements.
@@ -309,7 +309,7 @@ the single-cycle architectural invariant.
 - **`cocotb/common/Makefile`'s `COCOTB_TEST_MODULES` now
   includes `test_rv32mi`.** The `PYTHONPATH` workaround
   documented in ADR 032 (and the cocotb 2.0.1 `COCOTB_PYTHONPATH`
-  → `PYTHONPATH` translation bug) carries over unchanged.
+  --> `PYTHONPATH` translation bug) carries over unchanged.
 
 - **No synthesis impact.** The 8 new CSR registers are 256
   bits of FFs added to `csr_file.sv`. The read/write muxes
@@ -320,7 +320,7 @@ the single-cycle architectural invariant.
 
 - **No reference model impact yet.** The new CSRs are
   declared in RTL but not modelled in `reference_model.py`
-  (which does not exist yet — see the "missing" list from
+  (which does not exist yet - see the "missing" list from
   the post-#2 review). When the reference model is added,
   it must model mstatus, mtvec, mscratch, mepc, mcause,
   mtval, misa, mvendorid, marchid, mimpid, mhartid,

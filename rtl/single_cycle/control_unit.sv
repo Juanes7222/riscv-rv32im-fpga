@@ -74,7 +74,7 @@ module control_unit (
     localparam [1:0] WB_PC4 = 2'b10;
     localparam [1:0] WB_CSR = 2'b11;    // ADR 027: CSR read data
 
-    // Intermediate signals — workaround for Icarus bit-select in always_comb
+    // Intermediate signals - workaround for Icarus bit-select in always_comb
     logic        funct7_5;
     logic        funct7_0;
     logic [4:0]  br_op_cond;
@@ -219,7 +219,7 @@ module control_unit (
                         12'h000: trap_entry = 1'b1;   // ECALL
                         12'h001: trap_entry = 1'b1;   // EBREAK
                         12'h302: mret_exec  = 1'b1;   // MRET
-                        default: ;                      // WFI / undefined → NOP
+                        default: ;                      // WFI / undefined --> NOP
                     endcase
                     // No register writeback for ECALL/MRET
                     ru_wr  = 1'b0;
@@ -231,7 +231,7 @@ module control_unit (
                     csr_addr       = instr_31_20;
                     csr_wr         = 1'b1;   // may be gated in top-level for x0 reads
                     csr_imm        = funct3[2];  // 1 for CSRRWI/CSRRSI/CSRRCI
-                    // funct3[1:0]-1 maps: 001→00(CSRRW), 010→01(CSRRS), 011→10(CSRRC)
+                    // funct3[1:0]-1 maps: 001-->00(CSRRW), 010-->01(CSRRS), 011-->10(CSRRC)
                     csr_op         = funct3[1:0] - 2'b01;
                 end
                 // Default datapath: add 0+0 (ALU result unused for CSR op)

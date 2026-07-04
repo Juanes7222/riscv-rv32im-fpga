@@ -3,41 +3,41 @@
 This index lists every design decision recorded for the `rv32im-pipeline-de1soc`
 project. Each entry links to an individual ADR file. Records are numbered
 sequentially in the order the decision was made. Once recorded, a decision is
-never deleted — if a decision is reversed, a new ADR is added that supersedes
+never deleted - if a decision is reversed, a new ADR is added that supersedes
 the original, and both remain in the index.
 
 | # | Title | Status | Supersedes |
 |---|-------|--------|------------|
-| [001](001_harvard_memory_architecture.md) | Harvard memory architecture | Accepted | — |
-| [002](002_implementation_order.md) | Single-cycle before pipeline | Accepted | — |
-| [003](003_rv32i_before_extension_m.md) | RV32I first, extension M as second iteration | Accepted | — |
-| [004](004_shared_modules_boundary.md) | Boundary between shared and microarchitecture-specific modules | Accepted | — |
-| [005](005_alua_src_2bit.md) | ALU operand-A source extended to 2 bits | Accepted | — |
-| [006](006_jalr_pc_masking.md) | JALR LSB masking responsibility assigned to branch_unit | Accepted | — |
-| [007](007_branch_unit_inputs.md) | Branch unit receives rs1/rs2 directly from register file | Accepted | — |
-| [008](008_m_extension_implementation.md) | Combinational multiplier, multi-cycle divisor for extension M | Accepted | — |
-| [009](009_mulhsu_33bit_extension.md) | MULHSU implemented via 33-bit sign/zero extension | Accepted | — |
-| [010](010_systemverilog_style.md) | Unified SystemVerilog style: logic + always_comb | Accepted | — |
-| [011](011_instruction_memory_async_read.md) | Instruction memory asynchronous read | Accepted | — |
-| [012](012_reset_vector.md) | Reset vector `0x00000000` | Accepted | — |
-| [013](013_memory_sizes.md) | Instruction memory 64 KB, data memory 32 KB | Accepted | — |
-| [014](014_memory_initialize_format.md) | Memory Initialization Format | Accepted | — |
-| [015](015_register_file_ff_array.md) | Register File: FF Array Implementation | Accepted | — |
-| [016](016_register_file_reset_zero.md) | Register File: All Registers Reset to Zero | Accepted | — |
-| [017](017_imm_gen_interface.md) | Immediate Generator: Interface and Implementation | Accepted | — |
-| [018](018_branch_unit.md) | Branch Unit: Interface and Implementation | Accepted | — |
-| [019](019_alu_rv32im.md) | ALU RV32IM: Interface, MULHSU, and Division Strategy | Accepted | — |
-| [020](020_data_memory_async_read.md) | Data Memory: Asynchronous Read | Accepted | — |
-| [021](021_data_memory_organization.md) | Data Memory: Word-Addressed Organization with Byte Enables | Accepted | — |
-| [022](022_control_unit.md) | Control Unit: Interface and Implementation | Accepted | — |
-| [023](023_wr_en_gated.md) | Register File Write Inhibit During Division | Accepted | — |
-| [024](024_perf_counters.md) | Performance Counters | Accepted | — |
-| [025](025_mem_init_define.md) | Memory Initialization via `define Macros | Accepted | — |
-| [026](026_signaltap_metric_extraction.md) | SignalTap Metric Extraction | Accepted | — |
-| [027](027_riscv-tests_compilation.md) | riscv-tests Compilation for Reset Vector 0x00000000 | Accepted | — |
-| [028](028_pass-fail_onvention.md) | Pass/Fail Convention: tohost Symbol Monitoring in cocotb | Accepted | — |
-| [029](029_cocotb_directory_structure.md) | cocotb Directory Structure | Accepted | — |
-| [030](030_csr_and_trap_handling.md) | CSR File and Minimal Trap Handling (ECALL / MRET) | Accepted | — |
+| [001](001_harvard_memory_architecture.md) | Harvard memory architecture | Accepted | - |
+| [002](002_implementation_order.md) | Single-cycle before pipeline | Accepted | - |
+| [003](003_rv32i_before_extension_m.md) | RV32I first, extension M as second iteration | Accepted | - |
+| [004](004_shared_modules_boundary.md) | Boundary between shared and microarchitecture-specific modules | Accepted | - |
+| [005](005_alua_src_2bit.md) | ALU operand-A source extended to 2 bits | Accepted | - |
+| [006](006_jalr_pc_masking.md) | JALR LSB masking responsibility assigned to branch_unit | Accepted | - |
+| [007](007_branch_unit_inputs.md) | Branch unit receives rs1/rs2 directly from register file | Accepted | - |
+| [008](008_m_extension_implementation.md) | Combinational multiplier, multi-cycle divisor for extension M | Accepted | - |
+| [009](009_mulhsu_33bit_extension.md) | MULHSU implemented via 33-bit sign/zero extension | Accepted | - |
+| [010](010_systemverilog_style.md) | Unified SystemVerilog style: logic + always_comb | Accepted | - |
+| [011](011_instruction_memory_async_read.md) | Instruction memory asynchronous read | Accepted | - |
+| [012](012_reset_vector.md) | Reset vector `0x00000000` | Accepted | - |
+| [013](013_memory_sizes.md) | Instruction memory 64 KB, data memory 32 KB | Accepted | - |
+| [014](014_memory_initialize_format.md) | Memory Initialization Format | Accepted | - |
+| [015](015_register_file_ff_array.md) | Register File: FF Array Implementation | Accepted | - |
+| [016](016_register_file_reset_zero.md) | Register File: All Registers Reset to Zero | Accepted | - |
+| [017](017_imm_gen_interface.md) | Immediate Generator: Interface and Implementation | Accepted | - |
+| [018](018_branch_unit.md) | Branch Unit: Interface and Implementation | Accepted | - |
+| [019](019_alu_rv32im.md) | ALU RV32IM: Interface, MULHSU, and Division Strategy | Accepted | - |
+| [020](020_data_memory_async_read.md) | Data Memory: Asynchronous Read | Accepted | - |
+| [021](021_data_memory_organization.md) | Data Memory: Word-Addressed Organization with Byte Enables | Accepted | - |
+| [022](022_control_unit.md) | Control Unit: Interface and Implementation | Accepted | - |
+| [023](023_wr_en_gated.md) | Register File Write Inhibit During Division | Accepted | - |
+| [024](024_perf_counters.md) | Performance Counters | Accepted | - |
+| [025](025_mem_init_define.md) | Memory Initialization via `define Macros | Accepted | - |
+| [026](026_signaltap_metric_extraction.md) | SignalTap Metric Extraction | Accepted | - |
+| [027](027_riscv-tests_compilation.md) | riscv-tests Compilation for Reset Vector 0x00000000 | Accepted | - |
+| [028](028_pass-fail_onvention.md) | Pass/Fail Convention: tohost Symbol Monitoring in cocotb | Accepted | - |
+| [029](029_cocotb_directory_structure.md) | cocotb Directory Structure | Accepted | - |
+| [030](030_csr_and_trap_handling.md) | CSR File and Minimal Trap Handling (ECALL / MRET) | Accepted | - |
 | [031](031_m_extension_test_failures_and_fsm_correction.md) | M-Extension Test Failures and Division FSM Correction | Accepted | supersedes parts of [008](008_m_extension_implementation.md), [019](019_alu_rv32im.md), [023](023_wr_en_gated.md) |
 | [032](032_single_cycle_cpi_one_test_layer.md) | Single-Cycle CPI=1 Test Layer (test_cpi_one) | Accepted | implements the test layer called out in [029](029_cocotb_directory_structure.md) |
 | [033](033_rv32mi_test_layer_and_csr_extension.md) | RV32MI Test Layer + CSR Register File Extension | Accepted | extends the CSR file from [030](030_csr_and_trap_handling.md) with 8 additional registers; adds rv32mi cocotb layer |

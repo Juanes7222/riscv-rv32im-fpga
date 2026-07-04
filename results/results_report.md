@@ -1,4 +1,4 @@
-# RV32IM FPGA — Results Report
+# RV32IM FPGA - Results Report
 
 *Generated: 2026-06-24 19:31*
 
@@ -8,21 +8,21 @@
 
 | Test Suite | Single-Cycle (P/F/T) | Pipeline (P/F/T) |
 |---|---|---|
-| RV32I ISA (37 tests) | ✅ 37/0/37 | ⬜ — |
-| RV32M M-Extension (8 tests) | ✅ 8/0/8 | ⬜ — |
-| RV32MI Machine-Mode (15 tests) | ✅ 15/0/15 | ⬜ — |
-| ALU Unit Tests | ✅ 27/0/27 | ⬜ — |
-| Branch Unit Tests | ✅ 20/0/20 | ⬜ — |
-| Model vs DUT Comparison | ✅ 4/0/4 | ⬜ — |
-| CPI=1 Invariant (45 tests) | ✅ 45/0/45 | ⬜ — |
-| Pipeline Smoke Tests (4 tests) | ⬜ — | ✅ 4/0/4 |
-| Pipeline Debug/Forwarding | ⬜ — | ✅ 1/0/1 |
-| Pipeline RV32I ISA (37 tests) | ⬜ — | ✅ 37/0/37 |
-| Pipeline RV32M (8 tests) | ⬜ — | ✅ 8/0/8 |
-| Pipeline RV32MI (15 tests) | ⬜ — | ✅ 15/0/15 |
-| Pipeline Hazard/Forwarding (7 tests) | ⬜ — | ✅ 7/0/7 |
-| Pipeline Control Hazards (5 tests) | ⬜ — | ✅ 4/0/4 |
-| Pipeline CPI Counters (4 tests) | ⬜ — | ✅ 4/0/4 |
+| RV32I ISA (37 tests) | ✅ 37/0/37 | ⬜ - |
+| RV32M M-Extension (8 tests) | ✅ 8/0/8 | ⬜ - |
+| RV32MI Machine-Mode (15 tests) | ✅ 15/0/15 | ⬜ - |
+| ALU Unit Tests | ✅ 27/0/27 | ⬜ - |
+| Branch Unit Tests | ✅ 20/0/20 | ⬜ - |
+| Model vs DUT Comparison | ✅ 4/0/4 | ⬜ - |
+| CPI=1 Invariant (45 tests) | ✅ 45/0/45 | ⬜ - |
+| Pipeline Smoke Tests (4 tests) | ⬜ - | ✅ 4/0/4 |
+| Pipeline Debug/Forwarding | ⬜ - | ✅ 1/0/1 |
+| Pipeline RV32I ISA (37 tests) | ⬜ - | ✅ 37/0/37 |
+| Pipeline RV32M (8 tests) | ⬜ - | ✅ 8/0/8 |
+| Pipeline RV32MI (15 tests) | ⬜ - | ✅ 15/0/15 |
+| Pipeline Hazard/Forwarding (7 tests) | ⬜ - | ✅ 7/0/7 |
+| Pipeline Control Hazards (5 tests) | ⬜ - | ✅ 4/0/4 |
+| Pipeline CPI Counters (4 tests) | ⬜ - | ✅ 4/0/4 |
 
 ---
 

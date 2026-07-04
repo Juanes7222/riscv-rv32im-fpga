@@ -23,14 +23,14 @@ for the normative RTL specification and full design rationale.
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `clk` | input | 1 | Clock — used by the radix-2 restoring divisor FSM |
-| `rst_n` | input | 1 | Active-low synchronous reset — resets all FSM registers |
+| `clk` | input | 1 | Clock - used by the radix-2 restoring divisor FSM |
+| `rst_n` | input | 1 | Active-low synchronous reset - resets all FSM registers |
 | `a` | input | 32 | Operand A |
 | `b` | input | 32 | Operand B |
 | `alu_op` | input | 5 | Operation select (see encoding below) |
 | `alu_res` | output | 32 | Result (combinational for non-division; registered for division) |
 | `div_busy` | output | 1 | High while division FSM is in DIV_RUNNING or DIV_DONE state |
-| `div_done` | output | 1 | 1-cycle pulse when division result is valid (DONE→IDLE transition) |
+| `div_done` | output | 1 | 1-cycle pulse when division result is valid (DONE-->IDLE transition) |
 
 ### ALU Operation Encoding
 
@@ -62,10 +62,10 @@ for the normative RTL specification and full design rationale.
 - For DIV/DIVU/REM/REMU with normal operands, `div_busy` is asserted for
   exactly 33 consecutive cycles: 32 cycles in `DIV_RUNNING` and 1 cycle in
   `DIV_DONE`. The correct result is available on `alu_res` on the clock edge
-  that transitions `DIV_DONE → DIV_IDLE`, which is the same edge that
+  that transitions `DIV_DONE --> DIV_IDLE`, which is the same edge that
   de-asserts `div_busy`. Effective CPI = 34.
 - `div_done` pulses high for exactly 1 cycle when `div_result` holds the
-  correct final value: on the `DIV_DONE → DIV_IDLE` transition for normal
+  correct final value: on the `DIV_DONE --> DIV_IDLE` transition for normal
   divisions, and on the issue cycle itself for corner cases (div-by-zero,
   signed overflow). `top_single_cycle` uses `div_done` to gate the register
   file write enable (see [ADR 023](../decisions/023_wr_en_gated.md)).
@@ -89,7 +89,7 @@ for the normative RTL specification and full design rationale.
 
 **File:** `rtl/shared/register_file.sv`  
 **Type:** Sequential (synchronous write, asynchronous read)  
-**Description:** 32 × 32-bit register file. Register x0 is hardwired to zero
+**Description:** 32 x 32-bit register file. Register x0 is hardwired to zero
 and cannot be written. Reads are combinational (result available same cycle as
 address). Writes take effect on the rising clock edge.
 
@@ -172,7 +172,7 @@ using byte enables. See [ADR 019](../decisions/019_data_memory_async_read.md),
 | `addr` | input | 32 | Byte address |
 | `wr_data` | input | 32 | Data to write (from rs2) |
 | `dm_wr` | input | 1 | Write enable |
-| `dm_ctrl` | input | 3 | funct3 direct — encodes access size and load sign mode (ADR 021) |
+| `dm_ctrl` | input | 3 | funct3 direct - encodes access size and load sign mode (ADR 021) |
 | `rd_data` | output | 32 | Read data, combinational, extended to 32 bits |
 
 ### dm_ctrl Encoding
@@ -183,11 +183,11 @@ for loads and is irrelevant for stores; bits [1:0] encode access width.
 
 | `dm_ctrl` | Load result | Store write width |
 |-----------|-------------|-------------------|
-| `3'b000` | Sign-extended byte (LB) | Byte — 8 bits (SB) |
-| `3'b001` | Sign-extended halfword (LH) | Halfword — 16 bits (SH) |
-| `3'b010` | Word — 32 bits (LW) | Word — 32 bits (SW) |
-| `3'b100` | Zero-extended byte (LBU) | Byte — 8 bits (SB) |
-| `3'b101` | Zero-extended halfword (LHU) | Halfword — 16 bits (SH) |
+| `3'b000` | Sign-extended byte (LB) | Byte - 8 bits (SB) |
+| `3'b001` | Sign-extended halfword (LH) | Halfword - 16 bits (SH) |
+| `3'b010` | Word - 32 bits (LW) | Word - 32 bits (SW) |
+| `3'b100` | Zero-extended byte (LBU) | Byte - 8 bits (SB) |
+| `3'b101` | Zero-extended halfword (LHU) | Halfword - 16 bits (SH) |
 
 ### Behavioral Notes
 
@@ -244,7 +244,7 @@ is selected by `imm_src`.
 **File:** `rtl/shared/branch_unit.sv`  
 **Type:** Combinational  
 **Description:** Evaluates branch conditions and generates PC control signals.
-Does not calculate the jump target address — that is the ALU's responsibility
+Does not calculate the jump target address - that is the ALU's responsibility
 (ADD on PC + offset or rs1 + offset).
 
 ### Ports
@@ -255,7 +255,7 @@ Does not calculate the jump target address — that is the ALU's responsibility
 | `rs2_data` | input | 32 | Second comparand (direct from register file or forwarding unit) |
 | `br_op` | input | 5 | `{branch_type[1:0], funct3[2:0]}` |
 | `branch` | output | 1 | High when a jump or branch is taken |
-| `mask_pc_lsb` | output | 1 | High for JALR only — force bit 0 of target to zero (ADR 006) |
+| `mask_pc_lsb` | output | 1 | High for JALR only - force bit 0 of target to zero (ADR 006) |
 
 ### br_op Encoding
 

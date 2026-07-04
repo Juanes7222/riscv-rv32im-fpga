@@ -1,4 +1,4 @@
-# ADR 031 — M-Extension Test Failures and Division FSM Correction
+# ADR 031 - M-Extension Test Failures and Division FSM Correction
 
 **Status:** Accepted
 **Date:** 2026-06-12
@@ -10,7 +10,7 @@
 ## Context
 
 Running the cocotb `test_rv32m_*` suite against the single-cycle design produced
-eight failures — every M-extension test failed — while the `test_rv32i_*`
+eight failures - every M-extension test failed - while the `test_rv32i_*`
 suite passed all 37 RV32I tests in the expected number of cycles. The first
 test in the M suite to fail was always `test_rv32m_mul`, with sim time
 ~5 ns; all subsequent tests showed sim time 0 ns.
@@ -28,7 +28,7 @@ Investigation revealed three independent bugs:
 2. **The division FSM's writeback cycle was misaligned with `div_done_r`.**
    `div_done_r` is registered, so the cycle on which `div_state == DIV_DONE`
    and the result is finally visible at `alu_res` saw `div_done_r = 0`. The
-   writeback only fired on the next cycle — when `div_state` had already
+   writeback only fired on the next cycle - when `div_state` had already
    returned to `DIV_IDLE`, the PC had advanced, and `rd_addr` belonged to
    the *next* instruction. The fast paths (div-by-zero, signed overflow)
    suffered the same defect: they set the result and `div_done_r` in
@@ -53,7 +53,7 @@ Investigation revealed three independent bugs:
 
 Three coordinated fixes, one per root cause.
 
-### Fix 1 — `verification/cocotb/common/test_rv32m.py`: mirror the RV32I test setup
+### Fix 1 - `verification/cocotb/common/test_rv32m.py`: mirror the RV32I test setup
 
 `test_rv32m.py` now imports `start_clock` and `reset_and_reload_memories`,
 calls `await start_clock(dut)` before loading memories, and uses
@@ -72,7 +72,7 @@ result = await monitor_tohost(dut, elf, max_cycles=max_cycles)
 `monitor_tohost` now receives `max_cycles` (200 000 for MUL, 500 000 for
 DIV), matching the budgets in the test file's existing constants.
 
-### Fix 2 — `rtl/shared/alu_rv32im.sv`: hold the PC on the fetch cycle and on the writeback cycle
+### Fix 2 - `rtl/shared/alu_rv32im.sv`: hold the PC on the fetch cycle and on the writeback cycle
 
 The division FSM now has a fourth effective input: the combinational
 `is_div_op & ~div_processed` term, ORed into `div_busy`:
@@ -93,17 +93,17 @@ forced to 0 and the PC is allowed to advance.
 The `DIV_IDLE` and `DIV_RUNNING` cases that transition into `DIV_DONE`
 must now also set `div_done_r <= 1` on entry (not on exit). The
 `DIV_DONE` case only clears `div_done_r` and transitions back to
-`DIV_IDLE`. This makes `div_done_r` visible during `DIV_DONE` itself —
+`DIV_IDLE`. This makes `div_done_r` visible during `DIV_DONE` itself -
 the cycle when the writeback must fire.
 
 The `div_by_zero` and `div_overflow` fast paths now transition
-`DIV_IDLE → DIV_DONE` (not stay in `DIV_IDLE`) so that the PC is held
+`DIV_IDLE --> DIV_DONE` (not stay in `DIV_IDLE`) so that the PC is held
 for one extra cycle. The result and `div_done_r` are still set
 combinationally in the same `DIV_IDLE` cycle, but the `DIV_DONE` state
 keeps `div_busy = 1` and the top-level `wr_en_gated` armed until the
 writeback actually fires.
 
-### Fix 3 — `rtl/shared/alu_rv32im.sv`: latch the result on the *next* cycle, using the post-update values
+### Fix 3 - `rtl/shared/alu_rv32im.sv`: latch the result on the *next* cycle, using the post-update values
 
 The division FSM's last iteration now performs the non-blocking update of
 `div_quotient` and `div_partial` *and* latches the result in the same
@@ -161,7 +161,7 @@ iteration, when `div_count == 5'd31`.
 `div_state` alone cannot hold the PC on the cycle the DIV is fetched:
 the FSM sees `is_div_op = 1` only at the end of that cycle, when the
 non-blocking transition is already scheduled. Making `div_busy` purely
-combinational on `is_div_op` would deadlock — the held PC keeps the
+combinational on `is_div_op` would deadlock - the held PC keeps the
 current instruction as the DIV, which keeps `is_div_op` asserted, which
 keeps the PC held. The new `div_processed` register breaks the cycle:
 it is set on entry to `DIV_DONE` and cleared on the next cycle, so for
@@ -199,7 +199,7 @@ The quotient's bit 0 is produced on iteration 31. In a non-blocking
 FSM, the value `div_quotient` will *have* after the clock edge is
 `{div_quotient[30:0], 1'b1}` or `{div_quotient[30:0], 1'b0}` depending
 on `sub_res_sign`. Inside the same cycle, those values are not yet
-visible in `div_quotient` — they are visible only at the *next* rising
+visible in `div_quotient` - they are visible only at the *next* rising
 edge. The cleanest way to make them available to the result-latch case
 *in the same cycle* is to compute them combinationally from the current
 state and `sub_res_sign`. This is what `next_quotient` and
@@ -224,8 +224,8 @@ became the current instruction and overwrote the result before it was
 written. Routing the fast paths through `DIV_DONE` is a one-cycle
 penalty (CPI = 2 instead of 1) but it is the only way to make the
 writeback land on a cycle when `rd_addr` is still the DIV's
-destination register. The alternative — gating the PC with a pure
-combinational `is_div_op` without `div_processed` — deadlocks, as
+destination register. The alternative - gating the PC with a pure
+combinational `is_div_op` without `div_processed` - deadlocks, as
 discussed above.
 
 ---
@@ -236,10 +236,10 @@ discussed above.
 
 | Cycle | `div_state`   | `is_div` | `is_div_op_eff` | `div_done_r` | `div_busy` | `wr_en_gated` | PC   | Action                              |
 |-------|---------------|----------|------------------|--------------|------------|----------------|------|-------------------------------------|
-| 1     | IDLE→RUNNING  | 1        | 1                | 0            | 1          | 0              | held | FSM starts, latch operands          |
+| 1     | IDLE-->RUNNING  | 1        | 1                | 0            | 1          | 0              | held | FSM starts, latch operands          |
 | 2–32  | RUNNING       | 1        | 1                | 0            | 1          | 0              | held | 31 iterations, quotient/partial update |
-| 33    | RUNNING→DONE  | 1        | 1                | **0 → 1**    | 1          | 0              | held | Last iteration: latch `div_result`, set `div_done_r` |
-| 34    | DONE→IDLE     | 1        | 1                | **1**        | 1          | **1**          | held | **Writeback.** `div_done_r=1`, `div_result` is correct, `wr_en_gated=1` → register file writes |
+| 33    | RUNNING-->DONE  | 1        | 1                | **0 --> 1**    | 1          | 0              | held | Last iteration: latch `div_result`, set `div_done_r` |
+| 34    | DONE-->IDLE     | 1        | 1                | **1**        | 1          | **1**          | held | **Writeback.** `div_done_r=1`, `div_result` is correct, `wr_en_gated=1` --> register file writes |
 | 35    | IDLE          | 1        | **0** (div_processed=1) | 0       | **0**      | 0              | **adv** | PC releases. `div_processed` clears at the next edge. |
 | 36+   | IDLE          | 0 (next instr) | 0          | 0            | 0          | `ru_wr`        | adv  | Normal operation                    |
 
@@ -251,8 +251,8 @@ the registered `div_quotient`.
 
 | Cycle | `div_state`  | `is_div` | `is_div_op_eff` | `div_done_r` | `div_busy` | `wr_en_gated` | PC   | Action                              |
 |-------|--------------|----------|------------------|--------------|------------|----------------|------|-------------------------------------|
-| 1     | IDLE→DONE    | 1        | 1                | **0 → 1**    | 1          | 0              | held | Fast-path: latch `div_result`, set `div_done_r` |
-| 2     | DONE→IDLE    | 1        | 1                | **1**        | 1          | **1**          | held | **Writeback.** `div_result` is the corner-case value (0xFFFFFFFF for div-by-zero, 0x80000000 / 0x0 for overflow). |
+| 1     | IDLE-->DONE    | 1        | 1                | **0 --> 1**    | 1          | 0              | held | Fast-path: latch `div_result`, set `div_done_r` |
+| 2     | DONE-->IDLE    | 1        | 1                | **1**        | 1          | **1**          | held | **Writeback.** `div_result` is the corner-case value (0xFFFFFFFF for div-by-zero, 0x80000000 / 0x0 for overflow). |
 | 3     | IDLE         | 1        | **0** (div_processed=1) | 0       | **0**      | 0              | **adv** | PC releases. |
 | 4+    | IDLE         | 0 (next instr) | 0          | 0            | 0          | `ru_wr`        | adv  | Normal operation                    |
 
@@ -295,7 +295,7 @@ division).
 
 - **ADR 008 timing claim updated.** Div-by-zero and signed-overflow CPI
   is now 2, not 1. The total cycle count for a binary that contains
-  only corner-case divisions is `2 × (#divisions) + 1 (last writeback)`.
+  only corner-case divisions is `2 x (#divisions) + 1 (last writeback)`.
   For a binary that contains one normal division, the count is
   `33 + 1 + (other-instructions)`. This must be reflected in the
   experimental CPI numbers reported in the thesis.

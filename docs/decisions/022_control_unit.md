@@ -1,4 +1,4 @@
-# ADR 022 — Control Unit: Interface and Implementation
+# ADR 022 - Control Unit: Interface and Implementation
 
 **Status:** Accepted  
 **Date:** 2026-05-02
@@ -27,7 +27,7 @@ instructions, with no intermediate constants or translation table.
 ADR 005 defines three ALU-A sources: rs1 (`2'b00`), PC (`2'b01`), and
 constant zero (`2'b10`). LUI must use constant zero because the U-type
 instruction format repurposes `instruction[19:15]` as part of the immediate
-field — it is not a valid rs1 address. If the control unit drives `alua_src =
+field - it is not a valid rs1 address. If the control unit drives `alua_src =
 2'b00` for LUI, the ALU receives whatever value is stored in the register
 indexed by those bits, which is undefined from the LUI instruction's
 perspective and produces incorrect results whenever that register is non-zero.

@@ -1,10 +1,10 @@
-// Video memory — single-clock dual-port character buffer for text screen.
+// Video memory - single-clock dual-port character buffer for text screen.
 // Port A (write) and Port B (read) share the same clock (vga_pixel_clk).
 // This guarantees M10K inference on Cyclone V.
 // Initialised via screen.mif (Quartus project assignment).
 
 module video_memory #(
-    parameter int CELLS = 7200   // 160 cols × 45 rows
+    parameter int CELLS = 7200   // 160 cols x 45 rows
 )(
     input  logic        clk,       // vga_pixel_clk (74.25 MHz)
     input  logic        wr_en,

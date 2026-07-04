@@ -1,15 +1,15 @@
-# ADR 008 — Combinational Multiplier, Multi-Cycle Divisor for Extension M
+# ADR 008 - Combinational Multiplier, Multi-Cycle Divisor for Extension M
 
 **Status:** Accepted (updated 2026-04-24 to specify divisor algorithm; updated 2026-06-12 to reflect FSM correction)  
 **Date:** 2026-04-24
-**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) — the corner-case CPI for division-by-zero and signed overflow is 2 (one fetch + one `DIV_DONE` writeback cycle), not 1 as stated in the original "Corner cases" section. The radix-2 restoring algorithm sketch and the CPI = 34 figure for normal division remain correct.
+**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) - the corner-case CPI for division-by-zero and signed overflow is 2 (one fetch + one `DIV_DONE` writeback cycle), not 1 as stated in the original "Corner cases" section. The radix-2 restoring algorithm sketch and the CPI = 34 figure for normal division remain correct.
 
 ## Context
 
 The M extension introduces eight operations: MUL, MULH, MULHSU, MULHU, DIV,
 DIVU, REM, REMU. These have substantially different hardware costs:
 
-- **Multiplication:** A 32×32 multiplier produces a 64-bit result. On Cyclone
+- **Multiplication:** A 32x32 multiplier produces a 64-bit result. On Cyclone
   V, Quartus infers DSP blocks for multiplication, resulting in a manageable
   critical path (typically 2–3 DSP cascade levels).
 - **Division:** A combinational 32-bit divider is one of the deepest
@@ -74,7 +74,7 @@ well-understood RTL structure, is straightforward to verify against the
 RISC-V specification corner cases (division by zero, signed overflow), and
 produces deterministic 32-cycle latency that simplifies CPI analysis. Islam
 et al. (2020) use a radix-4 SRT divider for RVCoreP-32IM (Artix-7), which
-halves the latency but significantly increases RTL complexity — an unnecessary
+halves the latency but significantly increases RTL complexity - an unnecessary
 trade-off for an undergraduate thesis implementation.
 
 **Why fixed latency:**  

@@ -16,8 +16,8 @@ AUIPC, LUI). Branches, stores and NOPs are excluded.
 
 | Hazard type | Stall cycles | Mechanism |
 |---|---|---|
-| **Load-use** | 2 cycles | `load_use_hazard` (EX→ID) + `mem_raw_hazard` (MEM→ID) |
-| **RAW (ALU→ALU)** | 0 cycles | Resolved by forwarding from EX/MEM or MEM/WB |
+| **Load-use** | 2 cycles | `load_use_hazard` (EX-->ID) + `mem_raw_hazard` (MEM-->ID) |
+| **RAW (ALU-->ALU)** | 0 cycles | Resolved by forwarding from EX/MEM or MEM/WB |
 | **Taken branch flush** | 2 cycles | IF and ID stages flushed, PC redirected at EX resolution |
 | **DIV/REM** | 34 cycles | Multi-cycle divider holds pipeline (ID/EX frozen) |
 
@@ -42,7 +42,7 @@ AUIPC, LUI). Branches, stores and NOPs are excluded.
 
 ---
 
-## 1. `raw_stress` — RAW dependency chain forwarding
+## 1. `raw_stress` - RAW dependency chain forwarding
 
 ### Structure
 
@@ -51,8 +51,8 @@ _start:
     li      x1, 1           # ru_wr=1
     li      x2, 143         # ru_wr=1, iteration count
 
-loop:                                   # ×143 iterations (branch taken 142×, not 1×)
-    add     x3, x1, x0      # ru_wr=1, RAW from x1 → forwarding → 0 stall
+loop:                                   # x143 iterations (branch taken 142x, not 1x)
+    add     x3, x1, x0      # ru_wr=1, RAW from x1 --> forwarding --> 0 stall
     add     x4, x3, x0      # ru_wr=1, forwarding
     add     x5, x4, x0      # ru_wr=1, forwarding
     add     x6, x5, x0      # ru_wr=1, forwarding
@@ -70,13 +70,13 @@ loop:                                   # ×143 iterations (branch taken 142×, 
 
 | Component | Formula | Cycles |
 |---|---|---|
-| Loop body instructions (×143) | `(6 add + 1 addi)` × 143 | 1,001 |
-| Taken branch penalty | 142 branches × 2 flush cycles | 284 |
+| Loop body instructions (x143) | `(6 add + 1 addi)` x 143 | 1,001 |
+| Taken branch penalty | 142 branches x 2 flush cycles | 284 |
 | Not-taken branch (last iter) | 1 cycle | 1 |
-| Startup instructions | 2 × `li` | 2 |
-| Tail instructions | 2 × `li` + 1 × `sw` | 3 |
+| Startup instructions | 2 x `li` | 2 |
+| Tail instructions | 2 x `li` + 1 x `sw` | 3 |
 | Pipeline startup fill | 2 cycles to fill | 2 |
-| **Total (observed)** | — | **1,435** |
+| **Total (observed)** | - | **1,435** |
 
 ### CPI interpretation
 
@@ -88,7 +88,7 @@ loop:                                   # ×143 iterations (branch taken 142×, 
 
 ---
 
-## 2. `load_use_stress` — Load-use hazard stall
+## 2. `load_use_stress` - Load-use hazard stall
 
 ### Structure
 
@@ -97,23 +97,23 @@ loop:                                   # ×143 iterations (branch taken 142×, 
 ```
 _start:
     # DMEM init: 4 stores at 0x200..0x20C
-    li/sw test_data × 4     # 4×lui + 4×addi (ru_wr=1) + 4×sw (ru_wr=0)
+    li/sw test_data x 4     # 4xlui + 4xaddi (ru_wr=1) + 4xsw (ru_wr=0)
     li      x5, 111         # ru_wr=1, counter
 
-loop:                                   # ×111 iterations
+loop:                                   # x111 iterations
     lw      x10, 0x200(x0)  # ru_wr=1, load
-    addi    x11, x10, 1     # ru_wr=1, load-use → 2-cycle stall
+    addi    x11, x10, 1     # ru_wr=1, load-use --> 2-cycle stall
     lw      x12, 0x204(x0)  # ru_wr=1, load
-    addi    x13, x12, 1     # ru_wr=1, load-use → 2-cycle stall
+    addi    x13, x12, 1     # ru_wr=1, load-use --> 2-cycle stall
     lw      x14, 0x208(x0)  # ru_wr=1, load
-    addi    x15, x14, 1     # ru_wr=1, load-use → 2-cycle stall
+    addi    x15, x14, 1     # ru_wr=1, load-use --> 2-cycle stall
     lw      x16, 0x20C(x0)  # ru_wr=1, load
-    addi    x17, x16, 1     # ru_wr=1, load-use → 2-cycle stall
+    addi    x17, x16, 1     # ru_wr=1, load-use --> 2-cycle stall
 
     addi    x5, x5, -1      # ru_wr=1, counter
-    bnez    x5, loop        # ru_wr=0, taken 110×, not 1×
+    bnez    x5, loop        # ru_wr=0, taken 110x, not 1x
 
-    li/sw   tohost          # 3× ru_wr + 1× sw + 1× j loop_end
+    li/sw   tohost          # 3x ru_wr + 1x sw + 1x j loop_end
 ```
 
 ### Cycle breakdown
@@ -122,11 +122,11 @@ loop:                                   # ×111 iterations
 |---|---|---|
 | **Init** (before loop) | 12 instructions | 13 |
 | **Loop body per iter** | 10 instructions | 10 |
-| **Load-use stalls** | 4 pairs × 2 stall cycles × 111 iters | **888** |
-| **Taken branch flush** | 110 branches × 2 flush cycles | **220** |
+| **Load-use stalls** | 4 pairs x 2 stall cycles x 111 iters | **888** |
+| **Taken branch flush** | 110 branches x 2 flush cycles | **220** |
 | **Not-taken branch** | Last iteration | 1 |
 | Tail + pipeline fill | ~3 | 5 |
-| **Total (observed)** | — | **2,236** |
+| **Total (observed)** | - | **2,236** |
 
 The 888 load-use stall cycles dominate the overhead: 888 out of 2,236 cycles
 (39.7%) are idle bubbles. The remaining overhead is the branch flush (9.8%).
@@ -135,15 +135,15 @@ The 888 load-use stall cycles dominate the overhead: 888 out of 2,236 cycles
 
 ```
 CPI = (SC_cycles + load_use_stalls + branch_flushes) / retired
-    = (1125 + 888 + 220) / 1004 ≈ 2.233... → Wait, 2236/1453 = 1.539
+    = (1125 + 888 + 220) / 1004 ≈ 2.233... --> Wait, 2236/1453 = 1.539
 ```
 
-The retired count (1,453) includes all loop body ru_wr instructions (111 × 9 =
+The retired count (1,453) includes all loop body ru_wr instructions (111 x 9 =
 999), init (9), tail (3), plus post-tohost pipeline effects.
 
 ---
 
-## 3. `branch_stress` — Branch penalty stress
+## 3. `branch_stress` - Branch penalty stress
 
 ### Structure
 
@@ -155,27 +155,27 @@ _start:
     li      x2, 1           # ru_wr=1
 
 loop:
-    beqz    x2, skip        # ru_wr=0, NOT taken → 0 penalty
+    beqz    x2, skip        # ru_wr=0, NOT taken --> 0 penalty
     nop                     # ru_wr=0
     nop                     # ru_wr=0
 skip:
     addi    x2, x2, 1       # ru_wr=1
     addi    x1, x1, -1      # ru_wr=1, outer counter
-    bnez    x1, loop        # ru_wr=0, taken 999× → 2-cycle flush
+    bnez    x1, loop        # ru_wr=0, taken 999x --> 2-cycle flush
 
-    li/sw tohost            # 3× ru_wr + 1× sw
+    li/sw tohost            # 3x ru_wr + 1x sw
 ```
 
 ### Cycle breakdown
 
 | Component | Formula | Cycles |
 |---|---|---|
-| Loop body (×1,000) | 6 instructions | 6,000 |
-| Taken branch penalty (bnez) | 999 branches × 2 flush cycles | 1,998 |
+| Loop body (x1,000) | 6 instructions | 6,000 |
+| Taken branch penalty (bnez) | 999 branches x 2 flush cycles | 1,998 |
 | Not-taken bnez (last iter) | 1 cycle | 1 |
 | Tail | 3 instructions | 3 |
 | Pipeline fill | ~2 cycles | 2 |
-| **Total** | — | **8,005** |
+| **Total** | - | **8,005** |
 
 ### CPI
 
@@ -186,7 +186,7 @@ skip:
 
 ---
 
-## 4. `m_ext_stress` — M-extension multiply/divide stress
+## 4. `m_ext_stress` - M-extension multiply/divide stress
 
 ### Structure
 
@@ -198,12 +198,12 @@ _start:
     li      x2, 3           # ru_wr=1
     li      x3, 30          # ru_wr=1
 
-loop:                                   # ×30 iterations
+loop:                                   # x30 iterations
     div     x0, x1, x2      # ru_wr=1 (writes x0, NOT retired)
     mul     x4, x1, x3      # ru_wr=1
     addi    x1, x1, -1      # ru_wr=1, counter
     addi    x3, x3, -1      # ru_wr=1, counter
-    bnez    x3, loop        # ru_wr=0, taken 29×, not 1×
+    bnez    x3, loop        # ru_wr=0, taken 29x, not 1x
 
     li/sw tohost
 ```
@@ -217,10 +217,10 @@ result is discarded.
 
 | Component | Formula | Cycles |
 |---|---|---|
-| DIV (×30) | 34 cycles per DIV (unsigned) | 1,020 |
-| Non-DIV per iter | `mul` + 2× `addi` + `bnez` = 4 cycles | 120 |
-| Taken branch flush | 29 × 2 = 58 cycles | 58 |
-| Init | 3 × `li` | 3 |
+| DIV (x30) | 34 cycles per DIV (unsigned) | 1,020 |
+| Non-DIV per iter | `mul` + 2x `addi` + `bnez` = 4 cycles | 120 |
+| Taken branch flush | 29 x 2 = 58 cycles | 58 |
+| Init | 3 x `li` | 3 |
 | Tail | 3 instructions | 3 |
 | Pipeline fill | ~2 cycles | 2 |
 | **Total (pipeline)** | | **1,206** |
@@ -246,7 +246,7 @@ cycle after div_done as efficiently.)
 
 | Hazard | Extra cycles per occurrence | Observed CPI impact |
 |---|---|---|
-| RAW (ALU→ALU) | 0 | Forwarding resolves |
+| RAW (ALU-->ALU) | 0 | Forwarding resolves |
 | Load-use | 2 | 1.54 (4 pairs p/iter) |
 | Taken branch | 2 | 4.00 (2 branches p/iter) |
 | DIV/REM | 34 | 7.82 (1 div p/iter) |
@@ -257,11 +257,11 @@ cycle after div_done as efficiently.)
 The single-cycle executes every instruction in exactly 1 cycle. For programs
 without multi-cycle DIV/REM:
 
-- **raw_stress**: Pipeline 1.43× slower (branch flush overhead)
-- **load_use_stress**: Pipeline 1.99× slower (load-use stalls + branch flushes)
-- **branch_stress**: Pipeline 2.00× slower (branch flush dominates)
+- **raw_stress**: Pipeline 1.43x slower (branch flush overhead)
+- **load_use_stress**: Pipeline 1.99x slower (load-use stalls + branch flushes)
+- **branch_stress**: Pipeline 2.00x slower (branch flush dominates)
 
-The theoretical Fmax advantage of the pipeline (57.6 MHz vs 36.9 MHz = 1.56×)
+The theoretical Fmax advantage of the pipeline (57.6 MHz vs 36.9 MHz = 1.56x)
 offsets the CPI penalty:
 - raw_stress: Pipeline throughput ≈ 57.6/1.43 = 40.3 MIPS vs SC 36.9/1.0 = 36.9 MIPS
 - load_use_stress: 57.6/1.54 = 37.4 MIPS vs SC 36.9/1.0 = 36.9 MIPS

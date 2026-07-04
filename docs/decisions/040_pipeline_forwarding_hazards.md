@@ -1,4 +1,4 @@
-# ADR 040 — Pipeline Forwarding Hazard Detection (MEM-RAW and WB-RAW)
+# ADR 040 - Pipeline Forwarding Hazard Detection (MEM-RAW and WB-RAW)
 
 **Status:** Accepted
 **Date:** 2026-06-17
@@ -47,25 +47,25 @@ standard MIPS pipeline handles this by:
 The race condition occurs when:
 
 - At cycle T, the producer is in MEM (about to transition to WB at
-  the rising edge T→T+1).
+  the rising edge T-->T+1).
 - The consumer is in ID at cycle T (about to transition to ID/EX at
-  the rising edge T→T+1).
+  the rising edge T-->T+1).
 - The consumer's rs1 or rs2 matches the producer's rd.
 
-At the rising edge T→T+1:
+At the rising edge T-->T+1:
 
 - The ID/EX register captures `id_rs1_data` / `id_rs2_data` for the
   consumer. The combinational read of the register file happens
   BEFORE the producer's write is applied (because the write is at
   the END of the time step, the read is at the BEGINNING).
 - The producer transitions to MEM/WB, and its write to the register
-  file is applied at the END of the time step T→T+1.
+  file is applied at the END of the time step T-->T+1.
 
 So at cycle T+1, the consumer's `id_rs1_data` / `id_rs2_data`
 captures the OLD value (before the write), and the producer's write
 becomes visible at cycle T+2 (for the next read).
 
-The forwarding unit (EX/MEM and MEM/WB → EX ALU) doesn't help here
+The forwarding unit (EX/MEM and MEM/WB --> EX ALU) doesn't help here
 because:
 
 - At cycle T+1, the producer is in MEM/WB (just transitioned from
@@ -126,7 +126,7 @@ The `stall` signal now propagates as follows:
   (the `load_use` was already added in ADR 039; mem-raw and wb-raw
   don't bubble ID/EX, they just hold IF/ID).
 - **EX/MEM register** (`ex_mem.stall`): holds on `div_busy` only
-  (NOT on mem-raw or wb-raw — the producer must advance so the
+  (NOT on mem-raw or wb-raw - the producer must advance so the
   hazard resolves).
 - **MEM/WB register** (`mem_wb.stall`): holds on `div_busy` only
   (same reason as EX/MEM).

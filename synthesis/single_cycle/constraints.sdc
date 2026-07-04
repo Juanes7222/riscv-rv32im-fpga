@@ -37,7 +37,7 @@ if {[llength $vga_clk_name] > 0} {
     set_clock_uncertainty -fall_from $vga_clk_name \
                           -fall_to   $vga_clk_name 0.150
 
-    # Asynchronous clock domain crossing — processor (50 MHz) and VGA (74.25 MHz)
+    # Asynchronous clock domain crossing - processor (50 MHz) and VGA (74.25 MHz)
     # operate in separate clock domains with no synchroniser.
     set_false_path -from [get_clocks clk] -to $vga_clk_name
     set_false_path -from $vga_clk_name -to [get_clocks clk]

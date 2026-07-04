@@ -206,4 +206,4 @@ async def test_pipeline_add_debug(dut):
         last_pc = pc_val
         await RisingEdge(dut.clk)
 
-    assert False, "PC never locked or tohost never written — check logs"
+    assert False, "PC never locked or tohost never written - check logs"

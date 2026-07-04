@@ -1,6 +1,6 @@
 /*
  * CoreMark platform configuration for RV32IM bare-metal.
- * No OS, no stdio, no heap — everything on stack, results via tohost.
+ * No OS, no stdio, no heap - everything on stack, results via tohost.
  */
 
 #ifndef CORE_PORTME_H

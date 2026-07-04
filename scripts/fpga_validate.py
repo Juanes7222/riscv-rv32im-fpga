@@ -20,9 +20,9 @@ Usage:
     python scripts/fpga_validate.py --compare results/capture_pipeline.csv --arch pipeline
 
 Outputs:
-    build/fpga_validate/imem.mem, dmem.mem  — FPGA-compatible memory images
-    results/validation_reference.csv         — expected values from cocotb
-    results/cross_validation_pipeline.csv    — FPGA vs cocotb comparison
+    build/fpga_validate/imem.mem, dmem.mem  - FPGA-compatible memory images
+    results/validation_reference.csv         - expected values from cocotb
+    results/cross_validation_pipeline.csv    - FPGA vs cocotb comparison
 """
 
 import argparse
@@ -204,7 +204,7 @@ def print_fpga_instructions(elf_path: pathlib.Path, arch: str,
 
     print()
     print("=" * 70)
-    print(f"  FPGA VALIDATION INSTRUCTIONS — {arch.upper()}")
+    print(f"  FPGA VALIDATION INSTRUCTIONS - {arch.upper()}")
     print("=" * 70)
     print()
     print(f"  Program:       {elf_path.name}")
@@ -212,20 +212,20 @@ def print_fpga_instructions(elf_path: pathlib.Path, arch: str,
     print(f"  Tohost addr:   {tohost_addr:#x}")
     print(f"  TOHOST_ADDR:   {tohost_addr:#x} (default matches)")
     print()
-    print("  STEP 1 — Generate .mem files and mem_config.vh for FPGA:")
+    print("  STEP 1 - Generate .mem files and mem_config.vh for FPGA:")
     print(f"    python scripts/fpga_validate.py --elf {elf_path} --fpga-only")
     print()
-    print("  STEP 2 — Build with SignalTap II:")
+    print("  STEP 2 - Build with SignalTap II:")
     print(f"    make build-fpga ARCH={arch}")
     print()
-    print("  STEP 3 — Program the FPGA:")
+    print("  STEP 3 - Program the FPGA:")
     print(f"    make program ARCH={arch}")
     print("    (press KEY[0] to release reset after programming)")
     print()
-    print("  STEP 4 — Capture SignalTap data:")
+    print("  STEP 4 - Capture SignalTap data:")
     print(f"    make capture ARCH={arch}")
     print()
-    print("  STEP 5 — Cross-validate against cocotb:")
+    print("  STEP 5 - Cross-validate against cocotb:")
     print(f"    python scripts/fpga_validate.py \\")
     print(f"      --compare results/capture_{arch}.csv --arch {arch}")
     print()

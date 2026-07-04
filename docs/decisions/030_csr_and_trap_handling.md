@@ -1,6 +1,6 @@
-# ADR 030 — CSR File and Minimal Trap Handling (ECALL / MRET)
+# ADR 030 - CSR File and Minimal Trap Handling (ECALL / MRET)
 
-**Status:** Accepted (updated 2026-06-12 — CSR register file extended with mscratch, misa, mhartid, mimpid, marchid, mvendorid, mcounteren, mtval per ADR 033)
+**Status:** Accepted (updated 2026-06-12 - CSR register file extended with mscratch, misa, mhartid, mimpid, marchid, mvendorid, mcounteren, mtval per ADR 033)
 **Date:** 2026-06-11
 **Depends on:** ADR 022 (control unit), ADR 027 (riscv-tests boot flow), ADR 028 (tohost convention)
 **Supersedes:** the implicit assumption in ADR 022, ADR 027, and ADR 028 that `ecall` is a NOP.
@@ -89,7 +89,7 @@ The module supports:
   Per the spec, MIE should also be restored from MPIE; this is left
   as future work (ADR 030 limit).
 - **Combinational read** of all four CSRs (the read is available
-  immediately on the cycle after the write edge — sufficient because
+  immediately on the cycle after the write edge - sufficient because
   the trap handler reads mcause one full cycle after the ECALL that
   set it).
 
@@ -97,7 +97,7 @@ The module supports:
 
 | Module                 | Change |
 |------------------------|--------|
-| `control_unit.sv`      | Adds `instr_31_20` input, `trap_entry`, `mret_exec`, `csr_addr`, `csr_wr_raw`, `csr_op`, `csr_imm` outputs. ECALL/EBREAK/MRET decoded from `instr_31_20` when `funct3 == 000`. CSR instructions produce the CSR control signals. `csr_op` is computed as `funct3[1:0] - 2'b01` to map 001→00 (CSRRW), 010→01 (CSRRS), 011→10 (CSRRC) and the immediate-form equivalents. |
+| `control_unit.sv`      | Adds `instr_31_20` input, `trap_entry`, `mret_exec`, `csr_addr`, `csr_wr_raw`, `csr_op`, `csr_imm` outputs. ECALL/EBREAK/MRET decoded from `instr_31_20` when `funct3 == 000`. CSR instructions produce the CSR control signals. `csr_op` is computed as `funct3[1:0] - 2'b01` to map 001-->00 (CSRRW), 010-->01 (CSRRS), 011-->10 (CSRRC) and the immediate-form equivalents. |
 | `pc.sv`               | Adds `trap_entry`, `mret_exec`, `trap_target`, `mepc_value` inputs. `next_pc` priority becomes: `trap_entry ? trap_target : mret_exec ? mepc_value : branch ? branch_target : pc_plus4`. |
 | `top_single_cycle.sv` | Instantiates `csr_file`. `rd_data` mux gains a `WB_CSR = 2'b11` source. `csr_wdata` is muxed between `rs1_data` and zimm based on `csr_imm`. `csr_wr` is gated off for CSRRS/CSRRC with `rs1_addr == 0`. The `opcode == OP_SYSTEM` special case in the old writeback mux is removed. |
 | `verification/cocotb/common/Makefile` | Adds `csr_file.sv` to `VERILOG_SOURCES`. |
@@ -126,13 +126,13 @@ The module supports:
 The minimal subset was selected by tracing the exact instructions
 emitted by the riscv-tests `env/p/` boot code:
 
-1. `csrw mtvec, t0`     → requires CSRRW write to mstatus-class CSR.
-2. `csrw mstatus, t0`   → CSRRW write to mstatus, sets MPP.
-3. `csrw mepc, t0`      → CSRRW write to mepc.
-4. `mret`               → must jump to mepc.
-5. `csrr t5, mcause`    → CSRRS read with rs1=x0, read-only.
-6. `ecall`              → must trap to mtvec with mcause=8, mepc=PC+4.
-7. `sw TESTNUM, tohost` → already implemented via standard store path.
+1. `csrw mtvec, t0`     --> requires CSRRW write to mstatus-class CSR.
+2. `csrw mstatus, t0`   --> CSRRW write to mstatus, sets MPP.
+3. `csrw mepc, t0`      --> CSRRW write to mepc.
+4. `mret`               --> must jump to mepc.
+5. `csrr t5, mcause`    --> CSRRS read with rs1=x0, read-only.
+6. `ecall`              --> must trap to mtvec with mcause=8, mepc=PC+4.
+7. `sw TESTNUM, tohost` --> already implemented via standard store path.
 
 Any implementation that satisfies 1-7 is sufficient for the
 verification goal of running rv32ui/rv32um instruction tests. The
@@ -143,7 +143,7 @@ redirect logic.
 
 ## Normative RTL Specification
 
-### Module interface — `csr_file.sv`
+### Module interface - `csr_file.sv`
 
 ```systemverilog
 module csr_file (
@@ -166,7 +166,7 @@ module csr_file (
 );
 ```
 
-### PC redirect priority — `pc.sv`
+### PC redirect priority - `pc.sv`
 
 ```systemverilog
 assign next_pc = trap_entry ? trap_target :
@@ -174,7 +174,7 @@ assign next_pc = trap_entry ? trap_target :
                  branch     ? branch_target : pc_plus4;
 ```
 
-### Control unit decode — `control_unit.sv`
+### Control unit decode - `control_unit.sv`
 
 For `OP_SYSTEM` with `funct3 == 3'b000`:
 
@@ -207,9 +207,9 @@ CSRRS/CSRRC.
   Note" must be updated to reflect this; the rest of ADR 022 (decode
   rules, R-type / M-extension, alua_src) is unaffected.
 - **Boot code behaviour.** With CSR support, the riscv-tests boot code
-  actually transitions M-mode → U-mode via `mret` and triggers a real
+  actually transitions M-mode --> U-mode via `mret` and triggers a real
   trap on `ecall`. PC now follows the documented RISC-V path rather
   than falling through sequentially.
-- **No synthesis impact estimate yet.** The csr_file adds 4 × 32-bit
+- **No synthesis impact estimate yet.** The csr_file adds 4 x 32-bit
   registers plus modest combinational logic. Fmax impact is expected
   to be negligible.

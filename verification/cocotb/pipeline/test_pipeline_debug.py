@@ -62,7 +62,7 @@ async def test_add_with_lui_x12_no_stalls(dut):
     await reset_dut(dut)
     # Register init AFTER reset (reset clears registers).
     dut.u_rf.regs[0].value = 0
-    # Stale values to mimic "previous test" — forwarding must override.
+    # Stale values to mimic "previous test" - forwarding must override.
     dut.u_rf.regs[11].value = 0xffffffff80000000 & 0xFFFFFFFF
     dut.u_rf.regs[12].value = 0xffffffffffff8000 & 0xFFFFFFFF
     await Timer(2, unit="ns")

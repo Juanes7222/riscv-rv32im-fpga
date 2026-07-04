@@ -2,11 +2,11 @@
 // Tests forwarding effectiveness in the pipeline.
 //
 // Loop: 6-instruction ADD chain (each dependent on previous result).
-// Forwarding resolves all RAW → no stalls expected.
+// Forwarding resolves all RAW --> no stalls expected.
 //
-// Per iteration: 6×add + 1×addi + 1×bne = 8 instructions
-// Counted (ru_wr=1): 6×add + 1×addi = 7
-// N = 143 → 1001 counted instructions
+// Per iteration: 6xadd + 1xaddi + 1xbne = 8 instructions
+// Counted (ru_wr=1): 6xadd + 1xaddi = 7
+// N = 143 --> 1001 counted instructions
 
 .section .text.init
 .globl _start
