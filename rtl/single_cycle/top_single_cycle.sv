@@ -18,7 +18,10 @@ module top_single_cycle #(
     output logic       vga_vsync,
     output logic [7:0] vga_r,
     output logic [7:0] vga_g,
-    output logic [7:0] vga_b
+    output logic [7:0] vga_b,
+    output logic       vga_clock,
+    output logic       vga_blank_n,
+    output logic       vga_sync_n
 );
 
     localparam [4:0] ALU_DIV  = 5'b01110;
@@ -332,10 +335,7 @@ module top_single_cycle #(
         .display (seven_seg_display5)
     );
 
-    // =====================================================================
     // VGA visualization (Objective 4)
-    // =====================================================================
-
     logic        vga_pixel_clk;
     logic        pll_locked;
     logic [12:0] vmem_wr_addr;
@@ -364,6 +364,10 @@ module top_single_cycle #(
         .vcount   (vga_vcount),
         .video_on (vga_video_on)
     );
+
+    assign vga_clock   = vga_pixel_clk;
+    assign vga_blank_n = vga_video_on;
+    assign vga_sync_n  = 1'b0;
 
     // -----------------------------------------------------------------
     // Text-mode address generator:

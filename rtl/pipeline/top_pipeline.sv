@@ -22,7 +22,10 @@ module top_pipeline #(
     output logic        vga_vsync,
     output logic [7:0]  vga_r,
     output logic [7:0]  vga_g,
-    output logic [7:0]  vga_b
+    output logic [7:0]  vga_b,
+    output logic        vga_clock,
+    output logic        vga_blank_n,
+    output logic        vga_sync_n
 );
 
     // Internal reset (active-high for modules that require it)            //
@@ -654,6 +657,10 @@ module top_pipeline #(
     logic [15:0] vmem_wr_data;
     logic [12:0] vmem_rd_addr;
     logic [15:0] vmem_rd_data;
+
+    assign vga_clock   = vga_pixel_clk;
+    assign vga_blank_n = vga_video_on;
+    assign vga_sync_n  = 1'b0;
 
     vga_pll u_vga_pll (
         .clk_in  (clk),
