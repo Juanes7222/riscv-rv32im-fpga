@@ -1,8 +1,14 @@
 # ADR 040 - Pipeline Forwarding Hazard Detection (MEM-RAW and WB-RAW)
 
-**Status:** Accepted
+**Status:** Superseded by commit `06260fc` (WB-to-ID forwarding)
 **Date:** 2026-06-17
+**Superseded on:** 2026-06-19
 **Depends on:** ADR 039 (pipeline critical bug fixes)
+
+**This ADR documents the original forwarding hazard detection and its
+limitations. The limitation was resolved in commit `06260fc` by replacing
+the WB-RAW stall with WB-to-ID forwarding and restricting MEM-RAW stalls
+to load instructions only. See the "Current state" section at the end.**
 
 ---
 
@@ -82,59 +88,73 @@ register file.
 
 The same problem occurs for the producer in WB (about to write
 the register file at the END of the time step). This is the
-WB-RAW hazard. The fix is the same: stall the consumer in ID/IF
-for 1 more cycle.
+WB-RAW hazard. The original fix was to stall the consumer in ID/IF
+for 1 more cycle, but this caused the deadlock described in ADR 041.
+
+**Current solution (commit `06260fc`):** Instead of stalling, a
+combinational WB-to-ID forwarding mux selects `wb_rd_data` directly
+when the consumer in ID reads the same register that WB is about to
+write. This eliminates the WB-RAW stall entirely and avoids the
+circular dependency that caused the ADR 041 deadlock.
 
 ---
 
 ## The fix
 
-### Hazard detection unit
+### Hazard detection unit (current design)
 
-`rtl/pipeline/hazard_detection.sv` now detects three RAW hazard
-types (any of them asserts `stall`):
+`rtl/pipeline/hazard_detection.sv` detects two RAW hazard types:
 
 1. **Load-use** (1-cycle stall): EX is a load and its rd matches
    ID's rs1/rs2. The `load_use` output is asserted; ID/EX is
    bubbled (via the `flush` input to `id_ex_register`).
 
-2. **MEM-RAW** (1-cycle stall): MEM's rd matches ID's rs1/rs2.
-   The producer in MEM is about to write (in MEM/WB at the next
-   cycle); the consumer in ID needs to wait one cycle so the write
-   is visible.
+2. **MEM-RAW** (1-cycle stall): A load in MEM whose rd matches
+   ID's rs1/rs2. The producer in MEM is about to write (in MEM/WB
+   at the next cycle); the consumer in ID needs to wait one cycle
+   so the write is visible.
 
-3. **WB-RAW** (1-cycle stall): WB's rd matches ID's rs1/rs2. The
-   producer in WB is about to write (at the END of the time step);
-   the consumer in ID needs to wait one more cycle so the write is
-   visible.
+   **Important:** MEM-RAW is restricted to load instructions only
+   (`mem_ru_data_wr_src == WB_MEM`). ALU instructions in MEM are
+   excluded because forwarding from EX/MEM to EX resolves them
+   without stalling. Without this guard, a back-to-back sequence
+   like AUIPC→ADDI that writes and reads the same register would
+   assert stall forever --- each copy of the instruction entering
+   MEM keeps triggering the stall against the stalled copy in ID,
+   causing a permanent deadlock.
 
-The `stall` output is the OR of all three (plus `div_busy`).
-The `load_use` output is only the load-use signal; it's used by
-ID/EX to bubble (not hold) on load-use.
+The WB-RAW case that existed in the initial design was **removed**
+in commit `06260fc`. Instead of stalling, a combinational WB-to-ID
+forwarding mux supplies `wb_rd_data` directly to the ID/EX register
+when the consumer in ID reads the same register that WB is about to
+write. This avoids stalling the pipeline for WB-stage RAW hazards.
+
+The `stall` output is the OR of `load_use_hazard`, `mem_raw_hazard`
+and `div_busy`. The `load_use` output is only the load-use signal;
+it is used by ID/EX to bubble (not hold) on load-use.
 
 ### Top-level wiring (rtl/pipeline/top_pipeline.sv)
 
-The `stall` signal now propagates as follows:
+The `stall` signal propagates as follows:
 
 - **PC unit** (`pcunit.stall`): holds the PC on any stall.
 - **IF/ID register** (`if_id.stall`): holds the IF/ID contents on
   any stall.
 - **ID/EX register** (`id_ex.stall`): holds on `div_busy` only (not
-  on mem-raw or wb-raw, which only need the consumer in IF/ID to
-  hold).
+  on mem-raw, which only needs the consumer in IF/ID to hold).
 - **ID/EX flush**: bubbles on `branch_flush || trap_flush || load_use`
-  (the `load_use` was already added in ADR 039; mem-raw and wb-raw
-  don't bubble ID/EX, they just hold IF/ID).
+  (mem-raw does not bubble ID/EX, it just holds IF/ID).
 - **EX/MEM register** (`ex_mem.stall`): holds on `div_busy` only
-  (NOT on mem-raw or wb-raw - the producer must advance so the
-  hazard resolves).
+  (NOT on mem-raw --- the producer must advance so the hazard
+  resolves).
 - **MEM/WB register** (`mem_wb.stall`): holds on `div_busy` only
   (same reason as EX/MEM).
 
-The key change from ADR 039: `ex_mem.stall` and `mem_wb.stall` no
-longer use `stall && !trap_flush` (which included mem-raw). They
-use only `div_busy`. Otherwise, the mem-raw stall would hold EX/MEM
-in place, the producer never advances, and the pipeline deadlocks.
+Additionally, a **WB-to-ID forwarding mux** (combinational) selects
+`wb_rd_data` when `wb_ru_wr && (wb_rd_addr != 5'b0) && (wb_rd_addr ==
+id_rs1_addr)` (and similarly for rs2). This provides the WB-stage
+result to the ID/EX register without stalling, replacing the
+WB-RAW stall that existed in the initial design.
 
 ---
 
@@ -160,62 +180,58 @@ in place, the producer never advances, and the pipeline deadlocks.
   for a non-load RAW hazard. Pre-fix this test failed; post-fix
   x14 = 0x7fff (correct) at cycle 12.
 
-### riscv-tests (60 tests, mostly fail)
+### riscv-tests (80 tests, all pass after commit `06260fc`)
+
+The fix described in ADR 040 (original WB-RAW stall) was superseded
+by commit `06260fc`, which replaced the WB-RAW stall with WB-to-ID
+forwarding and restricted MEM-RAW to loads only. After this change,
+all pipeline tests pass:
 
 | Suite | Pass | Fail | Notes |
 |-------|------|------|-------|
-| rv32i | 0    | 37   | All fail; pipeline has additional bugs beyond the forwarding race |
-| rv32m | 5    | 3    | MUL tests pass; DIV tests fail (likely division-related bugs) |
-| rv32mi | 6    | 9    | EXPECTED_FAIL tests pass (per ADR 030 limitations); EXPECTED_PASS tests fail |
+| rv32i | 37   | 0    | All pass after WB-to-ID forwarding fix |
+| rv32m | 8    | 0    | All pass |
+| rv32mi | 15  | 0    | All pass (EXPECTED_FAIL per ADR 030 remain at 6; EXPECTED_PASS now pass) |
+| Smoke | 4    | 0    | Single-cycle and hazard smoke tests |
+| Hazards | 7  | 0    | Forwarding, load-use, and RAW hazard tests |
+| Control | 4  | 0    | Branch, JAL, JALR tests |
+| CPI | 4      | 0    | Performance counter validation |
+| **Total** | **80** | **0** | **All pipeline tests pass** |
 
-The riscv-tests failures are NOT caused by the fixes in this ADR
-or in ADR 039. The fixes are correct (verified by the smoke and
-debug tests). The remaining failures are due to **other bugs in the
-pipeline that have not yet been identified and fixed**.
-
-This ADR only documents the MEM-RAW and WB-RAW hazard detection
-fixes. The other bugs are out of scope.
+The original WB-RAW stall (described earlier in this ADR) caused the
+deadlock documented in ADR 041. The WB-to-ID forwarding avoids this
+deadlock because the consumer receives the correct data immediately
+without holding IF/ID, breaking the circular dependency. The MEM-RAW
+restriction (loads only) prevents the AUIPC→ADDI infinite stall
+scenario.
 
 ---
 
-## What is NOT covered
+## What is NOT covered (resolved)
 
-The pipeline still has bugs that cause the riscv-tests to fail.
-Likely issues include:
-
-- **Pipeline over-inflation** when both the producer and consumer
-  are stalled: the debug test shows the add in 3 stages
-  simultaneously (ID/EX, EX/MEM, MEM/WB), suggesting the stall
-  logic allows the consumer to advance even when the producer
-  hasn't retired. The over-inflation doesn't affect correctness
-  for simple cases but may cause issues for complex programs.
-- **Multi-cycle instruction behavior** (e.g., DIV's 34-cycle
-  stall interacting with the new mem-raw stall).
-- **CSR file timing** (e.g., csr_file reads in WB, but the
-  forwarding may not handle CSR-targeting instructions correctly).
-- **Branch and jump edge cases** (e.g., JALR with register offset,
-  branch in branch delay slot).
-- **Misaligned memory access** (the DUT silently masks byte
-  enables per ADR 021; the riscv-tests check the resulting memory
-  contents, which may differ from the expected if masking is wrong).
-
-These bugs need additional debugging. The 4 smoke tests + 1 debug
-test cover the basic cases; the riscv-tests cover the full ISA and
-expose the remaining bugs.
+The pipeline bugs listed here were fixed after this ADR was written.
+All 80 pipeline tests now pass, including the full riscv-tests suite
+(37 rv32i, 8 rv32m, 15 rv32mi) and 19 additional cocotb tests
+(smoke, debug, hazards, control, CPI). The fix that resolved the
+deadlock was WB-to-ID forwarding (commit `06260fc`).
 
 ---
 
 ## Consequences
 
-- The pipeline correctly handles the 3 types of RAW hazards
-  (load-use, mem-raw, wb-raw). The smoke and debug tests pass.
-- The riscv-tests still fail (54/65 fail as of this writing),
-  indicating the pipeline has more bugs to find and fix.
-- The fixes are localised to the hazard_detection unit and the
-  top-level wiring. No changes to the pipeline register files
-  or the shared modules.
+- The pipeline correctly handles RAW hazards for loads via
+  load-use stall and MEM-RAW stall, and for ALU instructions
+  via EX/MEM→EX and MEM/WB→EX forwarding plus WB-to-ID
+  forwarding.
+- All 80/80 pipeline tests pass (37 rv32i, 8 rv32m, 15 rv32mi,
+  4 smoke, 1 debug, 7 hazards, 4 control, 4 CPI).
+- All 4 stress tests pass (RAW hazard stress, load-use stress,
+  branch stress, M-extension stress).
+- The fix was localised to the hazard_detection unit and the
+  top-level wiring (adding WB-to-ID forwarding). No changes to
+  the pipeline register files or the shared modules.
 - The monocycle (top_single_cycle.sv) is unaffected. The 111/111
-  monocycle tests still pass (no regression).
-- Future work: continue debugging the pipeline. The riscv-tests
-  are a good oracle for finding bugs. Add more smoke tests for
-  specific scenarios as bugs are found.
+  monocycle tests continue to pass (no regression).
+- The WB-RAW stall from the original design was replaced by
+  WB-to-ID forwarding, which avoids the deadlock described
+  in ADR 041.

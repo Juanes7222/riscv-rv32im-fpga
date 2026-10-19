@@ -1,7 +1,15 @@
 # ADR 041: Pipeline data-hazard limitation - producer 3+ cycles ahead
 
-## Status
-Accepted (limitation documented, no fix implemented in this ADR).
+**Status:** Superseded by commit `06260fc` (WB-to-ID forwarding)
+**Date:** 2026-06-17
+**Superseded on:** 2026-06-19
+
+**This ADR documents a pipeline deadlock that was resolved by replacing
+the WB-RAW stall with WB-to-ID forwarding and restricting MEM-RAW
+stalls to load instructions only. See the "Resolution" section at the
+end.**
+
+---
 
 ## Context
 While debugging why `riscv-tests/rv32ui/add.elf` fails on the pipeline (the
@@ -79,7 +87,7 @@ and `ID/EX`. If the consumer is in `ID` and the producer is in `IF` (1
 cycle behind in program order, but many cycles behind in pipeline stages
 because of the prior stall), there's no place for the producer to go.
 
-### What a real fix would require
+### What a real fix would require (original analysis)
 
 A scoreboard (or a FIFO between `IF` and `ID`):
 
@@ -87,8 +95,8 @@ A scoreboard (or a FIFO between `IF` and `ID`):
    from an uncommitted instruction. The `mem_raw`/`wb_raw` hazard is
    asserted only if the register is in the scoreboard AND the pending
    write is from the *latest* producer in program order (not just any
-   producer). The current `hazard_detection_unit` checks all producers in
-   `MEM` and `WB`, which is too aggressive when multiple instructions in
+   producer). The original `hazard_detection_unit` checked all producers in
+   `MEM` and `WB`, which was too aggressive when multiple instructions in
    the pipeline write the same register.
 
 2. **FIFO between IF and ID**: allow multiple instructions to be in flight
@@ -96,32 +104,75 @@ A scoreboard (or a FIFO between `IF` and `ID`):
    advances to `ID/EX`, and the FIFO absorbs the bubble. This is the
    approach used by the BOOM and XiangShan cores.
 
-Both are out of scope for the current pipeline.
+Both were considered out of scope for the original pipeline, but a simpler
+fix was found.
 
-## Decision
+## Decision (original)
 **Document the limitation. Do not implement a fix in this ADR.**
 
-The current pipeline passes:
-- 4/4 pipeline smoke tests (`verification/cocotb/pipeline/test_pipeline_smoke.py`).
-- 5/8 pipeline rv32m tests (the `MUL`/`MULH`/`MULHSU` tests pass; the
-  `DIV`/`DIVU` tests fail for unrelated reasons documented in ADR 039).
-- 6/15 pipeline rv32mi tests (the `EXPECTED_FAIL` tests pass; the
-  `EXPECTED_PASS` tests fail for the reason documented in this ADR or
-  for the reason documented in ADR 039).
-- 0/37 pipeline rv32i tests, because the very first test (`add.elf`) hits
-  this limitation in the `trap_vector`.
+At the time of writing, the pipeline passed:
+- 4/4 pipeline smoke tests.
+- 5/8 pipeline rv32m tests.
+- 6/15 pipeline rv32mi tests.
+- 0/37 pipeline rv32i tests.
 
-The monocycle is unaffected: it passes 111/111 riscv-tests because it has
-no pipeline and no forwarding - the producer writes the register file
-before the consumer reads it, by construction.
+The monocycle was unaffected: 111/111 riscv-tests passed.
 
-## Consequences
-- The pipeline cannot run the riscv-tests' `trap_vector` correctly.
-- The pipeline cannot run any program that has a `beq`/`bne` followed
-  within 1–2 instructions by the producer of one of its source registers
-  *and* where a prior `mem_raw`/`wb_raw` stall delayed the consumer.
-- This is a known, documented limitation. Future work would address it
-  with a scoreboard or a FIFO, but neither is in scope for this project.
-- The pipeline is still useful for the instruction-level cocotb tests
-  (smoke, ALU, branch) and for measuring Fmax and resource usage, which
-  is the primary goal of the comparison with the monocycle.
+## Resolution (commit `06260fc`, 2026-06-19)
+
+The limitation was resolved by a simpler approach that does not require
+a scoreboard or a FIFO:
+
+1. **Remove the WB-RAW stall** from the hazard detection unit. Instead of
+   stalling IF/ID when the producer is in WB, add a combinational mux that
+   forwards `wb_rd_data` directly into the ID/EX register when the
+   consumer in ID reads the same register that WB is about to write.
+
+2. **Restrict MEM-RAW to loads only** (`mem_ru_data_wr_src == WB_MEM`).
+   The original design stalled on any instruction in MEM whose destination
+   matched ID's source. This caused infinite stalls for ALU→ALU RAW
+   sequences (e.g., AUIPC→ADDI) because each copy of the instruction
+   entering MEM re-asserted the stall against the stalled copy in ID.
+   Since ALU results are available at the end of EX (before MEM), they
+   are delivered via EX/MEM→EX forwarding and do not need a stall.
+
+### Why the fix works
+
+The deadlock described in this ADR occurred because the WB-RAW stall
+held IF/ID while the producer was stuck behind the consumer. By replacing
+the WB-RAW stall with forwarding, the consumer receives the correct data
+immediately and no stall is needed. The producer advances through the
+pipeline normally, reaching EX/MEM in time for the next consumer.
+
+The root cause was that the stall logic was too aggressive: it stalled
+for *any* RAW hazard where the producer was in MEM or WB, even when
+forwarding could resolve it. The fix narrows the stall to only the cases
+where forwarding cannot help (loads in MEM, where the data is not yet
+available).
+
+### Current test results
+
+All 80 pipeline tests pass after the fix:
+
+| Suite | Pass | Fail |
+|-------|------|------|
+| rv32i | 37   | 0    |
+| rv32m | 8    | 0    |
+| rv32mi | 15  | 0    |
+| Smoke | 4    | 0    |
+| Debug | 1    | 0    |
+| Hazards | 7  | 0    |
+| Control | 4  | 0    |
+| CPI | 4      | 0    |
+| **Total** | **80** | **0** |
+
+## Consequences (resolved)
+- The pipeline now runs the riscv-tests' `trap_vector` correctly.
+- All 37 rv32i tests pass, including the `add.elf` test that previously
+  failed in the `trap_vector`.
+- The `beq`+`addi` pattern described in this ADR is handled correctly
+  by WB-to-ID forwarding.
+- The fix required no scoreboard or FIFO --- the simpler approach of
+  replacing stalls with forwarding was sufficient.
+- The pipeline is fully verified for functional correctness (80/80 tests)
+  and achieves ~56.6 MHz Fmax on the Cyclone V DE1-SoC.
