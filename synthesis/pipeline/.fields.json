@@ -2606,6 +2606,32 @@
     {
       "name": "alu_a",
       "label": "ALUA",
+      "row": 39,
+      "col": 40,
+      "width": 8,
+      "fmt": "hex",
+      "signal_bits": 32,
+      "display_min": 8,
+      "start_address": 6280,
+      "end_address": 6287,
+      "origin": "tagged after \"ALUA\" on row 40"
+    },
+    {
+      "name": "mem_rs1_data",
+      "label": "MEM_ALUA",
+      "row": 39,
+      "col": 75,
+      "width": 8,
+      "fmt": "hex",
+      "signal_bits": 32,
+      "display_min": 8,
+      "start_address": 6315,
+      "end_address": 6322,
+      "origin": "tagged after \"MEM_ALUA\" on row 40"
+    },
+    {
+      "name": "alu_b",
+      "label": "ALUB",
       "row": 40,
       "col": 40,
       "width": 8,
@@ -2614,11 +2640,11 @@
       "display_min": 8,
       "start_address": 6440,
       "end_address": 6447,
-      "origin": "tagged after \"ALUA\" on row 41"
+      "origin": "tagged after \"ALUB\" on row 41"
     },
     {
-      "name": "mem_rs1_data",
-      "label": "MEM_ALUA",
+      "name": "mem_rs2_data",
+      "label": "MEM_ALUB",
       "row": 40,
       "col": 75,
       "width": 8,
@@ -2627,11 +2653,11 @@
       "display_min": 8,
       "start_address": 6475,
       "end_address": 6482,
-      "origin": "tagged after \"MEM_ALUA\" on row 41"
+      "origin": "tagged after \"MEM_ALUB\" on row 41"
     },
     {
-      "name": "alu_b",
-      "label": "ALUB",
+      "name": "alu_res",
+      "label": "ALURes",
       "row": 41,
       "col": 40,
       "width": 8,
@@ -2640,11 +2666,11 @@
       "display_min": 8,
       "start_address": 6600,
       "end_address": 6607,
-      "origin": "tagged after \"ALUB\" on row 42"
+      "origin": "tagged after \"ALURes\" on row 42"
     },
     {
-      "name": "mem_rs2_data",
-      "label": "MEM_ALUB",
+      "name": "ex_alu_result",
+      "label": "EX_ALURes",
       "row": 41,
       "col": 75,
       "width": 8,
@@ -2653,24 +2679,37 @@
       "display_min": 8,
       "start_address": 6635,
       "end_address": 6642,
-      "origin": "tagged after \"MEM_ALUB\" on row 42"
+      "origin": "tagged after \"EX_ALURes\" on row 42"
     },
     {
-      "name": "alu_res",
-      "label": "ALURes",
+      "name": "alu_op",
+      "label": "ALUOp",
       "row": 42,
-      "col": 40,
-      "width": 8,
+      "col": 39,
+      "width": 2,
       "fmt": "hex",
-      "signal_bits": 32,
-      "display_min": 8,
-      "start_address": 6760,
-      "end_address": 6767,
-      "origin": "tagged after \"ALURes\" on row 43"
+      "signal_bits": 5,
+      "display_min": 2,
+      "start_address": 6759,
+      "end_address": 6760,
+      "origin": "tagged after \"ALUOp\" on row 43"
     },
     {
-      "name": "ex_alu_result",
-      "label": "EX_ALURes",
+      "name": "br_op",
+      "label": "BROp",
+      "row": 42,
+      "col": 49,
+      "width": 2,
+      "fmt": "hex",
+      "signal_bits": 5,
+      "display_min": 2,
+      "start_address": 6769,
+      "end_address": 6770,
+      "origin": "tagged after \"BROp\" on row 43"
+    },
+    {
+      "name": "mem_instruction",
+      "label": "MEM_Instr",
       "row": 42,
       "col": 75,
       "width": 8,
@@ -2679,59 +2718,59 @@
       "display_min": 8,
       "start_address": 6795,
       "end_address": 6802,
-      "origin": "tagged after \"EX_ALURes\" on row 43"
+      "origin": "tagged after \"MEM_Instr\" on row 43"
     },
     {
-      "name": "mem_instruction",
-      "label": "MEM_Instr",
+      "name": "alua_src",
+      "label": "ALUASrc",
       "row": 43,
-      "col": 75,
-      "width": 8,
+      "col": 41,
+      "width": 1,
       "fmt": "hex",
-      "signal_bits": 32,
-      "display_min": 8,
-      "start_address": 6955,
-      "end_address": 6962,
-      "origin": "tagged after \"MEM_Instr\" on row 44"
+      "signal_bits": 2,
+      "display_min": 1,
+      "start_address": 6921,
+      "end_address": 6921,
+      "origin": "tagged after \"ALUASrc\" on row 44"
     },
     {
-      "name": "alu_op",
-      "label": "ALUOp",
-      "row": 44,
-      "col": 39,
-      "width": 2,
-      "fmt": "hex",
-      "signal_bits": 5,
-      "display_min": 2,
-      "start_address": 7079,
-      "end_address": 7080,
-      "origin": "tagged after \"ALUOp\" on row 45"
-    },
-    {
-      "name": "br_op",
-      "label": "BROp",
-      "row": 44,
-      "col": 49,
-      "width": 2,
-      "fmt": "hex",
-      "signal_bits": 5,
-      "display_min": 2,
-      "start_address": 7089,
-      "end_address": 7090,
-      "origin": "tagged after \"BROp\" on row 45"
+      "name": "alub_src",
+      "label": "ALUBSrc",
+      "row": 43,
+      "col": 52,
+      "width": 1,
+      "fmt": "bin",
+      "signal_bits": 1,
+      "display_min": 1,
+      "start_address": 6932,
+      "end_address": 6932,
+      "origin": "tagged after \"ALUBSrc\" on row 44"
     },
     {
       "name": "ex_branch_taken",
       "label": "MEM_Branch",
-      "row": 44,
+      "row": 43,
       "col": 75,
       "width": 1,
       "fmt": "bin",
       "signal_bits": 1,
       "display_min": 1,
-      "start_address": 7115,
-      "end_address": 7115,
-      "origin": "tagged after \"MEM_Branch\" on row 45"
+      "start_address": 6955,
+      "end_address": 6955,
+      "origin": "tagged after \"MEM_Branch\" on row 44"
+    },
+    {
+      "name": "instr_retired",
+      "label": "InstrRetired",
+      "row": 44,
+      "col": 112,
+      "width": 16,
+      "fmt": "hex",
+      "signal_bits": 64,
+      "display_min": 16,
+      "start_address": 7152,
+      "end_address": 7167,
+      "origin": "tagged after \"InstrRetired\" on row 45"
     }
   ]
 }

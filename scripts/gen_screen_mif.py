@@ -105,6 +105,7 @@ CATALOG = {
 
     # Performance
     'cycle_count': ('hex', 64, 16),
+    'halted':      ('bin',  1, 1),
 
     # Pipeline extras (only used when --sheet Pipeline)
     'if_pc':           ('hex', 32, 8),
@@ -173,8 +174,13 @@ LABEL_ALIASES: Dict[str, str] = {
     'Address':   'dm_addr',
     'DataWrite': 'dm_wdata',
     'DataRead':  'dm_rdata',
+    'Data Write':'dm_wdata',
+    'Data Read': 'dm_rdata',
     'Clockcycles':'cycle_count',
     'CycleCount': 'cycle_count',
+    'Clock cycles':'cycle_count',
+    'HALTED':    'halted',
+    'Executed instruction': 'instruction',
 
     'IF_PC':       'if_pc',
     'IF_Instr':    'if_instruction',
@@ -266,15 +272,30 @@ class Block:
 
 # Step 1 - Read worksheet into a normalised character grid
 def read_grid(ws) -> List[List[str]]:
-    """Build a SCREEN_H x SCREEN_W grid from the worksheet."""
+    """Build a SCREEN_H x SCREEN_W grid from the worksheet.
+
+    Fails when the template holds content outside the viewport: a silent
+    truncation would drop real fields from the generated framebuffer."""
     grid: List[List[str]] = [[' ' for _ in range(SCREEN_W)] for _ in range(SCREEN_H)]
-    for r in range(1, SCREEN_H + 1):
-        for c in range(1, SCREEN_W + 1):
+
+    max_row = min(ws.max_row, SCREEN_H + 128)
+    max_col = min(ws.max_column, SCREEN_W + 128)
+
+    for r in range(1, max_row + 1):
+        for c in range(1, max_col + 1):
             v = ws.cell(row=r, column=c).value
-            if v is not None:
-                s = str(v)
-                if s:
-                    grid[r - 1][c - 1] = s[0]
+            if v is None:
+                continue
+            s = str(v)
+            if not s:
+                continue
+            if r > SCREEN_H or c > SCREEN_W:
+                raise ValueError(
+                    f'Cell (row {r}, col {c}) = "{s[:24]}" lies outside the '
+                    f'{SCREEN_W}x{SCREEN_H} viewport. The template must fit the '
+                    f'720p60 text screen exactly; trim it or the content is lost.'
+                )
+            grid[r - 1][c - 1] = s[0]
     return grid
 
 

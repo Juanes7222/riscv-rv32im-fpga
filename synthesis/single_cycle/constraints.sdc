@@ -35,6 +35,10 @@ if {[llength $vga_clk_name] > 0} {
     # operate in separate clock domains with no synchroniser.
     set_false_path -from [get_clocks clk] -to $vga_clk_name
     set_false_path -from $vga_clk_name -to [get_clocks clk]
+
+    # The pixel-domain reset synchroniser samples the system reset
+    # asynchronously, exactly like the other cross-domain signals.
+    set_false_path -from [get_ports {rst_n}] -to $vga_clk_name
 }
 
 # Input and output delays

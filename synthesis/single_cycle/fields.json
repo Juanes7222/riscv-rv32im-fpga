@@ -6,6 +6,19 @@
     {
       "name": "x0",
       "label": "X0",
+      "row": 12,
+      "col": 6,
+      "width": 8,
+      "fmt": "hex",
+      "signal_bits": 32,
+      "display_min": 8,
+      "start_address": 1926,
+      "end_address": 1933,
+      "origin": "register table row 13"
+    },
+    {
+      "name": "x1",
+      "label": "X1",
       "row": 13,
       "col": 6,
       "width": 8,
@@ -17,8 +30,8 @@
       "origin": "register table row 14"
     },
     {
-      "name": "x1",
-      "label": "X1",
+      "name": "x2",
+      "label": "X2",
       "row": 14,
       "col": 6,
       "width": 8,
@@ -30,8 +43,8 @@
       "origin": "register table row 15"
     },
     {
-      "name": "x2",
-      "label": "X2",
+      "name": "x3",
+      "label": "X3",
       "row": 15,
       "col": 6,
       "width": 8,
@@ -43,8 +56,8 @@
       "origin": "register table row 16"
     },
     {
-      "name": "x3",
-      "label": "X3",
+      "name": "x4",
+      "label": "X4",
       "row": 16,
       "col": 6,
       "width": 8,
@@ -56,8 +69,8 @@
       "origin": "register table row 17"
     },
     {
-      "name": "x4",
-      "label": "X4",
+      "name": "x5",
+      "label": "X5",
       "row": 17,
       "col": 6,
       "width": 8,
@@ -69,8 +82,8 @@
       "origin": "register table row 18"
     },
     {
-      "name": "x5",
-      "label": "X5",
+      "name": "x6",
+      "label": "X6",
       "row": 18,
       "col": 6,
       "width": 8,
@@ -82,8 +95,8 @@
       "origin": "register table row 19"
     },
     {
-      "name": "x6",
-      "label": "X6",
+      "name": "x7",
+      "label": "X7",
       "row": 19,
       "col": 6,
       "width": 8,
@@ -95,8 +108,8 @@
       "origin": "register table row 20"
     },
     {
-      "name": "x7",
-      "label": "X7",
+      "name": "x8",
+      "label": "X8",
       "row": 20,
       "col": 6,
       "width": 8,
@@ -108,8 +121,8 @@
       "origin": "register table row 21"
     },
     {
-      "name": "x8",
-      "label": "X8",
+      "name": "x9",
+      "label": "X9",
       "row": 21,
       "col": 6,
       "width": 8,
@@ -121,8 +134,8 @@
       "origin": "register table row 22"
     },
     {
-      "name": "x9",
-      "label": "X9",
+      "name": "x10",
+      "label": "X10",
       "row": 22,
       "col": 6,
       "width": 8,
@@ -134,8 +147,8 @@
       "origin": "register table row 23"
     },
     {
-      "name": "x10",
-      "label": "X10",
+      "name": "x11",
+      "label": "X11",
       "row": 23,
       "col": 6,
       "width": 8,
@@ -147,8 +160,8 @@
       "origin": "register table row 24"
     },
     {
-      "name": "x11",
-      "label": "X11",
+      "name": "x12",
+      "label": "X12",
       "row": 24,
       "col": 6,
       "width": 8,
@@ -160,8 +173,8 @@
       "origin": "register table row 25"
     },
     {
-      "name": "x12",
-      "label": "X12",
+      "name": "x13",
+      "label": "X13",
       "row": 25,
       "col": 6,
       "width": 8,
@@ -173,8 +186,8 @@
       "origin": "register table row 26"
     },
     {
-      "name": "x13",
-      "label": "X13",
+      "name": "x14",
+      "label": "X14",
       "row": 26,
       "col": 6,
       "width": 8,
@@ -186,8 +199,8 @@
       "origin": "register table row 27"
     },
     {
-      "name": "x14",
-      "label": "X14",
+      "name": "x15",
+      "label": "X15",
       "row": 27,
       "col": 6,
       "width": 8,
@@ -199,8 +212,8 @@
       "origin": "register table row 28"
     },
     {
-      "name": "x15",
-      "label": "X15",
+      "name": "x16",
+      "label": "X16",
       "row": 28,
       "col": 6,
       "width": 8,
@@ -212,8 +225,8 @@
       "origin": "register table row 29"
     },
     {
-      "name": "x16",
-      "label": "X16",
+      "name": "x17",
+      "label": "X17",
       "row": 29,
       "col": 6,
       "width": 8,
@@ -225,8 +238,8 @@
       "origin": "register table row 30"
     },
     {
-      "name": "x17",
-      "label": "X17",
+      "name": "x18",
+      "label": "X18",
       "row": 30,
       "col": 6,
       "width": 8,
@@ -238,8 +251,8 @@
       "origin": "register table row 31"
     },
     {
-      "name": "x18",
-      "label": "X18",
+      "name": "x19",
+      "label": "X19",
       "row": 31,
       "col": 6,
       "width": 8,
@@ -251,8 +264,8 @@
       "origin": "register table row 32"
     },
     {
-      "name": "x19",
-      "label": "X19",
+      "name": "x20",
+      "label": "X20",
       "row": 32,
       "col": 6,
       "width": 8,
@@ -264,8 +277,8 @@
       "origin": "register table row 33"
     },
     {
-      "name": "x20",
-      "label": "X20",
+      "name": "x21",
+      "label": "X21",
       "row": 33,
       "col": 6,
       "width": 8,
@@ -277,8 +290,8 @@
       "origin": "register table row 34"
     },
     {
-      "name": "x21",
-      "label": "X21",
+      "name": "x22",
+      "label": "X22",
       "row": 34,
       "col": 6,
       "width": 8,
@@ -290,8 +303,8 @@
       "origin": "register table row 35"
     },
     {
-      "name": "x22",
-      "label": "X22",
+      "name": "x23",
+      "label": "X23",
       "row": 35,
       "col": 6,
       "width": 8,
@@ -303,8 +316,8 @@
       "origin": "register table row 36"
     },
     {
-      "name": "x23",
-      "label": "X23",
+      "name": "x24",
+      "label": "X24",
       "row": 36,
       "col": 6,
       "width": 8,
@@ -316,8 +329,8 @@
       "origin": "register table row 37"
     },
     {
-      "name": "x24",
-      "label": "X24",
+      "name": "x25",
+      "label": "X25",
       "row": 37,
       "col": 6,
       "width": 8,
@@ -329,8 +342,8 @@
       "origin": "register table row 38"
     },
     {
-      "name": "x25",
-      "label": "X25",
+      "name": "x26",
+      "label": "X26",
       "row": 38,
       "col": 6,
       "width": 8,
@@ -342,8 +355,8 @@
       "origin": "register table row 39"
     },
     {
-      "name": "x26",
-      "label": "X26",
+      "name": "x27",
+      "label": "X27",
       "row": 39,
       "col": 6,
       "width": 8,
@@ -355,8 +368,8 @@
       "origin": "register table row 40"
     },
     {
-      "name": "x27",
-      "label": "X27",
+      "name": "x28",
+      "label": "X28",
       "row": 40,
       "col": 6,
       "width": 8,
@@ -368,8 +381,8 @@
       "origin": "register table row 41"
     },
     {
-      "name": "x28",
-      "label": "X28",
+      "name": "x29",
+      "label": "X29",
       "row": 41,
       "col": 6,
       "width": 8,
@@ -381,8 +394,8 @@
       "origin": "register table row 42"
     },
     {
-      "name": "x29",
-      "label": "X29",
+      "name": "x30",
+      "label": "X30",
       "row": 42,
       "col": 6,
       "width": 8,
@@ -394,8 +407,8 @@
       "origin": "register table row 43"
     },
     {
-      "name": "x30",
-      "label": "X30",
+      "name": "x31",
+      "label": "X31",
       "row": 43,
       "col": 6,
       "width": 8,
@@ -407,20 +420,33 @@
       "origin": "register table row 44"
     },
     {
-      "name": "x31",
-      "label": "X31",
-      "row": 44,
-      "col": 6,
+      "name": "prog._memory_addr_0",
+      "label": "Addr",
+      "row": 12,
+      "col": 16,
+      "width": 4,
+      "fmt": "hex",
+      "signal_bits": 16,
+      "display_min": 4,
+      "start_address": 1936,
+      "end_address": 1939,
+      "origin": "Prog. Memory row 13 address"
+    },
+    {
+      "name": "prog._memory_data_0",
+      "label": "Data",
+      "row": 12,
+      "col": 22,
       "width": 8,
       "fmt": "hex",
       "signal_bits": 32,
       "display_min": 8,
-      "start_address": 7046,
-      "end_address": 7053,
-      "origin": "register table row 45"
+      "start_address": 1942,
+      "end_address": 1949,
+      "origin": "Prog. Memory row 13 data"
     },
     {
-      "name": "prog._memory_addr_0",
+      "name": "prog._memory_addr_1",
       "label": "Addr",
       "row": 13,
       "col": 16,
@@ -433,7 +459,7 @@
       "origin": "Prog. Memory row 14 address"
     },
     {
-      "name": "prog._memory_data_0",
+      "name": "prog._memory_data_1",
       "label": "Data",
       "row": 13,
       "col": 22,
@@ -446,7 +472,7 @@
       "origin": "Prog. Memory row 14 data"
     },
     {
-      "name": "prog._memory_addr_1",
+      "name": "prog._memory_addr_2",
       "label": "Addr",
       "row": 14,
       "col": 16,
@@ -459,7 +485,7 @@
       "origin": "Prog. Memory row 15 address"
     },
     {
-      "name": "prog._memory_data_1",
+      "name": "prog._memory_data_2",
       "label": "Data",
       "row": 14,
       "col": 22,
@@ -472,7 +498,7 @@
       "origin": "Prog. Memory row 15 data"
     },
     {
-      "name": "prog._memory_addr_2",
+      "name": "prog._memory_addr_3",
       "label": "Addr",
       "row": 15,
       "col": 16,
@@ -485,7 +511,7 @@
       "origin": "Prog. Memory row 16 address"
     },
     {
-      "name": "prog._memory_data_2",
+      "name": "prog._memory_data_3",
       "label": "Data",
       "row": 15,
       "col": 22,
@@ -498,7 +524,7 @@
       "origin": "Prog. Memory row 16 data"
     },
     {
-      "name": "prog._memory_addr_3",
+      "name": "prog._memory_addr_4",
       "label": "Addr",
       "row": 16,
       "col": 16,
@@ -511,7 +537,7 @@
       "origin": "Prog. Memory row 17 address"
     },
     {
-      "name": "prog._memory_data_3",
+      "name": "prog._memory_data_4",
       "label": "Data",
       "row": 16,
       "col": 22,
@@ -524,7 +550,7 @@
       "origin": "Prog. Memory row 17 data"
     },
     {
-      "name": "prog._memory_addr_4",
+      "name": "prog._memory_addr_5",
       "label": "Addr",
       "row": 17,
       "col": 16,
@@ -537,7 +563,7 @@
       "origin": "Prog. Memory row 18 address"
     },
     {
-      "name": "prog._memory_data_4",
+      "name": "prog._memory_data_5",
       "label": "Data",
       "row": 17,
       "col": 22,
@@ -550,7 +576,7 @@
       "origin": "Prog. Memory row 18 data"
     },
     {
-      "name": "prog._memory_addr_5",
+      "name": "prog._memory_addr_6",
       "label": "Addr",
       "row": 18,
       "col": 16,
@@ -563,7 +589,7 @@
       "origin": "Prog. Memory row 19 address"
     },
     {
-      "name": "prog._memory_data_5",
+      "name": "prog._memory_data_6",
       "label": "Data",
       "row": 18,
       "col": 22,
@@ -576,7 +602,7 @@
       "origin": "Prog. Memory row 19 data"
     },
     {
-      "name": "prog._memory_addr_6",
+      "name": "prog._memory_addr_7",
       "label": "Addr",
       "row": 19,
       "col": 16,
@@ -589,7 +615,7 @@
       "origin": "Prog. Memory row 20 address"
     },
     {
-      "name": "prog._memory_data_6",
+      "name": "prog._memory_data_7",
       "label": "Data",
       "row": 19,
       "col": 22,
@@ -602,7 +628,7 @@
       "origin": "Prog. Memory row 20 data"
     },
     {
-      "name": "prog._memory_addr_7",
+      "name": "prog._memory_addr_8",
       "label": "Addr",
       "row": 20,
       "col": 16,
@@ -615,7 +641,7 @@
       "origin": "Prog. Memory row 21 address"
     },
     {
-      "name": "prog._memory_data_7",
+      "name": "prog._memory_data_8",
       "label": "Data",
       "row": 20,
       "col": 22,
@@ -628,7 +654,7 @@
       "origin": "Prog. Memory row 21 data"
     },
     {
-      "name": "prog._memory_addr_8",
+      "name": "prog._memory_addr_9",
       "label": "Addr",
       "row": 21,
       "col": 16,
@@ -641,7 +667,7 @@
       "origin": "Prog. Memory row 22 address"
     },
     {
-      "name": "prog._memory_data_8",
+      "name": "prog._memory_data_9",
       "label": "Data",
       "row": 21,
       "col": 22,
@@ -654,7 +680,7 @@
       "origin": "Prog. Memory row 22 data"
     },
     {
-      "name": "prog._memory_addr_9",
+      "name": "prog._memory_addr_10",
       "label": "Addr",
       "row": 22,
       "col": 16,
@@ -667,7 +693,7 @@
       "origin": "Prog. Memory row 23 address"
     },
     {
-      "name": "prog._memory_data_9",
+      "name": "prog._memory_data_10",
       "label": "Data",
       "row": 22,
       "col": 22,
@@ -680,7 +706,7 @@
       "origin": "Prog. Memory row 23 data"
     },
     {
-      "name": "prog._memory_addr_10",
+      "name": "prog._memory_addr_11",
       "label": "Addr",
       "row": 23,
       "col": 16,
@@ -693,7 +719,7 @@
       "origin": "Prog. Memory row 24 address"
     },
     {
-      "name": "prog._memory_data_10",
+      "name": "prog._memory_data_11",
       "label": "Data",
       "row": 23,
       "col": 22,
@@ -706,7 +732,7 @@
       "origin": "Prog. Memory row 24 data"
     },
     {
-      "name": "prog._memory_addr_11",
+      "name": "prog._memory_addr_12",
       "label": "Addr",
       "row": 24,
       "col": 16,
@@ -719,7 +745,7 @@
       "origin": "Prog. Memory row 25 address"
     },
     {
-      "name": "prog._memory_data_11",
+      "name": "prog._memory_data_12",
       "label": "Data",
       "row": 24,
       "col": 22,
@@ -732,7 +758,7 @@
       "origin": "Prog. Memory row 25 data"
     },
     {
-      "name": "prog._memory_addr_12",
+      "name": "prog._memory_addr_13",
       "label": "Addr",
       "row": 25,
       "col": 16,
@@ -745,7 +771,7 @@
       "origin": "Prog. Memory row 26 address"
     },
     {
-      "name": "prog._memory_data_12",
+      "name": "prog._memory_data_13",
       "label": "Data",
       "row": 25,
       "col": 22,
@@ -758,7 +784,7 @@
       "origin": "Prog. Memory row 26 data"
     },
     {
-      "name": "prog._memory_addr_13",
+      "name": "prog._memory_addr_14",
       "label": "Addr",
       "row": 26,
       "col": 16,
@@ -771,7 +797,7 @@
       "origin": "Prog. Memory row 27 address"
     },
     {
-      "name": "prog._memory_data_13",
+      "name": "prog._memory_data_14",
       "label": "Data",
       "row": 26,
       "col": 22,
@@ -784,7 +810,7 @@
       "origin": "Prog. Memory row 27 data"
     },
     {
-      "name": "prog._memory_addr_14",
+      "name": "prog._memory_addr_15",
       "label": "Addr",
       "row": 27,
       "col": 16,
@@ -797,7 +823,7 @@
       "origin": "Prog. Memory row 28 address"
     },
     {
-      "name": "prog._memory_data_14",
+      "name": "prog._memory_data_15",
       "label": "Data",
       "row": 27,
       "col": 22,
@@ -810,7 +836,7 @@
       "origin": "Prog. Memory row 28 data"
     },
     {
-      "name": "prog._memory_addr_15",
+      "name": "prog._memory_addr_16",
       "label": "Addr",
       "row": 28,
       "col": 16,
@@ -823,7 +849,7 @@
       "origin": "Prog. Memory row 29 address"
     },
     {
-      "name": "prog._memory_data_15",
+      "name": "prog._memory_data_16",
       "label": "Data",
       "row": 28,
       "col": 22,
@@ -836,7 +862,7 @@
       "origin": "Prog. Memory row 29 data"
     },
     {
-      "name": "prog._memory_addr_16",
+      "name": "prog._memory_addr_17",
       "label": "Addr",
       "row": 29,
       "col": 16,
@@ -849,7 +875,7 @@
       "origin": "Prog. Memory row 30 address"
     },
     {
-      "name": "prog._memory_data_16",
+      "name": "prog._memory_data_17",
       "label": "Data",
       "row": 29,
       "col": 22,
@@ -862,7 +888,7 @@
       "origin": "Prog. Memory row 30 data"
     },
     {
-      "name": "prog._memory_addr_17",
+      "name": "prog._memory_addr_18",
       "label": "Addr",
       "row": 30,
       "col": 16,
@@ -875,7 +901,7 @@
       "origin": "Prog. Memory row 31 address"
     },
     {
-      "name": "prog._memory_data_17",
+      "name": "prog._memory_data_18",
       "label": "Data",
       "row": 30,
       "col": 22,
@@ -888,7 +914,7 @@
       "origin": "Prog. Memory row 31 data"
     },
     {
-      "name": "prog._memory_addr_18",
+      "name": "prog._memory_addr_19",
       "label": "Addr",
       "row": 31,
       "col": 16,
@@ -901,7 +927,7 @@
       "origin": "Prog. Memory row 32 address"
     },
     {
-      "name": "prog._memory_data_18",
+      "name": "prog._memory_data_19",
       "label": "Data",
       "row": 31,
       "col": 22,
@@ -914,7 +940,7 @@
       "origin": "Prog. Memory row 32 data"
     },
     {
-      "name": "prog._memory_addr_19",
+      "name": "prog._memory_addr_20",
       "label": "Addr",
       "row": 32,
       "col": 16,
@@ -927,7 +953,7 @@
       "origin": "Prog. Memory row 33 address"
     },
     {
-      "name": "prog._memory_data_19",
+      "name": "prog._memory_data_20",
       "label": "Data",
       "row": 32,
       "col": 22,
@@ -940,7 +966,7 @@
       "origin": "Prog. Memory row 33 data"
     },
     {
-      "name": "prog._memory_addr_20",
+      "name": "prog._memory_addr_21",
       "label": "Addr",
       "row": 33,
       "col": 16,
@@ -953,7 +979,7 @@
       "origin": "Prog. Memory row 34 address"
     },
     {
-      "name": "prog._memory_data_20",
+      "name": "prog._memory_data_21",
       "label": "Data",
       "row": 33,
       "col": 22,
@@ -966,7 +992,7 @@
       "origin": "Prog. Memory row 34 data"
     },
     {
-      "name": "prog._memory_addr_21",
+      "name": "prog._memory_addr_22",
       "label": "Addr",
       "row": 34,
       "col": 16,
@@ -979,7 +1005,7 @@
       "origin": "Prog. Memory row 35 address"
     },
     {
-      "name": "prog._memory_data_21",
+      "name": "prog._memory_data_22",
       "label": "Data",
       "row": 34,
       "col": 22,
@@ -992,7 +1018,7 @@
       "origin": "Prog. Memory row 35 data"
     },
     {
-      "name": "prog._memory_addr_22",
+      "name": "prog._memory_addr_23",
       "label": "Addr",
       "row": 35,
       "col": 16,
@@ -1005,7 +1031,7 @@
       "origin": "Prog. Memory row 36 address"
     },
     {
-      "name": "prog._memory_data_22",
+      "name": "prog._memory_data_23",
       "label": "Data",
       "row": 35,
       "col": 22,
@@ -1018,7 +1044,7 @@
       "origin": "Prog. Memory row 36 data"
     },
     {
-      "name": "prog._memory_addr_23",
+      "name": "prog._memory_addr_24",
       "label": "Addr",
       "row": 36,
       "col": 16,
@@ -1031,7 +1057,7 @@
       "origin": "Prog. Memory row 37 address"
     },
     {
-      "name": "prog._memory_data_23",
+      "name": "prog._memory_data_24",
       "label": "Data",
       "row": 36,
       "col": 22,
@@ -1044,7 +1070,7 @@
       "origin": "Prog. Memory row 37 data"
     },
     {
-      "name": "prog._memory_addr_24",
+      "name": "prog._memory_addr_25",
       "label": "Addr",
       "row": 37,
       "col": 16,
@@ -1057,7 +1083,7 @@
       "origin": "Prog. Memory row 38 address"
     },
     {
-      "name": "prog._memory_data_24",
+      "name": "prog._memory_data_25",
       "label": "Data",
       "row": 37,
       "col": 22,
@@ -1070,7 +1096,7 @@
       "origin": "Prog. Memory row 38 data"
     },
     {
-      "name": "prog._memory_addr_25",
+      "name": "prog._memory_addr_26",
       "label": "Addr",
       "row": 38,
       "col": 16,
@@ -1083,7 +1109,7 @@
       "origin": "Prog. Memory row 39 address"
     },
     {
-      "name": "prog._memory_data_25",
+      "name": "prog._memory_data_26",
       "label": "Data",
       "row": 38,
       "col": 22,
@@ -1096,7 +1122,7 @@
       "origin": "Prog. Memory row 39 data"
     },
     {
-      "name": "prog._memory_addr_26",
+      "name": "prog._memory_addr_27",
       "label": "Addr",
       "row": 39,
       "col": 16,
@@ -1109,7 +1135,7 @@
       "origin": "Prog. Memory row 40 address"
     },
     {
-      "name": "prog._memory_data_26",
+      "name": "prog._memory_data_27",
       "label": "Data",
       "row": 39,
       "col": 22,
@@ -1122,7 +1148,7 @@
       "origin": "Prog. Memory row 40 data"
     },
     {
-      "name": "prog._memory_addr_27",
+      "name": "prog._memory_addr_28",
       "label": "Addr",
       "row": 40,
       "col": 16,
@@ -1135,7 +1161,7 @@
       "origin": "Prog. Memory row 41 address"
     },
     {
-      "name": "prog._memory_data_27",
+      "name": "prog._memory_data_28",
       "label": "Data",
       "row": 40,
       "col": 22,
@@ -1148,7 +1174,7 @@
       "origin": "Prog. Memory row 41 data"
     },
     {
-      "name": "prog._memory_addr_28",
+      "name": "prog._memory_addr_29",
       "label": "Addr",
       "row": 41,
       "col": 16,
@@ -1161,7 +1187,7 @@
       "origin": "Prog. Memory row 42 address"
     },
     {
-      "name": "prog._memory_data_28",
+      "name": "prog._memory_data_29",
       "label": "Data",
       "row": 41,
       "col": 22,
@@ -1174,7 +1200,7 @@
       "origin": "Prog. Memory row 42 data"
     },
     {
-      "name": "prog._memory_addr_29",
+      "name": "prog._memory_addr_30",
       "label": "Addr",
       "row": 42,
       "col": 16,
@@ -1187,7 +1213,7 @@
       "origin": "Prog. Memory row 43 address"
     },
     {
-      "name": "prog._memory_data_29",
+      "name": "prog._memory_data_30",
       "label": "Data",
       "row": 42,
       "col": 22,
@@ -1200,7 +1226,7 @@
       "origin": "Prog. Memory row 43 data"
     },
     {
-      "name": "prog._memory_addr_30",
+      "name": "prog._memory_addr_31",
       "label": "Addr",
       "row": 43,
       "col": 16,
@@ -1213,7 +1239,7 @@
       "origin": "Prog. Memory row 44 address"
     },
     {
-      "name": "prog._memory_data_30",
+      "name": "prog._memory_data_31",
       "label": "Data",
       "row": 43,
       "col": 22,
@@ -1226,33 +1252,33 @@
       "origin": "Prog. Memory row 44 data"
     },
     {
-      "name": "prog._memory_addr_31",
+      "name": "data_memory_addr_0",
       "label": "Addr",
-      "row": 44,
-      "col": 16,
+      "row": 12,
+      "col": 32,
       "width": 4,
       "fmt": "hex",
       "signal_bits": 16,
       "display_min": 4,
-      "start_address": 7056,
-      "end_address": 7059,
-      "origin": "Prog. Memory row 45 address"
+      "start_address": 1952,
+      "end_address": 1955,
+      "origin": "Data Memory row 13 address"
     },
     {
-      "name": "prog._memory_data_31",
+      "name": "data_memory_data_0",
       "label": "Data",
-      "row": 44,
-      "col": 22,
+      "row": 12,
+      "col": 38,
       "width": 8,
       "fmt": "hex",
       "signal_bits": 32,
       "display_min": 8,
-      "start_address": 7062,
-      "end_address": 7069,
-      "origin": "Prog. Memory row 45 data"
+      "start_address": 1958,
+      "end_address": 1965,
+      "origin": "Data Memory row 13 data"
     },
     {
-      "name": "data_memory_addr_0",
+      "name": "data_memory_addr_1",
       "label": "Addr",
       "row": 13,
       "col": 32,
@@ -1265,7 +1291,7 @@
       "origin": "Data Memory row 14 address"
     },
     {
-      "name": "data_memory_data_0",
+      "name": "data_memory_data_1",
       "label": "Data",
       "row": 13,
       "col": 38,
@@ -1278,7 +1304,7 @@
       "origin": "Data Memory row 14 data"
     },
     {
-      "name": "data_memory_addr_1",
+      "name": "data_memory_addr_2",
       "label": "Addr",
       "row": 14,
       "col": 32,
@@ -1291,7 +1317,7 @@
       "origin": "Data Memory row 15 address"
     },
     {
-      "name": "data_memory_data_1",
+      "name": "data_memory_data_2",
       "label": "Data",
       "row": 14,
       "col": 38,
@@ -1304,7 +1330,7 @@
       "origin": "Data Memory row 15 data"
     },
     {
-      "name": "data_memory_addr_2",
+      "name": "data_memory_addr_3",
       "label": "Addr",
       "row": 15,
       "col": 32,
@@ -1317,7 +1343,7 @@
       "origin": "Data Memory row 16 address"
     },
     {
-      "name": "data_memory_data_2",
+      "name": "data_memory_data_3",
       "label": "Data",
       "row": 15,
       "col": 38,
@@ -1330,7 +1356,7 @@
       "origin": "Data Memory row 16 data"
     },
     {
-      "name": "data_memory_addr_3",
+      "name": "data_memory_addr_4",
       "label": "Addr",
       "row": 16,
       "col": 32,
@@ -1343,7 +1369,7 @@
       "origin": "Data Memory row 17 address"
     },
     {
-      "name": "data_memory_data_3",
+      "name": "data_memory_data_4",
       "label": "Data",
       "row": 16,
       "col": 38,
@@ -1356,7 +1382,7 @@
       "origin": "Data Memory row 17 data"
     },
     {
-      "name": "data_memory_addr_4",
+      "name": "data_memory_addr_5",
       "label": "Addr",
       "row": 17,
       "col": 32,
@@ -1369,7 +1395,7 @@
       "origin": "Data Memory row 18 address"
     },
     {
-      "name": "data_memory_data_4",
+      "name": "data_memory_data_5",
       "label": "Data",
       "row": 17,
       "col": 38,
@@ -1382,7 +1408,7 @@
       "origin": "Data Memory row 18 data"
     },
     {
-      "name": "data_memory_addr_5",
+      "name": "data_memory_addr_6",
       "label": "Addr",
       "row": 18,
       "col": 32,
@@ -1395,7 +1421,7 @@
       "origin": "Data Memory row 19 address"
     },
     {
-      "name": "data_memory_data_5",
+      "name": "data_memory_data_6",
       "label": "Data",
       "row": 18,
       "col": 38,
@@ -1408,7 +1434,7 @@
       "origin": "Data Memory row 19 data"
     },
     {
-      "name": "data_memory_addr_6",
+      "name": "data_memory_addr_7",
       "label": "Addr",
       "row": 19,
       "col": 32,
@@ -1421,7 +1447,7 @@
       "origin": "Data Memory row 20 address"
     },
     {
-      "name": "data_memory_data_6",
+      "name": "data_memory_data_7",
       "label": "Data",
       "row": 19,
       "col": 38,
@@ -1434,7 +1460,7 @@
       "origin": "Data Memory row 20 data"
     },
     {
-      "name": "data_memory_addr_7",
+      "name": "data_memory_addr_8",
       "label": "Addr",
       "row": 20,
       "col": 32,
@@ -1447,7 +1473,7 @@
       "origin": "Data Memory row 21 address"
     },
     {
-      "name": "data_memory_data_7",
+      "name": "data_memory_data_8",
       "label": "Data",
       "row": 20,
       "col": 38,
@@ -1460,7 +1486,7 @@
       "origin": "Data Memory row 21 data"
     },
     {
-      "name": "data_memory_addr_8",
+      "name": "data_memory_addr_9",
       "label": "Addr",
       "row": 21,
       "col": 32,
@@ -1473,7 +1499,7 @@
       "origin": "Data Memory row 22 address"
     },
     {
-      "name": "data_memory_data_8",
+      "name": "data_memory_data_9",
       "label": "Data",
       "row": 21,
       "col": 38,
@@ -1486,7 +1512,7 @@
       "origin": "Data Memory row 22 data"
     },
     {
-      "name": "data_memory_addr_9",
+      "name": "data_memory_addr_10",
       "label": "Addr",
       "row": 22,
       "col": 32,
@@ -1499,7 +1525,7 @@
       "origin": "Data Memory row 23 address"
     },
     {
-      "name": "data_memory_data_9",
+      "name": "data_memory_data_10",
       "label": "Data",
       "row": 22,
       "col": 38,
@@ -1512,7 +1538,7 @@
       "origin": "Data Memory row 23 data"
     },
     {
-      "name": "data_memory_addr_10",
+      "name": "data_memory_addr_11",
       "label": "Addr",
       "row": 23,
       "col": 32,
@@ -1525,7 +1551,7 @@
       "origin": "Data Memory row 24 address"
     },
     {
-      "name": "data_memory_data_10",
+      "name": "data_memory_data_11",
       "label": "Data",
       "row": 23,
       "col": 38,
@@ -1538,7 +1564,7 @@
       "origin": "Data Memory row 24 data"
     },
     {
-      "name": "data_memory_addr_11",
+      "name": "data_memory_addr_12",
       "label": "Addr",
       "row": 24,
       "col": 32,
@@ -1551,7 +1577,7 @@
       "origin": "Data Memory row 25 address"
     },
     {
-      "name": "data_memory_data_11",
+      "name": "data_memory_data_12",
       "label": "Data",
       "row": 24,
       "col": 38,
@@ -1564,7 +1590,7 @@
       "origin": "Data Memory row 25 data"
     },
     {
-      "name": "data_memory_addr_12",
+      "name": "data_memory_addr_13",
       "label": "Addr",
       "row": 25,
       "col": 32,
@@ -1577,7 +1603,7 @@
       "origin": "Data Memory row 26 address"
     },
     {
-      "name": "data_memory_data_12",
+      "name": "data_memory_data_13",
       "label": "Data",
       "row": 25,
       "col": 38,
@@ -1590,7 +1616,7 @@
       "origin": "Data Memory row 26 data"
     },
     {
-      "name": "data_memory_addr_13",
+      "name": "data_memory_addr_14",
       "label": "Addr",
       "row": 26,
       "col": 32,
@@ -1603,7 +1629,7 @@
       "origin": "Data Memory row 27 address"
     },
     {
-      "name": "data_memory_data_13",
+      "name": "data_memory_data_14",
       "label": "Data",
       "row": 26,
       "col": 38,
@@ -1616,7 +1642,7 @@
       "origin": "Data Memory row 27 data"
     },
     {
-      "name": "data_memory_addr_14",
+      "name": "data_memory_addr_15",
       "label": "Addr",
       "row": 27,
       "col": 32,
@@ -1629,7 +1655,7 @@
       "origin": "Data Memory row 28 address"
     },
     {
-      "name": "data_memory_data_14",
+      "name": "data_memory_data_15",
       "label": "Data",
       "row": 27,
       "col": 38,
@@ -1642,7 +1668,7 @@
       "origin": "Data Memory row 28 data"
     },
     {
-      "name": "data_memory_addr_15",
+      "name": "data_memory_addr_16",
       "label": "Addr",
       "row": 28,
       "col": 32,
@@ -1655,7 +1681,7 @@
       "origin": "Data Memory row 29 address"
     },
     {
-      "name": "data_memory_data_15",
+      "name": "data_memory_data_16",
       "label": "Data",
       "row": 28,
       "col": 38,
@@ -1668,7 +1694,7 @@
       "origin": "Data Memory row 29 data"
     },
     {
-      "name": "data_memory_addr_16",
+      "name": "data_memory_addr_17",
       "label": "Addr",
       "row": 29,
       "col": 32,
@@ -1681,7 +1707,7 @@
       "origin": "Data Memory row 30 address"
     },
     {
-      "name": "data_memory_data_16",
+      "name": "data_memory_data_17",
       "label": "Data",
       "row": 29,
       "col": 38,
@@ -1694,7 +1720,7 @@
       "origin": "Data Memory row 30 data"
     },
     {
-      "name": "data_memory_addr_17",
+      "name": "data_memory_addr_18",
       "label": "Addr",
       "row": 30,
       "col": 32,
@@ -1707,7 +1733,7 @@
       "origin": "Data Memory row 31 address"
     },
     {
-      "name": "data_memory_data_17",
+      "name": "data_memory_data_18",
       "label": "Data",
       "row": 30,
       "col": 38,
@@ -1720,7 +1746,7 @@
       "origin": "Data Memory row 31 data"
     },
     {
-      "name": "data_memory_addr_18",
+      "name": "data_memory_addr_19",
       "label": "Addr",
       "row": 31,
       "col": 32,
@@ -1733,7 +1759,7 @@
       "origin": "Data Memory row 32 address"
     },
     {
-      "name": "data_memory_data_18",
+      "name": "data_memory_data_19",
       "label": "Data",
       "row": 31,
       "col": 38,
@@ -1746,7 +1772,7 @@
       "origin": "Data Memory row 32 data"
     },
     {
-      "name": "data_memory_addr_19",
+      "name": "data_memory_addr_20",
       "label": "Addr",
       "row": 32,
       "col": 32,
@@ -1759,7 +1785,7 @@
       "origin": "Data Memory row 33 address"
     },
     {
-      "name": "data_memory_data_19",
+      "name": "data_memory_data_20",
       "label": "Data",
       "row": 32,
       "col": 38,
@@ -1772,7 +1798,7 @@
       "origin": "Data Memory row 33 data"
     },
     {
-      "name": "data_memory_addr_20",
+      "name": "data_memory_addr_21",
       "label": "Addr",
       "row": 33,
       "col": 32,
@@ -1785,7 +1811,7 @@
       "origin": "Data Memory row 34 address"
     },
     {
-      "name": "data_memory_data_20",
+      "name": "data_memory_data_21",
       "label": "Data",
       "row": 33,
       "col": 38,
@@ -1798,7 +1824,7 @@
       "origin": "Data Memory row 34 data"
     },
     {
-      "name": "data_memory_addr_21",
+      "name": "data_memory_addr_22",
       "label": "Addr",
       "row": 34,
       "col": 32,
@@ -1811,7 +1837,7 @@
       "origin": "Data Memory row 35 address"
     },
     {
-      "name": "data_memory_data_21",
+      "name": "data_memory_data_22",
       "label": "Data",
       "row": 34,
       "col": 38,
@@ -1824,7 +1850,7 @@
       "origin": "Data Memory row 35 data"
     },
     {
-      "name": "data_memory_addr_22",
+      "name": "data_memory_addr_23",
       "label": "Addr",
       "row": 35,
       "col": 32,
@@ -1837,7 +1863,7 @@
       "origin": "Data Memory row 36 address"
     },
     {
-      "name": "data_memory_data_22",
+      "name": "data_memory_data_23",
       "label": "Data",
       "row": 35,
       "col": 38,
@@ -1850,7 +1876,7 @@
       "origin": "Data Memory row 36 data"
     },
     {
-      "name": "data_memory_addr_23",
+      "name": "data_memory_addr_24",
       "label": "Addr",
       "row": 36,
       "col": 32,
@@ -1863,7 +1889,7 @@
       "origin": "Data Memory row 37 address"
     },
     {
-      "name": "data_memory_data_23",
+      "name": "data_memory_data_24",
       "label": "Data",
       "row": 36,
       "col": 38,
@@ -1876,7 +1902,7 @@
       "origin": "Data Memory row 37 data"
     },
     {
-      "name": "data_memory_addr_24",
+      "name": "data_memory_addr_25",
       "label": "Addr",
       "row": 37,
       "col": 32,
@@ -1889,7 +1915,7 @@
       "origin": "Data Memory row 38 address"
     },
     {
-      "name": "data_memory_data_24",
+      "name": "data_memory_data_25",
       "label": "Data",
       "row": 37,
       "col": 38,
@@ -1902,7 +1928,7 @@
       "origin": "Data Memory row 38 data"
     },
     {
-      "name": "data_memory_addr_25",
+      "name": "data_memory_addr_26",
       "label": "Addr",
       "row": 38,
       "col": 32,
@@ -1915,7 +1941,7 @@
       "origin": "Data Memory row 39 address"
     },
     {
-      "name": "data_memory_data_25",
+      "name": "data_memory_data_26",
       "label": "Data",
       "row": 38,
       "col": 38,
@@ -1928,7 +1954,7 @@
       "origin": "Data Memory row 39 data"
     },
     {
-      "name": "data_memory_addr_26",
+      "name": "data_memory_addr_27",
       "label": "Addr",
       "row": 39,
       "col": 32,
@@ -1941,7 +1967,7 @@
       "origin": "Data Memory row 40 address"
     },
     {
-      "name": "data_memory_data_26",
+      "name": "data_memory_data_27",
       "label": "Data",
       "row": 39,
       "col": 38,
@@ -1954,7 +1980,7 @@
       "origin": "Data Memory row 40 data"
     },
     {
-      "name": "data_memory_addr_27",
+      "name": "data_memory_addr_28",
       "label": "Addr",
       "row": 40,
       "col": 32,
@@ -1967,7 +1993,7 @@
       "origin": "Data Memory row 41 address"
     },
     {
-      "name": "data_memory_data_27",
+      "name": "data_memory_data_28",
       "label": "Data",
       "row": 40,
       "col": 38,
@@ -1980,7 +2006,7 @@
       "origin": "Data Memory row 41 data"
     },
     {
-      "name": "data_memory_addr_28",
+      "name": "data_memory_addr_29",
       "label": "Addr",
       "row": 41,
       "col": 32,
@@ -1993,7 +2019,7 @@
       "origin": "Data Memory row 42 address"
     },
     {
-      "name": "data_memory_data_28",
+      "name": "data_memory_data_29",
       "label": "Data",
       "row": 41,
       "col": 38,
@@ -2006,7 +2032,7 @@
       "origin": "Data Memory row 42 data"
     },
     {
-      "name": "data_memory_addr_29",
+      "name": "data_memory_addr_30",
       "label": "Addr",
       "row": 42,
       "col": 32,
@@ -2019,7 +2045,7 @@
       "origin": "Data Memory row 43 address"
     },
     {
-      "name": "data_memory_data_29",
+      "name": "data_memory_data_30",
       "label": "Data",
       "row": 42,
       "col": 38,
@@ -2032,7 +2058,7 @@
       "origin": "Data Memory row 43 data"
     },
     {
-      "name": "data_memory_addr_30",
+      "name": "data_memory_addr_31",
       "label": "Addr",
       "row": 43,
       "col": 32,
@@ -2045,7 +2071,7 @@
       "origin": "Data Memory row 44 address"
     },
     {
-      "name": "data_memory_data_30",
+      "name": "data_memory_data_31",
       "label": "Data",
       "row": 43,
       "col": 38,
@@ -2058,30 +2084,17 @@
       "origin": "Data Memory row 44 data"
     },
     {
-      "name": "data_memory_addr_31",
-      "label": "Addr",
-      "row": 44,
-      "col": 32,
-      "width": 4,
-      "fmt": "hex",
-      "signal_bits": 16,
-      "display_min": 4,
-      "start_address": 7072,
-      "end_address": 7075,
-      "origin": "Data Memory row 45 address"
-    },
-    {
-      "name": "data_memory_data_31",
-      "label": "Data",
-      "row": 44,
-      "col": 38,
+      "name": "instruction",
+      "label": "Executed instruction",
+      "row": 4,
+      "col": 23,
       "width": 8,
       "fmt": "hex",
       "signal_bits": 32,
       "display_min": 8,
-      "start_address": 7078,
-      "end_address": 7085,
-      "origin": "Data Memory row 45 data"
+      "start_address": 663,
+      "end_address": 670,
+      "origin": "tagged after \"Executed instruction\" on row 5"
     },
     {
       "name": "pc",
@@ -2108,6 +2121,19 @@
       "start_address": 1019,
       "end_address": 1026,
       "origin": "tagged after \"Instr\" on row 7"
+    },
+    {
+      "name": "halted",
+      "label": "HALTED",
+      "row": 6,
+      "col": 102,
+      "width": 1,
+      "fmt": "bin",
+      "signal_bits": 1,
+      "display_min": 1,
+      "start_address": 1062,
+      "end_address": 1062,
+      "origin": "tagged after \"HALTED\" on row 7"
     },
     {
       "name": "next_pc",
@@ -2305,6 +2331,19 @@
       "origin": "tagged after \"Funct3\" on row 26"
     },
     {
+      "name": "dm_wdata",
+      "label": "Data Write",
+      "row": 25,
+      "col": 94,
+      "width": 8,
+      "fmt": "hex",
+      "signal_bits": 32,
+      "display_min": 8,
+      "start_address": 4094,
+      "end_address": 4101,
+      "origin": "tagged after \"Data Write\" on row 26"
+    },
+    {
       "name": "funct7",
       "label": "Funct7",
       "row": 26,
@@ -2316,6 +2355,19 @@
       "start_address": 4220,
       "end_address": 4221,
       "origin": "tagged after \"Funct7\" on row 27"
+    },
+    {
+      "name": "dm_rdata",
+      "label": "Data Read",
+      "row": 26,
+      "col": 94,
+      "width": 8,
+      "fmt": "hex",
+      "signal_bits": 32,
+      "display_min": 8,
+      "start_address": 4254,
+      "end_address": 4261,
+      "origin": "tagged after \"Data Read\" on row 27"
     },
     {
       "name": "dm_ctrl",
@@ -2433,6 +2485,19 @@
       "start_address": 6151,
       "end_address": 6151,
       "origin": "tagged after \"ALUBSrc\" on row 39"
+    },
+    {
+      "name": "cycle_count",
+      "label": "Clock cycles",
+      "row": 43,
+      "col": 65,
+      "width": 16,
+      "fmt": "hex",
+      "signal_bits": 64,
+      "display_min": 16,
+      "start_address": 6945,
+      "end_address": 6960,
+      "origin": "tagged after \"Clock cycles\" on row 44"
     }
   ]
 }
