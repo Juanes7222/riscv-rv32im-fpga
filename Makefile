@@ -1,6 +1,9 @@
 ARCH        ?= single_cycle
 N_REPLICAS  ?= 5
 
+# bash: SECONDS is a bash builtin, and it is not available in dash.
+SHELL       := /bin/bash
+
 VALID_ARCHS := single_cycle pipeline
 
 ifeq ($(filter $(ARCH), $(VALID_ARCHS)),)
@@ -63,6 +66,28 @@ setup:
 	@echo "[$(ARCH)] Project created. Run 'make build ARCH=$(ARCH)' to synthesize."
 
 
+# Runs the Quartus compilation and fails the target when Quartus reports an
+# error or when the bitstream is not regenerated.
+#
+# The check is on the artifact and not only on the exit code: Quartus Lite
+# crashes with an access violation while the fitter process tears down its Tcl
+# interpreter, after the fit has already succeeded and written every output.
+# The flow engine absorbs that crash, so a plain exit-code check would be
+# enough, but the artifact check also catches a flow that silently skipped a
+# stage and left a stale bitstream behind.
+#
+# Usage: $(call quartus_compile,build.tcl)  |  $(call quartus_compile,build.tcl,3)
+define quartus_compile
+	before=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
+	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t $(1) $(2) || exit 1; \
+	after=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
+	if [ ! -f $(abspath $(SOF_FILE)) ] || [ "$$after" -le "$$before" ]; then \
+		echo "[$(ARCH)] Error: $(SOF_FILE) missing or not regenerated."; \
+		exit 1; \
+	fi
+endef
+
+
 .PHONY: sync
 sync: check-project
 	@echo "[$(ARCH)] Syncing RTL source files..."
@@ -79,7 +104,7 @@ sync-all:
 build: check-project $(MEM_CONFIG_VH)
 	@echo "[$(ARCH)] Starting synthesis..."
 	@SECONDS=0; \
-	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
+	$(call quartus_compile,build.tcl); \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
 
 # Same as build but skips mem_config.vh generation - use when .mem files
@@ -87,7 +112,7 @@ build: check-project $(MEM_CONFIG_VH)
 build-only: check-project
 	@echo "[$(ARCH)] Starting synthesis (without mem refresh)..."
 	@SECONDS=0; \
-	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
+	$(call quartus_compile,build.tcl); \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
 
 
@@ -109,7 +134,7 @@ build-fpga: check-project
 		echo "[$(ARCH)] Warning: create_stp.tcl failed. Using existing .stp file if any."
 	@echo "[$(ARCH)] Starting SignalTap compilation..."
 	@SECONDS=0; \
-	$(QUARTUS_SH) -t scripts/build_fpga.tcl $(ARCH); \
+	$(QUARTUS_SH) -t scripts/build_fpga.tcl $(ARCH) || exit 1; \
 	echo "[$(ARCH)] SignalTap build completed in $$SECONDS seconds"
 
 
@@ -151,7 +176,7 @@ flash: check-elf check-project
 		--validate-linux-path $(abspath $(IMEM_MEM)) \
 		--validate-linux-dmem $(abspath $(DMEM_MEM))
 	@SECONDS=0; \
-	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl; \
+	$(call quartus_compile,build.tcl); \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
 	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t program.tcl
 	@echo "[$(ARCH)] Flash complete: $(ELF)"
@@ -169,7 +194,7 @@ replicas: check-project
 		fi; \
 		echo "[$(ARCH)] --- Replica $$i / $(N_REPLICAS) (SEED=$$i) ---"; \
 		SECONDS=0; \
-		cd $(SYNTH_DIR) && $(QUARTUS_SH) -t build.tcl $$i; \
+		$(call quartus_compile,build.tcl,$$i); \
 		cd - > /dev/null; \
 		mkdir -p $$replica_dir; \
 		cp $(STA_RPT) $$replica_dir/timing.rpt 2>/dev/null || \

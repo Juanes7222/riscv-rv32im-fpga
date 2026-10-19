@@ -27,6 +27,19 @@ if {![file exists $sof_file]} {
     exit 1
 }
 
+# List the JTAG chain before programming.  A failure here is a board or cable
+# problem - the FPGA does not answer on the chain - and not a problem with
+# the bitstream, so it is worth telling them apart.
+puts "Scanning JTAG chain on cable '$cable'..."
+if {[catch {exec quartus_pgm -c $cable -a 2>@1} chain_out]} {
+    puts "Error: could not read the JTAG chain on cable '$cable':"
+    puts $chain_out
+    puts "Check that the DE1-SoC is powered on and the USB-Blaster cable is"
+    puts "connected, then run 'quartus_pgm -l' to list the available cables."
+    exit 1
+}
+puts $chain_out
+
 # Program
 puts "Programming $project_name onto DE1-SoC..."
 puts "  Cable : $cable"
