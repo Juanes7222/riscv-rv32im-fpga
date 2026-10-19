@@ -355,9 +355,20 @@ module top_single_cycle #(
     logic [9:0]  vga_vcount;
     logic        vga_video_on;
 
+    // System reset synchronized into the pixel-clock domain.  The controller
+    // uses a synchronous reset, so the counters start from a known state.
+    logic [1:0]  vga_rst_sync;
+    logic        vga_rst;
+
+    always_ff @(posedge vga_pixel_clk) begin
+        vga_rst_sync <= {vga_rst_sync[0], ~rst_n};
+    end
+
+    assign vga_rst = vga_rst_sync[1];
+
     vga_controller_1280x720 u_vga (
         .clk      (vga_pixel_clk),
-        .reset    (1'b0),              // free-run; no async reset per project rules
+        .reset    (vga_rst),
         .hsync    (vga_hsync),
         .vsync    (vga_vsync),
         .hcount   (vga_hcount),
@@ -376,7 +387,13 @@ module top_single_cycle #(
     //   mem_addr = char_row * 160 + char_col
     // -----------------------------------------------------------------
     logic [12:0] vmem_rd_addr;
-    assign vmem_rd_addr = (vga_vcount[9:4] * 11'd160) + vga_hcount[10:3];
+    logic [13:0] vmem_char_addr;
+
+    assign vmem_char_addr = ({8'd0, vga_vcount[9:4]} * 14'd160) + {6'd0, vga_hcount[10:3]};
+
+    // Blanking addresses rows past the 7200-cell framebuffer; M10K reads
+    // outside the array are undefined, so fold them back to a valid cell.
+    assign vmem_rd_addr = (vmem_char_addr >= 14'd7200) ? 13'd0 : vmem_char_addr[12:0];
 
     // Single-clock dual-port video memory (M10K) - both ports on pixel clock.
     // The screen_writer runs in the VGA domain so writes are synchronous.
@@ -408,7 +425,7 @@ module top_single_cycle #(
     // Full refresh = 111 cycles (2.22 µs) - far faster than VGA frame rate.
     screen_writer_single_cycle u_writer (
         .clk          (vga_pixel_clk),
-        .rst_n        (pll_locked),
+        .rst_n        (~vga_rst),
         .pc           (pc),
         .instruction  (instruction),
         .next_pc      (pc_plus4),
@@ -435,7 +452,11 @@ module top_single_cycle #(
         .alu_b        (alu_b),
         .alu_res      (alu_res),
         .dm_addr      (alu_res),          // alias: dm_addr = alu_res
+        .dm_wdata     (dm_wdata),
+        .dm_rdata     (dm_rd_data),
         .data_wr      (rd_data),          // alias for ru_data_wr_src display
+        .cycle_count  (cycle_count),
+        .halted       (program_done),
         .vmem_wr_en   (vmem_wr_en),
         .vmem_wr_addr (vmem_wr_addr),
         .vmem_wr_data (vmem_wr_data)
