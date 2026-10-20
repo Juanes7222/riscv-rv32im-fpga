@@ -58,6 +58,22 @@ BUBBLE_INSTRUCTION = 0x00000013
 LOAD_OPCODE = 0b0000011
 STORE_OPCODE = 0b0100011
 
+# The live memory tables of the console.  A table is a window over a
+# memory: the writer follows the address of the last access and draws the
+# words around it, one row at a time.
+TABLE_SHADOWS = ('imem', 'dmem')
+
+# What the shadows hold, for the comment of the unused ones.
+SHADOW_CONTENT = {
+    'imem': 'the program memory',
+    'dmem': 'the data memory',
+}
+
+# The characters of one row of a table: the byte address, a colon, a
+# space and the word.
+TABLE_ADDR_DIGITS = 4
+TABLE_FILLER = 2      # the colon and the space behind the address
+
 
 def is_reg_field(name: str) -> bool:
     return re.fullmatch(r'x\d+', name) is not None
@@ -131,7 +147,7 @@ def format_wires(specs: List[Tuple[str, List[str]]]) -> List[str]:
     return lines
 
 
-def derived_wires(snapshots: Set[str]) -> List[List[Tuple[str, List[str]]]]:
+def derived_wires(snapshots: Set[str], live_access: bool = False) -> List[List[Tuple[str, List[str]]]]:
     """The derived wires of this design, as blocks of declarations.
 
     Only the signals whose snapshot exists in this design are emitted, so a
@@ -164,6 +180,17 @@ def derived_wires(snapshots: Set[str]) -> List[List[Tuple[str, List[str]]]]:
     if any(name == 'mem_access' for name, _ in memory) and \
             any(name == 'mem_write_access' for name, _ in memory):
         memory.append(('mem_read_access', ['mem_access && !mem_write_access']))
+    if live_access:
+        # The live memory access: the live table follows the address of the
+        # access, so the address and the access have to come from the same
+        # instant, and the snapshot bank cannot deliver that.
+        memory.append(('mem_access_live', [
+            f"({mem_instr}[6:0] == 7'b{LOAD_OPCODE:07b}) ||",
+            f"({mem_instr}[6:0] == 7'b{STORE_OPCODE:07b})",
+        ]))
+        memory.append(('mem_store_live', [
+            f"({mem_instr}[6:0] == 7'b{STORE_OPCODE:07b})",
+        ]))
 
     return [block for block in (stages, memory) if block]
 
@@ -281,8 +308,180 @@ def chunk_fields(gfields: list, max_chars: int) -> List[list]:
     return chunks
 
 
-def generate_rtl(fields: list, mode: str) -> str:
+def build_table_group(table: dict, screen_width: int) -> dict:
+    """Build the description of the group of a live memory table.
+
+    The table is not an ordinary field group: its character multiplexer
+    would have one input per character.  Instead the group computes the
+    character from the row and the column it draws, so the multiplexer has
+    one input per column.
+
+    The table samples the live signals at its sweep boundary: the address
+    of an access and the fact that it happened have to come from the same
+    instant, and the shared snapshot bank loads every group at its own
+    boundary."""
+    name = table['name']
+    rows = table['rows']
+    row_bytes = table['row_bytes']
+    addcol = table['addr_col'] - table['col']
+    datacol = table['data_col'] - table['col']
+    chars = rows * row_bytes
+    return {
+        'name': f'TBL_{name.upper()}',
+        'lower': f'tbl_{name}',
+        'rows': rows,
+        'row_bytes': row_bytes,
+        'row0': table['row'] * screen_width + table['col'],
+        'stride': screen_width,
+        'addcol': addcol,
+        'datacol': datacol,
+        'data_digits': row_bytes - addcol - TABLE_ADDR_DIGITS - TABLE_FILLER,
+        'n': chars,
+        'ctr_w': (chars - 1).bit_length(),
+        'shadow': table['shadow'],
+        'follow': table['follow_signal'],
+        'only_access': bool(table.get('only_on_access')),
+        'fields': [],
+        'params': '',
+        'cases': '',
+        'snap': [],
+        'is_table': True,
+    }
+
+
+def table_blocks(t: dict) -> dict:
+    """The generated blocks of a live memory table.
+
+    The table owns its state: the window base and the marked row are
+    sampled at the sweep boundary, so every row of a sweep describes the
+    same window."""
+    upper = t['name']
+    lower = t['lower']
+    shadow = t['shadow']
+    follow = t['follow']
+
+    # A table that follows an access keeps the address of the last one;
+    # a table that follows a running value keeps that value.
+    if t['only_access']:
+        access = 'mem_access_live'
+        write = 'mem_store_live'
+    else:
+        access = "1'b1"
+        write = "1'b0"
+
+    decls = f"""    // Live memory table: {shadow}
+    localparam int {upper}_ROWS = {t['rows']};
+    localparam logic [12:0] {upper}_ROW0 = 13'd{t['row0']};
+    localparam logic [12:0] {upper}_STRIDE = 13'd{t['stride']};
+    localparam logic [3:0] {upper}_ADDCOL = 4'd{t['addcol']};
+    localparam logic [3:0] {upper}_DATACOL = 4'd{t['datacol']};
+    localparam logic [12:0] {upper}_MIDDLE = {upper}_ROWS / 2;
+    localparam logic [12:0] {upper}_MAX_BASE = DMEM_DEPTH - {t['rows']};
+    localparam logic [12:0] {upper}_LAST_WORD = DMEM_DEPTH - 1;
+
+    logic [5:0]  {lower}_row;          // the row of the table being drawn
+    logic [3:0]  {lower}_col;          // the character of the row being drawn
+    logic [31:0] {lower}_word;         // the word of the row, from the shadow
+    logic [12:0] {lower}_base;         // the word address of the first row
+    logic [12:0] {lower}_addr;         // the word address of the row drawn
+    logic [12:0] {lower}_marked;       // the word address of the marked row
+    logic [12:0] {lower}_access_base;  // the base of the last access
+    logic [12:0] {lower}_access_word;  // the word address of the last access
+    logic        {lower}_access_write; // the last access was a write
+    logic        {lower}_marked_write; // the marked row is a write"""
+
+    resets = '\n'.join(
+        f"            {lower}_{name} <= {value};"
+        for name, value in (('row', "'0"), ('col', "'0"), ('base', "'0"),
+                            ('addr', "'0"), ('marked', "'0"),
+                            ('marked_write', "1'b0"))
+    )
+    # The read address of the shadow starts at word 0.
+    resets += f"\n            {shadow}_rd_addr <= '0;"
+
+    wires = f"""    // The word the access touches, clamped to the memory.
+    wire [12:0] {lower}_hit_word = ({follow} > ({upper}_LAST_WORD * 4))
+                                   ? {upper}_LAST_WORD : {follow}[14:2];
+    // The window base: the accessed word sits in the middle of the table.
+    wire [12:0] {lower}_new_base = ({lower}_hit_word > {upper}_MIDDLE)
+                                    ? ({lower}_hit_word - {upper}_MIDDLE) : 13'd0;
+    wire [12:0] {lower}_clamped = ({lower}_new_base > {upper}_MAX_BASE)
+                                  ? {upper}_MAX_BASE : {lower}_new_base;"""
+
+    state = f"""    // The table follows the last access.  The window and the marked row
+    // are sampled at the sweep boundary, so every row of a sweep shows
+    // the same window.
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            {lower}_word <= '0;
+            {lower}_access_base <= '0;
+            {lower}_access_word <= '0;
+            {lower}_access_write <= 1'b0;
+        end else begin
+            {lower}_word <= {shadow}_rd_data;
+            if ({access}) begin
+                {lower}_access_base <= {lower}_clamped;
+                {lower}_access_word <= {lower}_hit_word;
+                {lower}_access_write <= {write};
+            end
+        end
+    end"""
+
+    fsm = f"""                GRP_{upper}: begin
+                    ctr_{lower} <= (ctr_{lower} == N_{upper} - 1) ? '0 : ctr_{lower} + 1'b1;
+                    if (ctr_{lower} == N_{upper} - 1) begin
+                        // A new sweep: the window follows the last access.
+                        {lower}_row <= 6'd0;
+                        {lower}_col <= 4'd0;
+                        {lower}_base <= {lower}_access_base;
+                        {lower}_addr <= {lower}_access_base;
+                        {lower}_marked <= {lower}_access_word;
+                        {lower}_marked_write <= {lower}_access_write;
+                        {shadow}_rd_addr <= {lower}_access_base * 4;
+                    end else if ({lower}_col == 4'd{t['row_bytes'] - 1}) begin
+                        {lower}_col <= 4'd0;
+                        {lower}_row <= {lower}_row + 6'd1;
+                        {lower}_addr <= {lower}_base + {{7'd0, {lower}_row}} + 13'd1;
+                        {shadow}_rd_addr <= ({lower}_base + {{7'd0, {lower}_row}} + 13'd1) * 4;
+                    end else begin
+                        {lower}_col <= {lower}_col + 4'd1;
+                    end
+                end"""
+
+    if t['only_access']:
+        attr = f"""                wr_attr = ({lower}_addr == {lower}_marked)
+                          ? ({lower}_marked_write ? 8'h38 : 8'h28) : 8'h09;"""
+    else:
+        attr = "                wr_attr = 8'h09;"
+
+    case = f"""            GRP_{upper}: begin
+                wr_en   = 1'b1;
+                wr_addr = {upper}_ROW0 + {{7'd0, {lower}_row}} * {upper}_STRIDE
+                          + {{10'd0, {lower}_col}};
+                if ({lower}_col < {upper}_ADDCOL + 4'd{TABLE_ADDR_DIGITS})
+                    wr_data = hex_digit({{{lower}_addr, 2'b00}},
+                                        {TABLE_ADDR_DIGITS - 1} - ({lower}_col - {upper}_ADDCOL));
+                else if ({lower}_col == {upper}_ADDCOL + 4'd{TABLE_ADDR_DIGITS})
+                    wr_data = 8'h3A;   // ':'
+                else if ({lower}_col == {upper}_DATACOL - 4'd1)
+                    wr_data = 8'h20;   // ' '
+                else
+                    wr_data = hex_digit({lower}_word,
+                                        {t['data_digits'] - 1} - ({lower}_col - {upper}_DATACOL));
+                // The row of the current access is marked with '>'.
+                if ({lower}_col == {upper}_ADDCOL && {lower}_addr == {lower}_marked)
+                    wr_data = 8'h3E;   // '>'
+{attr}
+            end"""
+
+    return {'decls': decls, 'wires': wires, 'state': state, 'resets': resets,
+            'fsm': fsm, 'case': case}
+
+
+def generate_rtl(data: dict, mode: str) -> str:
     """Produce the SystemVerilog source for the screen writer."""
+    fields = data['fields']
+    screen_width = data.get('screen_width', 160)
 
     # The memory tables are static content of the framebuffer.
     def is_table_field(f: dict) -> bool:
@@ -303,8 +502,20 @@ def generate_rtl(fields: list, mode: str) -> str:
         port_widths[REG_BUS] = REG_BUS_WIDTH
     snapshots = set(port_names)
 
+    # The live memory tables are groups of their own: their characters come
+    # from the row and the column the group draws.
+    table_groups = [build_table_group(t, screen_width)
+                    for t in data.get('tables', [])]
+    for t in table_groups:
+        if t['follow'] not in snapshots:
+            raise ValueError(
+                f"The table '{t['lower']}' follows the signal '{t['follow']}', "
+                'which this design neither samples nor derives.'
+            )
+        t['blocks'] = table_blocks(t)
+
     # The derived wires the attribute expressions may reference.
-    wires = derived_wires(snapshots)
+    wires = derived_wires(snapshots, bool(table_groups))
     local_wires = {name for block in wires for name, _ in block}
 
     # One group per set of fields, each group small enough for its character
@@ -317,11 +528,36 @@ def generate_rtl(fields: list, mode: str) -> str:
             groups.append(g)
     if reg_fields:
         groups.append(build_group('REGS', reg_fields, snapshots, local_wires))
+    # The live tables are exempt from the size limit: their multiplexer has
+    # one input per column, not one per character.
+    groups.extend(table_groups)
 
     input_ports = '\n'.join(
         f"    input logic [{port_widths[n]-1}:0] {n},"
         for n in port_names
     )
+
+    # The ports of the memory shadows the tables read.  The address is a
+    # byte address, like the one of the shadow.
+    memory_ports = (
+        "    // Live memory windows (VGA clock domain)\n"
+        "    output logic [31:0] imem_rd_addr,\n"
+        "    input  logic [31:0] imem_rd_data,\n"
+        "    output logic [31:0] dmem_rd_addr,\n"
+        "    input  logic [31:0] dmem_rd_data,"
+    )
+
+    # A shadow without a table reads word 0.
+    live_shadows = {t['shadow'] for t in table_groups}
+    shadow_ties = []
+    for shadow in TABLE_SHADOWS:
+        if shadow not in live_shadows:
+            shadow_ties.append(
+                f"    // No table reads {SHADOW_CONTENT[shadow]} yet: the shadow reads\n"
+                f"    // word 0.\n"
+                f"    assign {shadow}_rd_addr = 32'h0;"
+            )
+    shadow_ties = '\n'.join(shadow_ties)
 
     # Snapshot register bank: one register per sampled signal
     snap_decls = '\n'.join(
@@ -372,7 +608,12 @@ def generate_rtl(fields: list, mode: str) -> str:
                 "                    end\n"
             )
 
-        if gname == 'REGS':
+        if g.get('is_table'):
+            # The table computes its characters from the row and the column
+            # it draws, and it owns its state.
+            counter_fsm.append(g['blocks']['fsm'])
+            case_blocks.append(g['blocks']['case'])
+        elif gname == 'REGS':
             reg_group = g
             counter_fsm.append(f"""                GRP_{gname}: begin
                     ctr_{lower} <= (ctr_{lower} == N_{gname} - 1) ? '0 : ctr_{lower} + 1'b1;
@@ -415,17 +656,28 @@ def generate_rtl(fields: list, mode: str) -> str:
     derived = '\n'.join('\n'.join(format_wires(block)) for block in wires)
     derived_block = f"{derived}\n" if derived else ''
 
+    table_decls = '\n'.join(t['blocks']['decls'] for t in table_groups)
+    table_wires = '\n'.join(t['blocks']['wires'] for t in table_groups)
+    table_state = '\n'.join(t['blocks']['state'] for t in table_groups)
+    table_resets = '\n'.join(t['blocks']['resets'] for t in table_groups)
+
     sv = f'''// screen_writer_{mode} - auto-generated by gen_screen_writer.py
 // Character-level round-robin, {total_chars} characters split in {n_groups}
 // alternating groups.  Displayed values come from a snapshot bank loaded
 // once per sweep.
 
-module screen_writer_{mode} (
+module screen_writer_{mode} #(
+    // The depth of the data memory the live table reads; the window of
+    // the table clamps to its last rows.
+    parameter int DMEM_DEPTH = 512
+) (
     input logic        clk,
     input logic        rst_n,
 
     // Processor signals (all values to be displayed)
 {input_ports}
+
+{memory_ports}
 
     // Video memory port (write-only, processor clock domain)
     output logic        vmem_wr_en,
@@ -434,7 +686,7 @@ module screen_writer_{mode} (
 );
 
     // Field address map (from fields.json)
-{chr(10).join(g['params'] for g in groups)}
+{chr(10).join(g['params'] for g in groups if g['params'])}
 
     // The groups rotate: one group is written per cycle.
 {chr(10).join(group_consts)}
@@ -444,6 +696,12 @@ module screen_writer_{mode} (
     localparam int N_CHARS  = {total_chars};
 
 {chr(10).join(counter_decls)}
+
+{table_decls}
+
+{table_wires}
+
+{shadow_ties}
 
     logic [GRP_W-1:0] grp_ctr;
 
@@ -459,6 +717,7 @@ module screen_writer_{mode} (
     // Derived signals used by the attribute expressions; a signal may come
     // from a snapshot of another group, so it can lag one sweep behind.
 {derived_block}
+{table_state}
     // Helper functions: value --> ASCII
     function automatic [7:0] hex_digit (
         input logic [63:0] value,
@@ -494,6 +753,7 @@ module screen_writer_{mode} (
             reg_col   <= '0;
 {snap_reset}
 {ctr_resets}
+{table_resets}
         end else begin
             grp_ctr <= (grp_ctr == N_GROUPS - 1) ? '0 : grp_ctr + 1'b1;
             case (grp_ctr)
@@ -535,7 +795,7 @@ def main() -> int:
     with open(args.fields_json) as fp:
         data = json.load(fp)
 
-    rtl = generate_rtl(data['fields'], args.mode)
+    rtl = generate_rtl(data, args.mode)
 
     Path(args.out_rtl).write_text(rtl)
     print(f'Generated {args.out_rtl} with {len(data["fields"])} fields')

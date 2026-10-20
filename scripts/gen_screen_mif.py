@@ -842,6 +842,35 @@ def read_mem_words(path: str) -> List[int]:
     return words
 
 
+def data_memory_table(locations: List[Tuple[int, int, int, int]]) -> dict:
+    """The geometry of the live data memory table.
+
+    The table is a window over the data memory: the writer follows the
+    address of the last access and draws the words around it.  The
+    geometry comes from the block detection: the first row of the table
+    gives the screen row and the columns of the table.
+
+    The table samples the live signals at its sweep boundary, so the
+    address of an access and the fact that it happened come from the
+    same instant.
+    """
+    row, addr_col, data_col, data_width = locations[0]
+    return {
+        'name': 'data_memory',
+        'row': row,
+        'col': addr_col,
+        'addr_col': addr_col,
+        'data_col': data_col,
+        'rows': len(locations),
+        'row_bytes': data_col + data_width - addr_col,
+        'shadow': 'dmem',
+        'follow': 'dm_addr',
+        'follow_signal': 'dm_addr',
+        'marker_signal': 'dm_addr',
+        'only_on_access': True,
+    }
+
+
 # Step 6 - Stage headers and flow arrows
 def identifier(text: str) -> str:
     """A name that can be used as an identifier in the generated RTL."""
@@ -1058,13 +1087,15 @@ def build_mif(grid: List[List[str]], colors: List[List[int]],
         fp.write('END;\n')
 
 
-def write_field_map(slots: List[Slot], out_path: Path) -> None:
+def write_field_map(slots: List[Slot], tables: List[dict],
+                    out_path: Path) -> None:
     """Write the formal contract as JSON."""
     payload = {
         'screen_width': SCREEN_W,
         'screen_height': SCREEN_H,
         'cell_count': CELLS,
         'fields': [s.to_dict() for s in slots],
+        'tables': tables,
     }
     with open(out_path, 'w') as fp:
         json.dump(payload, fp, indent=2)
@@ -1111,6 +1142,7 @@ def main() -> int:
 
     occupied: Set[Tuple[int, int]] = set()
     slots: List[Slot] = []
+    tables: List[dict] = []
 
     # Parse tabular blocks first (they have priority)
     if 'Registers' in blocks:
@@ -1121,6 +1153,10 @@ def main() -> int:
     if 'Data Memory' in blocks:
         loc = parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
         fill_memory_table(grid, loc, read_mem_words(args.dmem))
+        # The data memory table is live: the writer follows the last
+        # access.  The program table joins the section when it becomes
+        # live too.
+        tables.append(data_memory_table(loc))
 
     # Parse tagged signals in the remaining free areas
     try:
@@ -1145,10 +1181,11 @@ def main() -> int:
 
     # Generate artifacts
     build_mif(grid, colors, slots, Path(args.out_mif))
-    write_field_map(slots, Path(args.out_fields))
+    write_field_map(slots, tables, Path(args.out_fields))
 
     print(f'Rewrite fields: {len(header_slots)} stage header characters, '
           f'{len(arrow_slots)} flow arrow characters')
+    print(f'Live tables: {[t["name"] for t in tables]}')
     print(f'OK: {len(slots)} slots --> {args.out_mif} + {args.out_fields}')
     return 0
 

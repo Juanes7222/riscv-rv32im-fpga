@@ -800,7 +800,9 @@ module top_pipeline #(
         .vga_b      (vga_b)
     );
 
-    screen_writer_pipeline u_writer (
+    screen_writer_pipeline #(
+        .DMEM_DEPTH (DMEM_DEPTH)
+    ) u_writer (
         .clk              (vga_pixel_clk),
         .rst_n            (~vga_rst),
 
@@ -875,6 +877,12 @@ module top_pipeline #(
         // Register file (whole file, for the register table)
         .reg_values       (rf_dbg_regs),
 
+        // Live memory windows (VGA clock domain)
+        .imem_rd_addr     (imem_shadow_rd_addr),
+        .imem_rd_data     (imem_shadow_rd_data),
+        .dmem_rd_addr     (dmem_shadow_rd_addr),
+        .dmem_rd_data     (dmem_shadow_rd_data),
+
         // Hazard / control
         .stall            (stall),
         .load_use_hazard  (load_use_hazard),
@@ -897,10 +905,9 @@ module top_pipeline #(
     // -----------------------------------------------------------------
     logic [31:0] dmem_shadow_rd_data;
     logic [31:0] imem_shadow_rd_data;
-    // The screen writer walks the memories; until it does, both shadows
-    // read word 0.
-    logic [31:0] dmem_shadow_rd_addr = 32'h0;
-    logic [31:0] imem_shadow_rd_addr = 32'h0;
+    // The screen writer walks the memories; it drives the read addresses.
+    logic [31:0] dmem_shadow_rd_addr;
+    logic [31:0] imem_shadow_rd_addr;
 
     vga_mem_shadow #(.DEPTH(DMEM_DEPTH)) u_dmem_shadow (
         .wr_clk (clk),

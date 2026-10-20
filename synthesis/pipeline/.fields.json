@@ -3980,5 +3980,21 @@
         "bg": 1
       }
     }
+  ],
+  "tables": [
+    {
+      "name": "data_memory",
+      "row": 9,
+      "col": 118,
+      "addr_col": 118,
+      "data_col": 124,
+      "rows": 32,
+      "row_bytes": 14,
+      "shadow": "dmem",
+      "follow": "dm_addr",
+      "follow_signal": "dm_addr",
+      "marker_signal": "dm_addr",
+      "only_on_access": true
+    }
   ]
 }

@@ -2033,5 +2033,21 @@
         "bg": 1
       }
     }
+  ],
+  "tables": [
+    {
+      "name": "data_memory",
+      "row": 12,
+      "col": 32,
+      "addr_col": 32,
+      "data_col": 38,
+      "rows": 32,
+      "row_bytes": 14,
+      "shadow": "dmem",
+      "follow": "dm_addr",
+      "follow_signal": "dm_addr",
+      "marker_signal": "dm_addr",
+      "only_on_access": true
+    }
   ]
 }
