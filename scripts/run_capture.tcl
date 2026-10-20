@@ -21,7 +21,11 @@ if {$argc < 1} {
 }
 
 set arch       [lindex $argv 0]
-set output_dir [lindex $argv 1 [file join $repo_root "results"]]
+if {[llength $argv] > 1} {
+    set output_dir [lindex $argv 1]
+} else {
+    set output_dir [file join $repo_root "results"]
+}
 
 # Locate the .sof file: search synthesis/<arch>/output_files/
 set synthesis_dir [file join $repo_root "synthesis" $arch]
@@ -45,11 +49,13 @@ set csv_file [file join $output_dir "capture_${arch}.csv"]
 # ---------------------------------------------------------------------------
 # Step 1: Program the FPGA via JTAG
 # ---------------------------------------------------------------------------
+# The DE1-SoC chain is USB-Blaster -> MAX10 -> Cyclone V, so the FPGA is
+# device 2.  Programming device 1 configures the MAX10 and fails.
 puts ""
 puts "Programming FPGA..."
-puts "  quartus_pgm -c 1 -m jtag -o p;${sof}"
+puts "  quartus_pgm -c 1 -m jtag -o p;${sof}@2"
 
-if {[catch {exec quartus_pgm -c 1 -m jtag -o "p;${sof}"} prog_result]} {
+if {[catch {exec quartus_pgm -c 1 -m jtag -o "p;${sof}@2"} prog_result]} {
     puts "Warning: quartus_pgm failed: ${prog_result}"
     puts "Check that the USB Blaster is connected and the DE1-SoC is powered on."
     puts "Continuing to STP capture anyway..."
@@ -74,6 +80,25 @@ if {![file exists $stp_file]} {
 
 puts "Using STP: ${stp_file}"
 
+# The SignalTap Tcl API (stp_open, stp_run, stp_export) was removed from
+# Quartus Prime 25.1.  Fail with an explanation instead of an "invalid
+# command name" error.
+if {[llength [info commands stp_run]] == 0} {
+    puts "Error: this Quartus Prime version does not provide the SignalTap Tcl API."
+    puts ""
+    puts "The stp_open / stp_run / stp_export commands were removed in"
+    puts "Quartus Prime 25.1, and the Logic Analyzer Interface API expects a"
+    puts ".lai file that only the SignalTap II GUI can produce."
+    puts ""
+    puts "To capture the counters from the board:"
+    puts "  1. Open the SignalTap II GUI with the project that has"
+    puts "     ENABLE_SIGNALTAP enabled (make build-fpga ARCH=${arch})."
+    puts "  2. Load stp/perf_capture_${arch}.stp, run the acquisition and"
+    puts "     export the waveform as CSV to results/capture_${arch}.csv."
+    puts "  3. Compare it with: make cross-validate ARCH=${arch}"
+    exit 1
+}
+
 # Open STP file
 if {[catch {stp_open -file $stp_file} open_result]} {
     puts "Error: failed to open STP file: ${open_result}"
@@ -84,6 +109,9 @@ if {[catch {stp_open -file $stp_file} open_result]} {
 # Step 3: Run the capture and wait for trigger
 # ---------------------------------------------------------------------------
 set instance_name "perf_capture_${arch}"
+if {$arch eq "single_cycle"} {
+    set instance_name "perf_capture_sc"
+}
 puts ""
 puts "Starting STP run..."
 puts "  Instance: ${instance_name}"

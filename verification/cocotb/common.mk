@@ -14,9 +14,20 @@ REPO_ROOT    = $(shell git rev-parse --show-toplevel)
 RTL_ROOT     = $(REPO_ROOT)/rtl
 SCRIPTS_ROOT = $(REPO_ROOT)/scripts
 BUILD_DIR    = $(REPO_ROOT)/build
-MEM_CONFIG   = $(RTL_ROOT)/shared/mem_config.vh
+
+# Simulation memory images.  They live in build/sim/ because the FPGA flow
+# owns build/imem.mem and build/dmem.mem (generated at the synthesis depths).
+# The paths are injected from the command line so the simulation never has to
+# write rtl/shared/mem_config.vh, which belongs to the Quartus build.
+SIM_MEM_DIR  = $(BUILD_DIR)/sim
+SIM_IMEM     = $(SIM_MEM_DIR)/imem.mem
+SIM_DMEM     = $(SIM_MEM_DIR)/dmem.mem
+SIM_TEST_ELF = $(firstword $(wildcard $(BUILD_DIR)/riscv-tests/rv32ui/*.elf))
 
 COMPILE_ARGS ?= -I$(RTL_ROOT)/shared
+COMPILE_ARGS += -DIMEM_FILE=\"$(abspath $(SIM_IMEM))\"
+COMPILE_ARGS += -DDMEM_FILE=\"$(abspath $(SIM_DMEM))\"
+COMPILE_ARGS += -DFONT_ROM_FILE=\"$(abspath $(RTL_ROOT)/shared/vga_font_rom.hex)\"
 
 SHARED_SRCS = \
     $(RTL_ROOT)/shared/register_file.sv \
@@ -43,23 +54,14 @@ export DMEM_DEPTH  ?= 8192
 
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
-sim_build/sim.vvp: $(MEM_CONFIG)
+# The simulation images only need to exist when the simulator starts; each
+# test regenerates them for the ELF it exercises.
+$(SIM_IMEM): $(SIM_TEST_ELF)
+	@mkdir -p $(SIM_MEM_DIR)
+	python3 $(SCRIPTS_ROOT)/elf_to_mem.py $< $(IMEM_DEPTH) $@
 
-$(MEM_CONFIG): FORCE
-	@FIRST_ELF=$$(ls $(BUILD_DIR)/riscv-tests/rv32ui/*.elf 2>/dev/null | head -1); \
-	if [ -n "$$FIRST_ELF" ]; then \
-	    python3 $(SCRIPTS_ROOT)/gen_mem_config.py \
-	        --imem $(BUILD_DIR)/imem.mem \
-	        --dmem $(BUILD_DIR)/dmem.mem \
-	        --relative-to $(PWD) \
-	        --out $(MEM_CONFIG) \
-	        --validate-linux-path $(BUILD_DIR)/imem.mem \
-	        --validate-linux-dmem $(BUILD_DIR)/dmem.mem; \
-	else \
-	    mkdir -p $$(dirname $@); \
-	    touch $@; \
-	fi
+$(SIM_DMEM): $(SIM_TEST_ELF)
+	@mkdir -p $(SIM_MEM_DIR)
+	python3 $(SCRIPTS_ROOT)/elf_to_mem.py $< $(DMEM_DEPTH) $@
 
-sim: $(MEM_CONFIG)
-
-FORCE:
+sim_build/sim.vvp: $(SIM_IMEM) $(SIM_DMEM)

@@ -20,7 +20,7 @@ Usage:
     python scripts/fpga_validate.py --compare results/capture_pipeline.csv --arch pipeline
 
 Outputs:
-    build/fpga_validate/imem.mem, dmem.mem  - FPGA-compatible memory images
+    build/imem.mem, build/dmem.mem          - FPGA-compatible memory images
     results/validation_reference.csv         - expected values from cocotb
     results/cross_validation_pipeline.csv    - FPGA vs cocotb comparison
 """
@@ -33,7 +33,12 @@ import subprocess
 import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-BUILD_DIR = REPO_ROOT / "build" / "fpga_validate"
+BUILD_DIR = REPO_ROOT / "build"
+
+# The script is run from scripts/, so the repository root is not importable by
+# default; the reference model and the cocotb helpers live there.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 RESULTS_DIR = REPO_ROOT / "results"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 RTL_SHARED = REPO_ROOT / "rtl" / "shared"
@@ -125,6 +130,9 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     env["VALIDATION_CSV"] = str(csv_path)
     env["PATH"] = f"{REPO_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
 
+    # A stale CSV must never be mistaken for a fresh reference.
+    csv_path.unlink(missing_ok=True)
+
     result = subprocess.run(
         ["make", "-C", str(verif_dir),
          "TOPLEVEL_LANG=verilog",
@@ -139,7 +147,8 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
 
     if result.returncode != 0:
         print("cocotb test failed. Checking CSV anyway...")
-        print(result.stderr[-500:] if result.stderr else "")
+        print(result.stdout[-3000:] if result.stdout else "")
+        print(result.stderr[-3000:] if result.stderr else "")
 
     # Read CSV
     if csv_path.exists():
@@ -255,6 +264,11 @@ def main():
                         help="Output directory for results")
     args = parser.parse_args()
 
+    # Absolute paths: the cocotb test runs in its own directory and the
+    # capture runs from the repository root.
+    args.elf = args.elf.resolve()
+    args.output_dir = args.output_dir.resolve()
+
     if not args.elf.exists():
         print(f"Error: ELF not found: {args.elf}")
         sys.exit(1)
@@ -297,8 +311,9 @@ def main():
     if not args.fpga_only:
         for arch_name in ["pipeline", "single_cycle"]:
             print(f"\nRunning cocotb validation for {arch_name}...")
+            arch_csv = args.output_dir / f"validation_{arch_name}.csv"
             try:
-                data = run_cocotb_validation(args.elf, arch_name, ref_csv)
+                data = run_cocotb_validation(args.elf, arch_name, arch_csv)
                 print(f"  cycle_count={data['cycle_count']}, "
                       f"instr_retired={data['instr_retired']}, "
                       f"CPI={data['cpi']}")
@@ -308,29 +323,33 @@ def main():
                 print("  (The cocotb infrastructure must be set up)")
 
         # Write combined reference CSV
-        if cocotb_data:
-            combined = args.output_dir / "validation_reference.csv"
-            combined.parent.mkdir(parents=True, exist_ok=True)
-            with open(combined, "w", newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow([
-                    "architecture", "program", "result",
-                    "cycle_count", "instr_retired", "cpi", "tohost_addr"
-                ])
-                # Read back individual CSVs
-                for arch_name in ["pipeline", "single_cycle"]:
-                    csv_file = args.output_dir / f"validation_{arch_name}.csv"
-                    if csv_file.exists():
-                        with open(csv_file) as cf:
-                            reader = csv.DictReader(cf)
-                            for row in reader:
-                                writer.writerow([
-                                    row["architecture"], row["program"],
-                                    row["result"], row["cycle_count"],
-                                    row["instr_retired"], row["cpi"],
-                                    row["tohost_addr"],
-                                ])
-            print(f"\nCombined reference written to: {combined}")
+        combined = args.output_dir / "validation_reference.csv"
+        combined.parent.mkdir(parents=True, exist_ok=True)
+        with open(combined, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "architecture", "program", "result",
+                "cycle_count", "instr_retired", "cpi", "tohost_addr"
+            ])
+            rows = 0
+            for arch_name in ["pipeline", "single_cycle"]:
+                csv_file = args.output_dir / f"validation_{arch_name}.csv"
+                if csv_file.exists():
+                    with open(csv_file) as cf:
+                        reader = csv.DictReader(cf)
+                        for row in reader:
+                            writer.writerow([
+                                row["architecture"], row["program"],
+                                row["result"], row["cycle_count"],
+                                row["instr_retired"], row["cpi"],
+                                row["tohost_addr"],
+                            ])
+                            rows += 1
+        if rows == 0:
+            print("\nError: no cocotb reference was produced; the comparison "
+                  "would be meaningless.")
+            sys.exit(1)
+        print(f"\nCombined reference written to: {combined}")
     else:
         print("\nSkipping cocotb (--fpga-only set).")
 

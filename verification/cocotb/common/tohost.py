@@ -61,21 +61,24 @@ def _elf_to_raw_binary(elf_path: pathlib.Path, bin_path: pathlib.Path) -> None:
 
 def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     """
-    Convert an ELF to imem.mem + dmem.mem and regenerate mem_config.vh.
-    Invokes the same scripts used by 'make flash' in the root Makefile.
-    IMEM_DEPTH and DMEM_DEPTH must match RTL parameters (root Makefile: 4096 / 1024).
+    Convert an ELF to imem.mem + dmem.mem for the simulation.
+
+    The images live in build/sim/ so that the FPGA flow (build/imem.mem and
+    build/dmem.mem, generated at the synthesis memory depths) is never
+    overwritten by a simulation run.  mem_config.vh belongs to the synthesis
+    flow; the simulator overrides the paths from the command line instead.
     """
     # In synthesis (rtl/shared/): IMEM_DEPTH=16384, DMEM_DEPTH=8192.
     # The cocotb Makefiles export these; fallback matches the RTL defaults.
     imem_depth = int(os.environ.get("IMEM_DEPTH", 16384))
     dmem_depth = int(os.environ.get("DMEM_DEPTH", 8192))
 
-    bin_path  = BUILD_DIR / "program.bin"
-    imem_path = BUILD_DIR / "imem.mem"
-    dmem_path = BUILD_DIR / "dmem.mem"
-    mem_cfg   = RTL_SHARED / "mem_config.vh"
+    sim_dir    = BUILD_DIR / "sim"
+    bin_path   = sim_dir / "program.bin"
+    imem_path  = sim_dir / "imem.mem"
+    dmem_path  = sim_dir / "dmem.mem"
 
-    BUILD_DIR.mkdir(parents=True, exist_ok=True)
+    sim_dir.mkdir(parents=True, exist_ok=True)
 
     # Build raw binary from ELF in pure Python to avoid host objcopy dependency.
     _elf_to_raw_binary(elf_path, bin_path)
@@ -88,15 +91,6 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.
     subprocess.run(
         ["python3", str(SCRIPTS_ROOT / "elf_to_mem.py"),
          str(bin_path), str(dmem_depth), str(dmem_path)],
-        check=True,
-    )
-    subprocess.run(
-        ["python3", str(SCRIPTS_ROOT / "gen_mem_config.py"),
-         "--imem", str(imem_path),
-         "--dmem", str(dmem_path),
-         "--relative-to", os.getcwd(),
-         "--validate-linux-path", str(imem_path),
-         "--validate-linux-dmem", str(dmem_path)],
         check=True,
     )
     return imem_path, dmem_path
