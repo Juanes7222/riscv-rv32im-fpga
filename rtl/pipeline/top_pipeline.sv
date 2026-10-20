@@ -801,7 +801,8 @@ module top_pipeline #(
     );
 
     screen_writer_pipeline #(
-        .DMEM_DEPTH (DMEM_DEPTH)
+        .DMEM_DEPTH (DMEM_DEPTH),
+        .IMEM_DEPTH (IMEM_DEPTH)
     ) u_writer (
         .clk              (vga_pixel_clk),
         .rst_n            (~vga_rst),

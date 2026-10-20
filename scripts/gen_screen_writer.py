@@ -74,6 +74,13 @@ SHADOW_CONTENT = {
 TABLE_ADDR_DIGITS = 4
 TABLE_FILLER = 2      # the colon and the space behind the address
 
+# The width of a word address inside a table.  A table addresses the words
+# of its memory, so the address needs a bit for every word of the deepest
+# memory of the console.
+# shortcut: 14 bits reach 16384 words; a deeper memory needs a wider
+# address.
+TABLE_WORD_BITS = 14
+
 
 def is_reg_field(name: str) -> bool:
     return re.fullmatch(r'x\d+', name) is not None
@@ -341,6 +348,7 @@ def build_table_group(table: dict, screen_width: int) -> dict:
         'shadow': table['shadow'],
         'follow': table['follow_signal'],
         'only_access': bool(table.get('only_on_access')),
+        'depth_param': table['depth_param'],
         'fields': [],
         'params': '',
         'cases': '',
@@ -359,15 +367,25 @@ def table_blocks(t: dict) -> dict:
     lower = t['lower']
     shadow = t['shadow']
     follow = t['follow']
+    depth = t['depth_param']
+    w = TABLE_WORD_BITS
 
     # A table that follows an access keeps the address of the last one;
     # a table that follows a running value keeps that value.
     if t['only_access']:
         access = 'mem_access_live'
         write = 'mem_store_live'
+        keeps = 'the last access'
+        hit_comment = """    // The word the access touches.  The memory masks the index to its
+    // depth, so an access beyond the memory lands in a lower word: the
+    // table has to mark the word the hardware really used."""
     else:
         access = "1'b1"
         write = "1'b0"
+        keeps = 'the running value'
+        hit_comment = """    // The word the followed signal points at.  The memory masks the
+    // index to its depth, so an address beyond the memory lands in a
+    // lower word: the table has to mark the word the hardware used."""
 
     decls = f"""    // Live memory table: {shadow}
     localparam int {upper}_ROWS = {t['rows']};
@@ -376,17 +394,17 @@ def table_blocks(t: dict) -> dict:
     localparam logic [3:0] {upper}_ADDCOL = 4'd{t['addcol']};
     localparam logic [3:0] {upper}_DATACOL = 4'd{t['datacol']};
     localparam logic [12:0] {upper}_MIDDLE = {upper}_ROWS / 2;
-    localparam logic [12:0] {upper}_MAX_BASE = DMEM_DEPTH - {t['rows']};
-    localparam logic [12:0] {upper}_WORD_MASK = DMEM_DEPTH - 1;
+    localparam logic [{w-1}:0] {upper}_MAX_BASE = {depth} - {t['rows']};
+    localparam logic [{w-1}:0] {upper}_WORD_MASK = {depth} - 1;
 
     logic [5:0]  {lower}_row;          // the row of the table being drawn
     logic [3:0]  {lower}_col;          // the character of the row being drawn
     logic [31:0] {lower}_word;         // the word of the row, from the shadow
-    logic [12:0] {lower}_base;         // the word address of the first row
-    logic [12:0] {lower}_addr;         // the word address of the row drawn
-    logic [12:0] {lower}_marked;       // the word address of the marked row
-    logic [12:0] {lower}_access_base;  // the base of the last access
-    logic [12:0] {lower}_access_word;  // the word address of the last access
+    logic [{w-1}:0] {lower}_base;         // the word address of the first row
+    logic [{w-1}:0] {lower}_addr;         // the word address of the row drawn
+    logic [{w-1}:0] {lower}_marked;       // the word address of the marked row
+    logic [{w-1}:0] {lower}_access_base;  // the base of the last access
+    logic [{w-1}:0] {lower}_access_word;  // the word address of the last access
     logic        {lower}_access_write; // the last access was a write
     logic        {lower}_access_valid; // an access has happened
     logic        {lower}_marked_write; // the marked row is a write
@@ -401,23 +419,20 @@ def table_blocks(t: dict) -> dict:
     # The read address of the shadow starts at word 0.
     resets += f"\n            {shadow}_rd_addr <= '0;"
 
-    wires = f"""    // The word the access touches.  The memory masks the index to its
-    // depth, so an access beyond the memory lands in a lower word: the
-    // table has to mark the word the hardware really used.
-    wire [12:0] {lower}_hit_word = {follow}[14:2] & {upper}_WORD_MASK;
-    // The window base: the accessed word sits in the middle of the table.
-    wire [12:0] {lower}_new_base = ({lower}_hit_word > {upper}_MIDDLE)
-                                    ? ({lower}_hit_word - {upper}_MIDDLE) : 13'd0;
-    wire [12:0] {lower}_clamped = ({lower}_new_base > {upper}_MAX_BASE)
+    wires = f"""{hit_comment}
+    wire [{w-1}:0] {lower}_hit_word = ({follow} >> 2) & {upper}_WORD_MASK;
+    // The window base: the word sits in the middle of the table.
+    wire [{w-1}:0] {lower}_new_base = ({lower}_hit_word > {upper}_MIDDLE)
+                                    ? ({lower}_hit_word - {upper}_MIDDLE) : {w}'d0;
+    wire [{w-1}:0] {lower}_clamped = ({lower}_new_base > {upper}_MAX_BASE)
                                   ? {upper}_MAX_BASE : {lower}_new_base;
-    // The row of the current access.  Before the first access there is
-    // none.
+    // The marked row of the table.
     wire {lower}_is_marked = {lower}_marked_valid
                              && ({lower}_addr == {lower}_marked);"""
 
-    state = f"""    // The table follows the last access.  The window and the marked row
-    // are sampled at the sweep boundary, so every row of a sweep shows
-    // the same window.
+    state = f"""    // The table follows {keeps}.  The window and the marked row are
+    // sampled at the sweep boundary, so every row of a sweep shows the
+    // same window.
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             {lower}_word <= '0;
@@ -439,7 +454,7 @@ def table_blocks(t: dict) -> dict:
     fsm = f"""                GRP_{upper}: begin
                     ctr_{lower} <= (ctr_{lower} == N_{upper} - 1) ? '0 : ctr_{lower} + 1'b1;
                     if (ctr_{lower} == N_{upper} - 1) begin
-                        // A new sweep: the window follows the last access.
+                        // A new sweep: the window follows {keeps}.
                         {lower}_row <= 6'd0;
                         {lower}_col <= 4'd0;
                         {lower}_base <= {lower}_access_base;
@@ -451,8 +466,8 @@ def table_blocks(t: dict) -> dict:
                     end else if ({lower}_col == 4'd{t['row_bytes'] - 1}) begin
                         {lower}_col <= 4'd0;
                         {lower}_row <= {lower}_row + 6'd1;
-                        {lower}_addr <= {lower}_base + {{7'd0, {lower}_row}} + 13'd1;
-                        {shadow}_rd_addr <= ({lower}_base + {{7'd0, {lower}_row}} + 13'd1) * 4;
+                        {lower}_addr <= {lower}_base + {{{w-6}'d0, {lower}_row}} + {w}'d1;
+                        {shadow}_rd_addr <= ({lower}_base + {{{w-6}'d0, {lower}_row}} + {w}'d1) * 4;
                     end else begin
                         {lower}_col <= {lower}_col + 4'd1;
                     end
@@ -462,7 +477,9 @@ def table_blocks(t: dict) -> dict:
         attr = f"""                wr_attr = {lower}_is_marked
                           ? ({lower}_marked_write ? 8'h38 : 8'h28) : 8'h09;"""
     else:
-        attr = "                wr_attr = 8'h09;"
+        # The marked row is not an access: it wears the background of an
+        # active stage box, so it reads as "this is where we are".
+        attr = f"                wr_attr = {lower}_is_marked ? 8'h18 : 8'h09;"
 
     case = f"""            GRP_{upper}: begin
                 wr_en   = 1'b1;
@@ -478,7 +495,7 @@ def table_blocks(t: dict) -> dict:
                 else
                     wr_data = hex_digit({lower}_word,
                                         {t['data_digits'] - 1} - ({lower}_col - {upper}_DATACOL));
-                // The row of the current access is marked with '>'.
+                // The marked row carries a '>'.
                 if ({lower}_col == {upper}_ADDCOL && {lower}_is_marked)
                     wr_data = 8'h3E;   // '>'
 {attr}
@@ -516,8 +533,10 @@ def generate_rtl(data: dict, mode: str) -> str:
     # from the row and the column the group draws.
     table_groups = [build_table_group(t, screen_width)
                     for t in data.get('tables', [])]
+    # A table may follow a live signal or the snapshot of one.
+    followable = snapshots | {f'snap_{name}' for name in snapshots}
     for t in table_groups:
-        if t['follow'] not in snapshots:
+        if t['follow'] not in followable:
             raise ValueError(
                 f"The table '{t['lower']}' follows the signal '{t['follow']}', "
                 'which this design neither samples nor derives.'
@@ -565,9 +584,9 @@ def generate_rtl(data: dict, mode: str) -> str:
             shadow_ties.append(
                 f"    // No table reads {SHADOW_CONTENT[shadow]} yet: the shadow reads\n"
                 f"    // word 0.\n"
-                f"    assign {shadow}_rd_addr = 32'h0;"
+                f"    assign {shadow}_rd_addr = 32'h0;\n\n"
             )
-    shadow_ties = '\n'.join(shadow_ties)
+    shadow_ties = ''.join(shadow_ties)
 
     # Snapshot register bank: one register per sampled signal
     snap_decls = '\n'.join(
@@ -679,7 +698,9 @@ def generate_rtl(data: dict, mode: str) -> str:
 module screen_writer_{mode} #(
     // The depth of the data memory the live table reads; the window of
     // the table clamps to its last rows.
-    parameter int DMEM_DEPTH = 512
+    parameter int DMEM_DEPTH = 512,
+    // The depth of the program memory the live program table reads.
+    parameter int IMEM_DEPTH = 2048
 ) (
     input logic        clk,
     input logic        rst_n,
@@ -711,9 +732,7 @@ module screen_writer_{mode} #(
 
 {table_wires}
 
-{shadow_ties}
-
-    logic [GRP_W-1:0] grp_ctr;
+{shadow_ties}    logic [GRP_W-1:0] grp_ctr;
 
     // Register table, stage 1: the row of the character being written.
     localparam logic [{REG_COUNT * 13 - 1}:0] REG_ADDR = {{{reg_addr_array}}};

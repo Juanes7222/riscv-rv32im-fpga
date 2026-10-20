@@ -3983,6 +3983,21 @@
   ],
   "tables": [
     {
+      "name": "prog_memory",
+      "row": 9,
+      "col": 102,
+      "addr_col": 102,
+      "data_col": 108,
+      "rows": 32,
+      "row_bytes": 14,
+      "shadow": "imem",
+      "follow": "snap_ex_pc",
+      "follow_signal": "snap_ex_pc",
+      "marker_signal": "snap_ex_pc",
+      "only_on_access": false,
+      "depth_param": "IMEM_DEPTH"
+    },
+    {
       "name": "data_memory",
       "row": 9,
       "col": 118,
@@ -3994,7 +4009,8 @@
       "follow": "dm_addr",
       "follow_signal": "dm_addr",
       "marker_signal": "dm_addr",
-      "only_on_access": true
+      "only_on_access": true,
+      "depth_param": "DMEM_DEPTH"
     }
   ]
 }

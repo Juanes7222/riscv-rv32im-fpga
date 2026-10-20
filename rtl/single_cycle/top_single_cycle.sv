@@ -465,7 +465,8 @@ module top_single_cycle #(
     // Round-robin screen writer: updates one character per pixel clock cycle.
     // Full refresh = 111 cycles (2.22 µs) - far faster than VGA frame rate.
     screen_writer_single_cycle #(
-        .DMEM_DEPTH (DMEM_DEPTH)
+        .DMEM_DEPTH (DMEM_DEPTH),
+        .IMEM_DEPTH (IMEM_DEPTH)
     ) u_writer (
         .clk          (vga_pixel_clk),
         .rst_n        (~vga_rst),

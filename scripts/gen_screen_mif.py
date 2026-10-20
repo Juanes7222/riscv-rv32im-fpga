@@ -100,6 +100,15 @@ IN_FLIGHT_FIELDS = (
 # The values of the register table keep the blue of their labels.
 REGISTER_FG_INDEX = 13
 
+# The PC of the instruction that executes, per sheet: the pipeline has it
+# in the EX stage, the single-cycle design has only one stage.  The live
+# program table follows the snapshot of that PC, so the window changes
+# once per sweep.
+EXECUTING_PC: Dict[str, str] = {
+    'Pipeline': 'snap_ex_pc',
+    'Single-cycle': 'snap_pc',
+}
+
 # The stage boxes of each sheet and the signal that lights them up.  The two
 # designs derive different signals, so the map is per sheet: a stage is
 # active when its instruction register holds neither zero nor the canonical
@@ -898,7 +907,54 @@ def data_memory_table(locations: List[Tuple[int, int, int, int]]) -> dict:
         'follow_signal': 'dm_addr',
         'marker_signal': 'dm_addr',
         'only_on_access': True,
+        'depth_param': 'DMEM_DEPTH',
     }
+
+
+def prog_memory_table(locations: List[Tuple[int, int, int, int]],
+                      follow_signal: str) -> dict:
+    """The geometry of the live program memory table.
+
+    The table is a window over the program memory: it follows the PC of
+    the instruction that executes and draws the words around it.  The PC
+    always advances, so the window follows the program and is not sticky.
+    """
+    row, addr_col, data_col, data_width = locations[0]
+    return {
+        'name': 'prog_memory',
+        'row': row,
+        'col': addr_col,
+        'addr_col': addr_col,
+        'data_col': data_col,
+        'rows': len(locations),
+        'row_bytes': data_col + data_width - addr_col,
+        'shadow': 'imem',
+        'follow': follow_signal,
+        'follow_signal': follow_signal,
+        'marker_signal': follow_signal,
+        'only_on_access': False,
+        'depth_param': 'IMEM_DEPTH',
+    }
+
+
+def check_tables_do_not_overlap(tables: List[dict]) -> None:
+    """Fail when two live tables paint the same cells.
+
+    The writer paints one table over the other, so the console would show
+    a mixture of two windows.
+    """
+    for index, first in enumerate(tables):
+        for second in tables[index + 1:]:
+            rows_overlap = (first['row'] < second['row'] + second['rows'] and
+                            second['row'] < first['row'] + first['rows'])
+            cols_overlap = (first['col'] < second['col'] + second['row_bytes']
+                            and second['col'] < first['col']
+                            + first['row_bytes'])
+            if rows_overlap and cols_overlap:
+                raise ValueError(
+                    f'The tables "{first["name"]}" and "{second["name"]}" '
+                    'paint the same cells.'
+                )
 
 
 # Step 6 - Stage headers and flow arrows
@@ -1181,13 +1237,16 @@ def main() -> int:
         if 'Prog. Memory' in blocks:
             loc = parse_memory_table(grid, blocks['Prog. Memory'], occupied, 'Prog. Memory')
             fill_memory_table(grid, loc, read_mem_words(args.imem))
+            # The program table is live: the writer follows the PC of the
+            # instruction that executes.
+            tables.append(prog_memory_table(loc, EXECUTING_PC[args.sheet]))
         if 'Data Memory' in blocks:
             loc = parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
             fill_memory_table(grid, loc, read_mem_words(args.dmem))
             # The data memory table is live: the writer follows the last
-            # access.  The program table joins the section when it becomes
-            # live too.
+            # access.
             tables.append(data_memory_table(loc))
+        check_tables_do_not_overlap(tables)
     except ValueError as exc:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
