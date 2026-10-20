@@ -115,3 +115,41 @@ to be compressed before they are compared.
 Until the divergence is located, the CoreMark rows of
 `results/results_synthetic_benchmarks.csv` are not valid measurements of the
 pipeline CPI; the synthetic benchmarks are.
+
+### What has been localised so far
+
+The divergence is in `calc_func`, the byte-swap helper of the CoreMark list
+operations:
+
+```
+7c:  lh   a0, 2(a0)      <- the load
+80:  slli a4, a5, 0x10
+```
+
+* Both designs retire the same instructions for 1483 instructions, and the
+  difference appears in the register file: `a0` and `s0` differ, the memory
+  does not.  The load at `0x7c` returns `0x0000` in the single-cycle and
+  `0xffff` in the pipeline.
+* The data memory contents are identical in the two designs at the point of
+  the divergence, so the pipeline did not write the wrong value: it read a
+  value that was still the old one.
+* The address, the decode, the byte enables, the halfword selection and the
+  register write-back of that load are all correct in the pipeline
+  (`mem_alu_result` carries the right address, the byte lanes hold the right
+  bytes, the write-back address and data are right).  The isolated
+  store-to-load, odd-address halfword and byte-lane tests behave identically
+  in both designs.
+* The value is therefore lost between the store that writes the halfword and
+  the load that reads it, in the pipeline only.  The load data is not carried
+  by the MEM/WB register - it bypasses it and is taken from the live output
+  of the data memory at the write-back cycle, which is correct only while
+  the load leaves the MEM stage in the cycle in which it was read.  Making
+  the MEM/WB register carry the load data was tried and is wrong: the
+  registered output of the data memory is one cycle later than the data the
+  instruction needs.
+
+The comparison method is reusable: run the same ELF on both designs, log the
+program counter and the whole register file on every retirement, and compare
+the two streams (the streams have to be compressed, because the pipeline
+holds the last instruction in the write-back stage during the 34 cycles of a
+division, while the single-cycle holds the division itself).
