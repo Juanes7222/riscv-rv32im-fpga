@@ -292,6 +292,8 @@ module tb_screen_writer_snapshot;
         .br_op(br_op),
         .branch(branch),
         .cycle_count(cycle_count),
+        .cycles_at_done(64'd0),
+        .instr_at_done(64'd0),
         .data_wr(data_wr),
         .dm_addr(dm_addr),
         .dm_ctrl(dm_ctrl),

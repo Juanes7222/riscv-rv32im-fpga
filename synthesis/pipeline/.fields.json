@@ -420,6 +420,32 @@
       "origin": "register table row 41"
     },
     {
+      "name": "cycles_at_done",
+      "label": "CyclesToPass",
+      "row": 1,
+      "col": 58,
+      "width": 16,
+      "fmt": "hex",
+      "signal_bits": 64,
+      "display_min": 16,
+      "start_address": 218,
+      "end_address": 233,
+      "origin": "tagged after \"CyclesToPass\" on row 2"
+    },
+    {
+      "name": "instr_at_done",
+      "label": "InstrToPass",
+      "row": 2,
+      "col": 57,
+      "width": 16,
+      "fmt": "hex",
+      "signal_bits": 64,
+      "display_min": 16,
+      "start_address": 377,
+      "end_address": 392,
+      "origin": "tagged after \"InstrToPass\" on row 3"
+    },
+    {
       "name": "ru_data_wr_src",
       "label": "RUDataWrSrc",
       "row": 7,

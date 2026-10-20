@@ -107,6 +107,11 @@ CATALOG = {
     'cycle_count': ('hex', 64, 16),
     'halted':      ('bin',  1, 1),
 
+    # Counters frozen when the program wrote to tohost: the on-board
+    # counterpart of the values cocotb reports.
+    'cycles_at_done': ('hex', 64, 16),
+    'instr_at_done':  ('hex', 64, 16),
+
     # Pipeline extras (only used when --sheet Pipeline)
     'if_pc':           ('hex', 32, 8),
     'if_instruction':  ('hex', 32, 8),
@@ -219,6 +224,9 @@ LABEL_ALIASES: Dict[str, str] = {
     'TrapFlush':   'trap_flush',
     'Flush':       'flush',
     'InstrRetired':'instr_retired',
+
+    'CyclesToPass':'cycles_at_done',
+    'InstrToPass': 'instr_at_done',
 }
 
 

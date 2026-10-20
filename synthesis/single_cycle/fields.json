@@ -472,6 +472,19 @@
       "origin": "tagged after \"HALTED\" on row 7"
     },
     {
+      "name": "cycles_at_done",
+      "label": "CyclesToPass",
+      "row": 7,
+      "col": 15,
+      "width": 16,
+      "fmt": "hex",
+      "signal_bits": 64,
+      "display_min": 16,
+      "start_address": 1135,
+      "end_address": 1150,
+      "origin": "tagged after \"CyclesToPass\" on row 8"
+    },
+    {
       "name": "next_pc",
       "label": "NextPC",
       "row": 7,
@@ -483,6 +496,19 @@
       "start_address": 1179,
       "end_address": 1186,
       "origin": "tagged after \"NextPC\" on row 8"
+    },
+    {
+      "name": "instr_at_done",
+      "label": "InstrToPass",
+      "row": 8,
+      "col": 14,
+      "width": 16,
+      "fmt": "hex",
+      "signal_bits": 64,
+      "display_min": 16,
+      "start_address": 1294,
+      "end_address": 1309,
+      "origin": "tagged after \"InstrToPass\" on row 9"
     },
     {
       "name": "branch",
