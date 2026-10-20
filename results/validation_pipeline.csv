@@ -1,2 +1,2 @@
 architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
-pipeline,coremark.elf,timeout,200001,101039,1.9794,0x5000
+pipeline,add.elf,pass,557,392,1.4209,0x708

@@ -1,6 +1,6 @@
 # RV32IM FPGA - Results Report
 
-*Generated: 2026-06-24 19:31*
+*Generated: 2026-10-19 18:54*
 
 ---
 
@@ -30,15 +30,15 @@
 
 | Metric | Single-Cycle | Pipeline |
 |---|---|---|
-| Fmax @85°C | 36.79 MHz | 57.45 MHz |
-| Fmax @0°C | 37.57 MHz | 57.81 MHz |
-| ALMs | 12201 | 2177 |
-| Registers | 18045 | 2173 |
+| Fmax @85°C | 42.48 MHz | 57.72 MHz |
+| Fmax @0°C | 43.18 MHz | 57.92 MHz |
+| ALMs | 11541 | 2363 |
+| Registers | 17503 | 1804 |
 | DSP Blocks | 9 | 9 |
-| Memory Bits | 0 | 16384 |
-| Pins | 54 | 54 |
-| Setup Slack (85°C) | -17.182 ns | -7.407 ns |
-| Hold Slack (85°C) | -17.182 ns | -7.407 ns |
+| Memory Bits | 90368 | 106752 |
+| Pins | 83 | 83 |
+| Setup Slack (85°C) | -13.543 ns | -7.324 ns |
+| Hold Slack (85°C) | -13.543 ns | -7.324 ns |
 
 ---
 
@@ -61,28 +61,28 @@
 
 | Test | Status | Time (s) |
 |---|---|---|
-| test_forward_ex_mem_to_ex | ✅ PASS | 0.0024 |
-| test_forward_mem_wb_to_ex | ✅ PASS | 0.0023 |
-| test_forward_wb_to_id | ✅ PASS | 0.0018 |
-| test_load_use_then_forward_mem_wb | ✅ PASS | 0.0015 |
-| test_chain_three_raw_dependencies | ✅ PASS | 0.0018 |
-| test_no_false_forward_to_x0 | ✅ PASS | 0.0019 |
-| test_mem_raw_stall_then_forward | ✅ PASS | 0.0019 |
+| test_forward_ex_mem_to_ex | ✅ PASS | 0.0030 |
+| test_forward_mem_wb_to_ex | ✅ PASS | 0.0031 |
+| test_forward_wb_to_id | ✅ PASS | 0.0029 |
+| test_load_use_then_forward_mem_wb | ✅ PASS | 0.0029 |
+| test_chain_three_raw_dependencies | ✅ PASS | 0.0040 |
+| test_no_false_forward_to_x0 | ✅ PASS | 0.0032 |
+| test_mem_raw_stall_then_forward | ✅ PASS | 0.0039 |
 
 ## Pipeline Control Hazard Tests
 
 | Test | Status | Time (s) |
 |---|---|---|
-| test_beq_taken_flushes_pipeline | ✅ PASS | 0.0018 |
-| test_beq_not_taken_no_flush | ✅ PASS | 0.0017 |
-| test_jal_flush | ✅ PASS | 0.0024 |
-| test_jalr_flush | ✅ PASS | 0.0021 |
+| test_beq_taken_flushes_pipeline | ✅ PASS | 0.0048 |
+| test_beq_not_taken_no_flush | ✅ PASS | 0.0057 |
+| test_jal_flush | ✅ PASS | 0.0066 |
+| test_jalr_flush | ✅ PASS | 0.0056 |
 
 ## Pipeline CPI/Performance Counter Tests
 
 | Test | Status | Time (s) |
 |---|---|---|
-| test_counters_reset_to_zero | ✅ PASS | 0.0003 |
-| test_load_use_increases_cycles | ✅ PASS | 0.0033 |
-| test_div_increases_cycles | ✅ PASS | 0.0067 |
-| test_counter_monotonicity | ✅ PASS | 0.0015 |
+| test_counters_reset_to_zero | ✅ PASS | 0.0006 |
+| test_load_use_increases_cycles | ✅ PASS | 0.0098 |
+| test_div_increases_cycles | ✅ PASS | 0.0135 |
+| test_counter_monotonicity | ✅ PASS | 0.0020 |
