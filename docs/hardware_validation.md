@@ -179,3 +179,58 @@ and was not done here.
 | 8 | the font ROM path was relative to the Quartus project directory | the font ROM was empty in every simulation |
 | 9 | the common cocotb suite is single-cycle specific (its Makefile lists the single-cycle sources) | running it with `TOPLEVEL=top_pipeline` fails at elaboration; the pipeline has its own RV32I/M/MI suites in `verification/cocotb/pipeline/` |
 | 10 | `RTL_ROOT` was undefined in the Makefile | the screen-writer dependency rule pointed at `/pipeline/...` |
+| 11 | the pipeline executed a branch twice when a load-use hazard put a branch behind a load | the pipeline could not run CoreMark; see ADR 043 |
+| 12 | the RTL dumped the whole waveform on every simulation | a CoreMark run wrote 10 GB of VCD and became I/O bound; the dump is now off unless `-DDUMP_VCD` is given |
+| 13 | the synthetic benchmarks put `tohost` at 0x100, the riscv-tests at 0x708 | one bitstream could not detect the end of every benchmark; the synthetic programs now use 0x708 |
+| 14 | the pipeline counter only counted the instructions that write a register | the CPI of the pipeline excluded the branches and the stores and was up to twice the correct value (ADR 024) |
+
+---
+
+## 5. The counters must mean the same thing in both designs (ADR 024)
+
+The CPI of the two microarchitectures is only comparable if both count the
+same thing.  The single-cycle counts every cycle in which an instruction
+retires; the pipeline counted only the instructions that write a register,
+because `valid_wb` required `wb_ru_wr`.  The branches and the stores were
+therefore missing from the denominator, and the CPI of the pipeline was
+inflated (the branch-stress benchmark: 4003 executed instructions counted as
+2003, a CPI of 4.0 instead of 2.0).
+
+`valid_wb` now depends on the bubble only, and
+`scripts/measure_benchmarks.py` compares the instruction counts of the two
+designs and marks a benchmark as `divergent` when they differ.  That check is
+what found the defect of the next section.
+
+## 6. The pipeline bug that the benchmark found (ADR 043)
+
+The pipeline never reached the `tohost` write of CoreMark, while the
+single-cycle completed it.  Comparing the stream of retired program
+counters of both designs located the first divergence:
+
+```
+1cc8:  lh    a4, 2032(a5)
+1ccc:  beqz  a4, 2028          <- retired twice by the pipeline
+1cd0:  addi  t1, sp, 80
+```
+
+The minimal reproduction is a load followed by a branch:
+
+```systemverilog
+lh   a4, 0(a5)      // the load
+beqz a4, +8        // the branch that consumes the load
+```
+
+During the second cycle of the load-use stall the IF/ID register was held
+(so the consumer stayed in ID) while the ID/EX register kept advancing (its
+hold input was wired to the division stall only).  The consumer was copied
+into EX while it stayed in ID, and it was executed twice.
+
+The fix holds the ID/EX register whenever the pipeline stalls for a reason
+other than the load-use bubble, and the regression test
+`test_load_use_on_branch_executes_branch_once` counts the retirements of
+the branch.
+
+This defect was invisible to the riscv-tests because none of them places a
+branch directly behind a load, and to the ALU consumers of a load-use
+hazard, because a duplicated ALU instruction writes the same value twice.
+

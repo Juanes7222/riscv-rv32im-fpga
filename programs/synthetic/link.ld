@@ -22,10 +22,10 @@ SECTIONS
         *(.data)
     }
 
-    /* Tohost at 0x100 (DMEM word 0x40). The exact address varies by program
-       size; check with: riscv-none-elf-objdump -t <elf> | grep tohost
-       The FPGA build must set TOHOST_ADDR to match this address. */
-    . = 0x00000100;
+    /* Tohost at 0x708, the same address the riscv-tests use, so one FPGA
+       build (TOHOST_ADDR = 0x708) detects the end of every benchmark.
+       Check with: riscv-none-elf-nm <elf> | grep tohost */
+    . = 0x00000708;
     .tohost : {
         *(.tohost)
     }

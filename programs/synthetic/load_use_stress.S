@@ -49,6 +49,6 @@ loop_end:
     j loop_end
 
 .section .tohost
-.align 4
+.balign 4
 tohost:   .word 0
 fromhost: .word 0

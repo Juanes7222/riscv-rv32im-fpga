@@ -29,6 +29,12 @@ COMPILE_ARGS += -DIMEM_FILE=\"$(abspath $(SIM_IMEM))\"
 COMPILE_ARGS += -DDMEM_FILE=\"$(abspath $(SIM_DMEM))\"
 COMPILE_ARGS += -DFONT_ROM_FILE=\"$(abspath $(RTL_ROOT)/shared/vga_font_rom.hex)\"
 
+# The waveform dump is off unless it is asked for: a long benchmark run
+# writes gigabytes and becomes I/O bound.
+ifneq ($(DUMP_VCD),1)
+COMPILE_ARGS += -DNO_VCD
+endif
+
 SHARED_SRCS = \
     $(RTL_ROOT)/shared/register_file.sv \
     $(RTL_ROOT)/shared/alu_rv32im.sv \

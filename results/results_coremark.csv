@@ -1,0 +1,5 @@
+architecture,program,result,cycle_count,instr_retired,cpi,fmax_mhz,throughput_mips,speedup_pipeline_over_single_cycle
+single_cycle,coremark_iter10,pass,3152076,3152042,1.0000,36.91,36.910,0.8183
+pipeline,coremark_iter10,pass,148851,79418,1.8743,56.61,30.204,0.8183
+single_cycle,coremark_iter1,pass,327888,327854,1.0001,36.91,36.906,0.8489
+pipeline,coremark_iter1,pass,27405,15167,1.8069,56.61,31.330,0.8489

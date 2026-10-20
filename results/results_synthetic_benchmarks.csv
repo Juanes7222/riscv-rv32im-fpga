@@ -1,0 +1,9 @@
+architecture,program,result,cycle_count,instr_retired,cpi,fmax_mhz,throughput_mips,speedup_pipeline_over_single_cycle,note
+single_cycle,raw_stress,pass,1148,1148,1.0000,36.91,36.910,1.2259,
+pipeline,raw_stress,pass,1435,1147,1.2511,56.61,45.249,1.2259,
+single_cycle,branch_stress,pass,4004,4004,1.0000,36.91,36.910,0.7670,
+pipeline,branch_stress,pass,8005,4003,1.9998,56.61,28.309,0.7670,
+single_cycle,load_use_stress,pass,1125,1125,1.0000,36.91,36.910,0.7710,
+pipeline,load_use_stress,pass,2236,1124,1.9893,56.61,28.457,0.7710,
+single_cycle,m_ext_stress,pass,1175,155,7.5806,36.91,4.869,1.4486,
+pipeline,m_ext_stress,pass,1236,154,8.0260,56.61,7.053,1.4486,
