@@ -318,5 +318,8 @@ Anteproyecto.pdf
 
 !vga_font_rom.hex
 
+skills-lock.json
+.agents/
 # Compiled simulation binaries
 *.vvp
+docs/superpowers/
