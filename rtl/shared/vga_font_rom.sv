@@ -2,6 +2,13 @@
 // Synchronous read so Quartus infers block ROM (M10K or MLAB).
 // Initialised from vga_font_rom.hex (raw hex, one byte per line).
 
+// Path relative to the Quartus project directory (synthesis/<arch>/).  A
+// simulator can override it from the command line, because it resolves the
+// path against its own working directory.
+`ifndef FONT_ROM_FILE
+`define FONT_ROM_FILE "../../rtl/shared/vga_font_rom.hex"
+`endif
+
 module vga_font_rom (
     input  logic        clk,
     input  logic [11:0] addr,   // char_code[7:0] & row[3:0]
@@ -14,8 +21,7 @@ module vga_font_rom (
 
     // Quartus accepts $readmemh in synthesis for ROM initialisation.
     initial begin
-        // Path relative to Quartus project directory (synthesis/<arch>/)
-        $readmemh("../../rtl/shared/vga_font_rom.hex", mem);
+        $readmemh(`FONT_ROM_FILE, mem);
     end
 
     always_ff @(posedge clk) begin
