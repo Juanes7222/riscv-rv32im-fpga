@@ -2,9 +2,13 @@
 // Reads character code from video_memory, looks up font bitmap, and
 // produces 8-bpp RGB pixels with a 2-cycle pipeline to compensate for
 // registered memory reads.
+// The video-memory cell is {attribute[15:8], character[7:0]}: the attribute
+// byte selects the foreground colour from its low nibble and the background
+// colour from its high nibble.
 
 module vga_text_mode (
     input  logic        clk,          // vga_pixel_clk
+    input  logic        reset,        // synchronous, active high
     input  logic [10:0] hcount,
     input  logic [9:0]  vcount,
     input  logic        video_on,
@@ -49,20 +53,58 @@ module vga_text_mode (
     logic pixel_bit;
     assign pixel_bit = font_byte[7 - hcount_d2[2:0]];
 
-    // Foreground / background colours (white on black)
-    localparam logic [7:0] FG = 8'hFF;
-    localparam logic [7:0] BG = 8'h00;
+    // 16-entry RGB palette shared by foreground and background.
+    function automatic logic [23:0] palette_rgb(input logic [3:0] idx);
+        case (idx)
+            4'd0:  palette_rgb = 24'h000000;
+            4'd1:  palette_rgb = 24'h101040;
+            4'd2:  palette_rgb = 24'h103010;
+            4'd3:  palette_rgb = 24'h501010;
+            4'd4:  palette_rgb = 24'h505000;
+            4'd5:  palette_rgb = 24'h202020;
+            4'd6:  palette_rgb = 24'h303030;
+            4'd7:  palette_rgb = 24'h606060;
+            4'd8:  palette_rgb = 24'hFFFFFF;
+            4'd9:  palette_rgb = 24'hC0C0C0;
+            4'd10: palette_rgb = 24'h8FB8FF;
+            4'd11: palette_rgb = 24'hFF5050;
+            4'd12: palette_rgb = 24'h50FF50;
+            4'd13: palette_rgb = 24'h6060FF;
+            4'd14: palette_rgb = 24'hFF60FF;
+            4'd15: palette_rgb = 24'hFFFF60;
+            default: palette_rgb = 24'hC0C0C0;
+        endcase
+    endfunction
+
+    // Colours are registered in the same stage as the font ROM output, so the
+    // attribute byte travels with the character it belongs to and the path
+    // from a register to the output pins keeps a single mux level.
+    logic [23:0] fg_rgb;
+    logic [23:0] bg_rgb;
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            fg_rgb <= 24'h000000;
+            bg_rgb <= 24'h000000;
+        end else begin
+            fg_rgb <= palette_rgb(char_data[11:8]);
+            bg_rgb <= palette_rgb(char_data[15:12]);
+        end
+    end
+
+    // The colour mux is combinational; the channel split is plain wiring.
+    logic [23:0] pixel_rgb;
 
     always_comb begin
         if (video_on_d2 && pixel_bit) begin
-            vga_r = FG;
-            vga_g = FG;
-            vga_b = FG;
+            pixel_rgb = fg_rgb;
         end else begin
-            vga_r = BG;
-            vga_g = BG;
-            vga_b = BG;
+            pixel_rgb = bg_rgb;
         end
     end
+
+    assign vga_r = pixel_rgb[23:16];
+    assign vga_g = pixel_rgb[15:8];
+    assign vga_b = pixel_rgb[7:0];
 
 endmodule

@@ -785,6 +785,7 @@ module top_pipeline #(
 
     vga_text_mode u_text_mode (
         .clk        (vga_pixel_clk),
+        .reset      (vga_rst),
         .hcount     (vga_hcount),
         .vcount     (vga_vcount),
         .video_on   (vga_video_on),
