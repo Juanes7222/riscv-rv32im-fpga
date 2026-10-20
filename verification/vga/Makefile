@@ -6,7 +6,7 @@ TB  := tb_screen_writer_snapshot
 RTL := ../../rtl/single_cycle/screen_writer_sc.sv
 
 STEP_TB  := tb_step_mode
-STEP_RTL := ../../rtl/shared/step_mode.sv \
+STEP_RTL := ../../rtl/shared/step_mode_ctrl.sv \
             ../../rtl/shared/perf_counter.sv \
             ../../rtl/single_cycle/pc.sv \
             ../../rtl/pipeline/pc_unit.sv \

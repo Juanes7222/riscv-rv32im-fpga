@@ -41,7 +41,7 @@ SHARED_SRCS = \
     $(RTL_ROOT)/shared/branch_unit.sv \
     $(RTL_ROOT)/shared/imm_gen.sv \
     $(RTL_ROOT)/shared/perf_counter.sv \
-    $(RTL_ROOT)/shared/step_mode.sv \
+    $(RTL_ROOT)/shared/step_mode_ctrl.sv \
     $(RTL_ROOT)/shared/seven_segment.sv \
     $(RTL_ROOT)/shared/csr_file.sv
 

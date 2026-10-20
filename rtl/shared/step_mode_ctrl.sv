@@ -6,15 +6,23 @@
 //
 // The module only produces the freeze request.  Each design applies it to
 // its own clock enables, so the clock itself is never gated.
-module step_mode (
+//
+// Button polarity
+// ---------------
+// key_step is the RAW KEY[1] pin level: the DE1-SoC push buttons are
+// active low, so the pin is wired directly and needs no inversion.  The
+// pin is 1 while the button is released and 0 while it is pressed.  The
+// module detects the falling edge of the synchronised pin, so the step
+// fires a few clocks after the PRESS.
+module step_mode_ctrl (
     input  logic clk,        // processor clock
     input  logic rst_n,      // active-low synchronous reset
-    input  logic key_step,   // KEY[1], active high: 1 while the button is pressed
+    input  logic key_step,   // KEY[1] raw pin, active low: 0 while pressed
     input  logic step_mode,  // SW[9], active high: 1 freezes the processor
     output logic step_hold   // 1 while the processor is frozen
 );
 
-    // KEY[1] is asynchronous: four flops make the release edge detectable.
+    // KEY[1] is asynchronous: four flops make the press edge detectable.
     // SW[9] is a switch: two flops are enough.
     logic [3:0] key_sync;
     logic [1:0] sw_sync;
@@ -30,7 +38,7 @@ module step_mode (
     end
 
     // One-cycle release request.  The synchronised key falls three clocks
-    // after KEY[1] is released, so the pulse marks the end of the press.
+    // after the press, so the pulse marks the press itself.
     logic step_press;
     assign step_press = key_sync[3] & ~key_sync[2];
 

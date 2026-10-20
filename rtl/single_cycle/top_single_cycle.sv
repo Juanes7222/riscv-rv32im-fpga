@@ -5,7 +5,7 @@ module top_single_cycle #(
 )(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
-    input logic key_step, // KEY[1], active high: releases the frozen processor for one cycle
+    input logic key_step, // KEY[1] raw pin, active low: 0 while pressed
     input logic step_mode,// SW[9], active high: freezes the processor
     output logic [9:0] ledr,       // pc[9:0]
     output logic [6:0] seven_seg_display0, // Connect to your 7-segment display output
@@ -205,7 +205,7 @@ module top_single_cycle #(
     // never to the clock itself.
     logic step_hold;
 
-    step_mode u_step_mode (
+    step_mode_ctrl u_step_mode (
         .clk       (clk),
         .rst_n     (rst_n),
         .key_step  (key_step),
@@ -304,6 +304,7 @@ module top_single_cycle #(
     alu_rv32im u_alu (
         .clk      (clk),
         .rst_n    (rst_n),
+        .hold     (step_hold),   // the divider is frozen with the processor
         .a        (alu_a),
         .b        (alu_b),
         .alu_op   (alu_op),

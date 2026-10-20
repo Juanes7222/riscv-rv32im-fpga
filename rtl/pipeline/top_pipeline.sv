@@ -9,7 +9,7 @@ module top_pipeline #(
 )(
     input  logic        clk,        // 50 MHz - DE1-SoC PIN_AF14
     input  logic        rst_n,      // Active-low synchronous reset - KEY[0]
-    input  logic        key_step,   // KEY[1], active high: releases the frozen processor for one cycle
+    input  logic        key_step,   // KEY[1] raw pin, active low: 0 while pressed
     input  logic        step_mode,  // SW[9], active high: freezes the processor
     output logic [9:0]  ledr,       // if_pc[9:0] - same convention as single-cycle
     output logic [6:0]  seven_seg_display0,
@@ -195,7 +195,7 @@ module top_pipeline #(
     // registers, never into the clock itself.
     logic step_hold;
 
-    step_mode u_step_mode (
+    step_mode_ctrl u_step_mode (
         .clk       (clk),
         .rst_n     (rst_n),
         .key_step  (key_step),
@@ -320,7 +320,7 @@ module top_pipeline #(
     // IMEM address: during a flush, feed the redirect target directly
     // so the synchronous IMEM captures the correct instruction at posedge.
     // IMEM address: during a flush, feed the redirect target directly.
-    assign imem_addr = flush ? pc_redirect_target : if_pc;
+    assign imem_addr = flush_eff ? pc_redirect_target : if_pc;
 
     instruction_memory_pipe #(
         .IMEM_DEPTH (IMEM_DEPTH)
@@ -541,6 +541,7 @@ module top_pipeline #(
     alu_rv32im u_alu (
         .clk     (clk),
         .rst_n   (rst_n),          // alu_rv32im uses active-low rst_n directly
+        .hold    (1'b0),           // the divider is not part of the freeze
         .a       (ex_alu_a),
         .b       (ex_alu_b),
         .alu_op  (ex_alu_op),
