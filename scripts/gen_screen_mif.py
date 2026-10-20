@@ -39,6 +39,7 @@ import argparse
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -52,8 +53,26 @@ CELLS = SCREEN_W * SCREEN_H           # 7 200
 ADDR_BITS = 13                        # 2**13 = 8192 > 7200
 
 # Video word: {attribute[15:8], char[7:0]}
-ATTR_STATIC = 0x07   # white on black
-ATTR_DYNAMIC = 0x0F  # bright white on black (placeholder for runtime)
+# The attribute byte is {background[7:4], foreground[3:0]}: the foreground
+# colour index lives in the LOW nibble.
+DYNAMIC_FG_INDEX = 8   # runtime values: white on black
+
+# Template colour -> palette index.  A colour that is not listed here falls
+# back to the body colour; the coverage check refuses to generate the
+# artifacts when the template uses one.
+COLOR_TO_INDEX = {
+    '000000': 9,   # box borders and rules (theme 1 and explicit black)
+    '555555': 9,   # default body text
+    '46BDC6': 9,   # column ruler labels (theme 9)
+    '6D9EEB': 10,  # MEM/WB and IF/ID headers
+    'EA4335': 11,  # WRITEBACK header (theme 5)
+    'FF5555': 11,  # stage box headers
+    '00AA00': 12,  # HELP
+    '5555FF': 13,  # register table
+    '00AAAA': 14,  # title
+    'FFD966': 15,  # HAZARDS SIGNALS
+}
+BODY_INDEX = 9
 
 
 # Signal catalog
@@ -244,6 +263,8 @@ class Slot:
     display_min: int    # minimum chars needed
     label: str          # visual label as written in the sheet
     origin: str         # human-readable provenance (for debugging)
+    fg: int = BODY_INDEX  # foreground palette index of the field
+    bg: int = 0           # background palette index of the field
 
     @property
     def start_address(self) -> int:
@@ -266,6 +287,7 @@ class Slot:
             'start_address': self.start_address,
             'end_address': self.end_address,
             'origin': self.origin,
+            'attr': {'fg': self.fg, 'bg': self.bg},
         }
 
 
@@ -278,20 +300,107 @@ class Block:
     col_end: int        # right column (exclusive)
 
 
+# Excel addresses the theme colours by index, not by the order of the
+# elements in the theme XML: the XML lists dk1 before lt1.
+THEME_COLOR_ORDER = (
+    'lt1', 'dk1', 'lt2', 'dk2',
+    'accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6',
+    'hlink', 'folHlink',
+)
+
+
+def read_theme_colors(wb) -> Dict[int, str]:
+    """Map a theme colour index to its RGB string.
+
+    The theme order follows the OOXML clrScheme: lt1, dk1, lt2, dk2,
+    accent1..accent6, hlink, folHlink."""
+    theme = getattr(wb, 'loaded_theme', None)
+    if not theme:
+        return {}
+    ns = {'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'}
+    root = ET.fromstring(theme)
+    scheme = root.find('.//a:clrScheme', ns)
+    if scheme is None:
+        return {}
+    by_name: Dict[str, str] = {}
+    for child in scheme:
+        name = child.tag.rsplit('}', 1)[-1]
+        srgb = child.find('a:srgbClr', ns)
+        sysc = child.find('a:sysClr', ns)
+        if srgb is not None:
+            by_name[name] = srgb.get('val', '').upper()
+        elif sysc is not None:
+            by_name[name] = sysc.get('lastClr', '000000').upper()
+    return {index: by_name[name]
+            for index, name in enumerate(THEME_COLOR_ORDER)
+            if name in by_name}
+
+
+def cell_rgb(cell, theme_colors: Dict[int, str]) -> str:
+    """RGB of a cell's font colour.
+
+    Returns '' when the cell carries no colour of its own, and 'theme:<index>'
+    when the colour is a theme colour the theme map does not resolve."""
+    color = cell.font.color
+    if color is None:
+        return ''
+    if color.type == 'rgb' and color.rgb:
+        # openpyxl stores the colour as ARGB; only the RGB part is a colour.
+        return str(color.rgb)[-6:].upper()
+    if color.type == 'theme' and color.theme is not None:
+        index = int(color.theme)
+        # shortcut: the theme tint is ignored, every theme colour of the
+        # template has tint 0.
+        return theme_colors.get(index, f'theme:{index}')
+    return ''
+
+
+def template_colors(ws, theme_colors: Dict[int, str]) -> Set[str]:
+    """The distinct font colours of the template inside the viewport."""
+    colors: Set[str] = set()
+    for row in ws.iter_rows(min_row=1, max_row=SCREEN_H,
+                            min_col=1, max_col=SCREEN_W):
+        for cell in row:
+            if cell.value is None:
+                continue
+            rgb = cell_rgb(cell, theme_colors)
+            if rgb:
+                colors.add(rgb)
+    return colors
+
+
+def check_palette_coverage(used_colors: Set[str]) -> None:
+    """Fail when the template uses a colour the palette map does not cover.
+
+    An unmapped colour would silently fall back to the body colour and the
+    console would lose the colour language of the template."""
+    unmapped = sorted(color for color in used_colors if color not in COLOR_TO_INDEX)
+    if unmapped:
+        raise ValueError(
+            f'Template colours without a palette index: {", ".join(unmapped)}. '
+            'Add them to COLOR_TO_INDEX.'
+        )
+
+
 # Step 1 - Read worksheet into a normalised character grid
-def read_grid(ws) -> List[List[str]]:
+def read_grid(ws, theme_colors: Dict[int, str]) -> Tuple[List[List[str]], List[List[int]]]:
     """Build a SCREEN_H x SCREEN_W grid from the worksheet.
+
+    Returns the character grid and the parallel grid of palette indices.
 
     Fails when the template holds content outside the viewport: a silent
     truncation would drop real fields from the generated framebuffer."""
     grid: List[List[str]] = [[' ' for _ in range(SCREEN_W)] for _ in range(SCREEN_H)]
+    colors: List[List[int]] = [[BODY_INDEX for _ in range(SCREEN_W)]
+                                for _ in range(SCREEN_H)]
 
     max_row = min(ws.max_row, SCREEN_H + 128)
     max_col = min(ws.max_column, SCREEN_W + 128)
 
     for r in range(1, max_row + 1):
         for c in range(1, max_col + 1):
-            v = ws.cell(row=r, column=c).value
+            cell = ws.cell(row=r, column=c)
+            v = cell.value
             if v is None:
                 continue
             s = str(v)
@@ -304,7 +413,10 @@ def read_grid(ws) -> List[List[str]]:
                     f'720p60 text screen exactly; trim it or the content is lost.'
                 )
             grid[r - 1][c - 1] = s[0]
-    return grid
+            rgb = cell_rgb(cell, theme_colors)
+            if rgb:
+                colors[r - 1][c - 1] = COLOR_TO_INDEX.get(rgb, BODY_INDEX)
+    return grid, colors
 
 
 # Step 2 - Detect block headers and delimit their horizontal bounds
@@ -620,22 +732,31 @@ def validate_slots(slots: List[Slot]) -> None:
 
 
 # Step 7 - Build artifacts
-def build_mif(grid: List[List[str]], slots: List[Slot], out_path: Path) -> None:
-    """Write a Quartus-compatible .mif file."""
-    buf = [(ATTR_STATIC << 8) | 0x20 for _ in range(CELLS)]
+def cell_word(fg: int, bg: int, ch: str) -> int:
+    """Compose a video-memory word: {attribute[15:8], character[7:0]}.
 
-    # Static text
+    The attribute byte is {background[7:4], foreground[3:0]}."""
+    return ((bg << 4 | fg) << 8) | ord(ch)
+
+
+def build_mif(grid: List[List[str]], colors: List[List[int]],
+              slots: List[Slot], out_path: Path) -> None:
+    """Write a Quartus-compatible .mif file."""
+    buf = [cell_word(0, 0, ' ') for _ in range(CELLS)]
+
+    # Static text: the colour of the template becomes the foreground index of
+    # the attribute byte, the background stays black.
     for r in range(SCREEN_H):
         for c in range(SCREEN_W):
             ch = grid[r][c]
             if ch != ' ':
-                buf[r * SCREEN_W + c] = (ATTR_STATIC << 8) | ord(ch)
+                buf[r * SCREEN_W + c] = cell_word(colors[r][c], 0, ch)
 
-    # Dynamic placeholders
+    # Dynamic placeholders: a fixed attribute until every field gets its own.
     for s in slots:
         for i in range(s.width):
             a = s.start_address + i
-            buf[a] = (ATTR_DYNAMIC << 8) | ord('0')
+            buf[a] = cell_word(DYNAMIC_FG_INDEX, 0, '0')
 
     with open(out_path, 'w') as fp:
         fp.write(
@@ -687,7 +808,15 @@ def main() -> int:
     ws = wb[args.sheet]
 
     # Normalise viewport
-    grid = read_grid(ws)
+    theme_colors = read_theme_colors(wb)
+    grid, colors = read_grid(ws, theme_colors)
+
+    # Every colour of the template must have a palette index
+    try:
+        check_palette_coverage(template_colors(ws, theme_colors))
+    except ValueError as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        return 1
 
     # Detect blocks with horizontal bounds
     blocks = find_blocks(grid)
@@ -722,7 +851,7 @@ def main() -> int:
         return 1
 
     # Generate artifacts
-    build_mif(grid, slots, Path(args.out_mif))
+    build_mif(grid, colors, slots, Path(args.out_mif))
     write_field_map(slots, Path(args.out_fields))
 
     print(f'OK: {len(slots)} slots --> {args.out_mif} + {args.out_fields}')
