@@ -180,6 +180,14 @@ module screen_writer_single_cycle (
     logic [0:0] snap_ru_wr;
     logic [1023:0] snap_reg_values;
 
+    // Derived signals used by the attribute expressions.
+    wire stage_active = (snap_instruction != 32'h00000000) &&
+                         (snap_instruction != 32'h00000013);
+    wire mem_access       = (snap_instruction[6:0] == 7'b0000011) ||
+                             (snap_instruction[6:0] == 7'b0100011);
+    wire mem_write_access = snap_dm_wr;
+    wire mem_read_access  = mem_access && !mem_write_access;
+
     // Helper functions: value --> ASCII
     function automatic [7:0] hex_digit (
         input logic [63:0] value,
@@ -205,6 +213,7 @@ module screen_writer_single_cycle (
     logic        wr_en;
     logic [12:0] wr_addr;
     logic [7:0]  wr_data;
+    logic [7:0]  wr_attr;
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
@@ -321,199 +330,200 @@ module screen_writer_single_cycle (
         wr_en   = 1'b0;
         wr_addr = '0;
         wr_data = 8'h20;  // space
+        wr_attr = 8'h09;  // body colour
 
         case (grp_ctr)
             GRP_PROC: begin
                 unique case (ctr_proc)
-            0: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd0; wr_data = hex_digit(snap_instruction, 7); end
-            1: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd1; wr_data = hex_digit(snap_instruction, 6); end
-            2: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd2; wr_data = hex_digit(snap_instruction, 5); end
-            3: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd3; wr_data = hex_digit(snap_instruction, 4); end
-            4: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd4; wr_data = hex_digit(snap_instruction, 3); end
-            5: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd5; wr_data = hex_digit(snap_instruction, 2); end
-            6: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd6; wr_data = hex_digit(snap_instruction, 1); end
-            7: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd7; wr_data = hex_digit(snap_instruction, 0); end
-            8: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd0; wr_data = hex_digit(snap_pc, 7); end
-            9: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd1; wr_data = hex_digit(snap_pc, 6); end
-            10: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd2; wr_data = hex_digit(snap_pc, 5); end
-            11: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd3; wr_data = hex_digit(snap_pc, 4); end
-            12: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd4; wr_data = hex_digit(snap_pc, 3); end
-            13: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd5; wr_data = hex_digit(snap_pc, 2); end
-            14: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd6; wr_data = hex_digit(snap_pc, 1); end
-            15: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd7; wr_data = hex_digit(snap_pc, 0); end
-            16: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd0; wr_data = hex_digit(snap_instruction, 7); end
-            17: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd1; wr_data = hex_digit(snap_instruction, 6); end
-            18: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd2; wr_data = hex_digit(snap_instruction, 5); end
-            19: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd3; wr_data = hex_digit(snap_instruction, 4); end
-            20: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd4; wr_data = hex_digit(snap_instruction, 3); end
-            21: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd5; wr_data = hex_digit(snap_instruction, 2); end
-            22: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd6; wr_data = hex_digit(snap_instruction, 1); end
-            23: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd7; wr_data = hex_digit(snap_instruction, 0); end
-            24: begin wr_en = 1'b1; wr_addr = ADDR_HALTED + 13'd0; wr_data = bin_digit(snap_halted, 0); end
-            25: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd0; wr_data = hex_digit(snap_cycles_at_done, 15); end
-            26: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd1; wr_data = hex_digit(snap_cycles_at_done, 14); end
-            27: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd2; wr_data = hex_digit(snap_cycles_at_done, 13); end
-            28: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd3; wr_data = hex_digit(snap_cycles_at_done, 12); end
-            29: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd4; wr_data = hex_digit(snap_cycles_at_done, 11); end
-            30: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd5; wr_data = hex_digit(snap_cycles_at_done, 10); end
-            31: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd6; wr_data = hex_digit(snap_cycles_at_done, 9); end
-            32: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd7; wr_data = hex_digit(snap_cycles_at_done, 8); end
-            33: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd8; wr_data = hex_digit(snap_cycles_at_done, 7); end
-            34: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd9; wr_data = hex_digit(snap_cycles_at_done, 6); end
-            35: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd10; wr_data = hex_digit(snap_cycles_at_done, 5); end
-            36: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd11; wr_data = hex_digit(snap_cycles_at_done, 4); end
-            37: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd12; wr_data = hex_digit(snap_cycles_at_done, 3); end
-            38: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd13; wr_data = hex_digit(snap_cycles_at_done, 2); end
-            39: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd14; wr_data = hex_digit(snap_cycles_at_done, 1); end
-            40: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd15; wr_data = hex_digit(snap_cycles_at_done, 0); end
-            41: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd0; wr_data = hex_digit(snap_next_pc, 7); end
-            42: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd1; wr_data = hex_digit(snap_next_pc, 6); end
-            43: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd2; wr_data = hex_digit(snap_next_pc, 5); end
-            44: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd3; wr_data = hex_digit(snap_next_pc, 4); end
-            45: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd4; wr_data = hex_digit(snap_next_pc, 3); end
-            46: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd5; wr_data = hex_digit(snap_next_pc, 2); end
-            47: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd6; wr_data = hex_digit(snap_next_pc, 1); end
-            48: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd7; wr_data = hex_digit(snap_next_pc, 0); end
-            49: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd0; wr_data = hex_digit(snap_instr_at_done, 15); end
-            50: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd1; wr_data = hex_digit(snap_instr_at_done, 14); end
-            51: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd2; wr_data = hex_digit(snap_instr_at_done, 13); end
-            52: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd3; wr_data = hex_digit(snap_instr_at_done, 12); end
-            53: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd4; wr_data = hex_digit(snap_instr_at_done, 11); end
-            54: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd5; wr_data = hex_digit(snap_instr_at_done, 10); end
-            55: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd6; wr_data = hex_digit(snap_instr_at_done, 9); end
-            56: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd7; wr_data = hex_digit(snap_instr_at_done, 8); end
-            57: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd8; wr_data = hex_digit(snap_instr_at_done, 7); end
-            58: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd9; wr_data = hex_digit(snap_instr_at_done, 6); end
-            59: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd10; wr_data = hex_digit(snap_instr_at_done, 5); end
-            60: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd11; wr_data = hex_digit(snap_instr_at_done, 4); end
-            61: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd12; wr_data = hex_digit(snap_instr_at_done, 3); end
-            62: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd13; wr_data = hex_digit(snap_instr_at_done, 2); end
-            63: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd14; wr_data = hex_digit(snap_instr_at_done, 1); end
-            64: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd15; wr_data = hex_digit(snap_instr_at_done, 0); end
-            65: begin wr_en = 1'b1; wr_addr = ADDR_BRANCH + 13'd0; wr_data = bin_digit(snap_branch, 0); end
-            66: begin wr_en = 1'b1; wr_addr = ADDR_RS1_ADDR + 13'd0; wr_data = hex_digit(snap_rs1_addr, 1); end
-            67: begin wr_en = 1'b1; wr_addr = ADDR_RS1_ADDR + 13'd1; wr_data = hex_digit(snap_rs1_addr, 0); end
-            68: begin wr_en = 1'b1; wr_addr = ADDR_RS2_ADDR + 13'd0; wr_data = hex_digit(snap_rs2_addr, 1); end
-            69: begin wr_en = 1'b1; wr_addr = ADDR_RS2_ADDR + 13'd1; wr_data = hex_digit(snap_rs2_addr, 0); end
-            70: begin wr_en = 1'b1; wr_addr = ADDR_RD_ADDR + 13'd0; wr_data = hex_digit(snap_rd_addr, 1); end
-            71: begin wr_en = 1'b1; wr_addr = ADDR_RD_ADDR + 13'd1; wr_data = hex_digit(snap_rd_addr, 0); end
-            72: begin wr_en = 1'b1; wr_addr = ADDR_RU_DATA_WR_SRC + 13'd0; wr_data = hex_digit(snap_ru_data_wr_src, 0); end
-            73: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd0; wr_data = hex_digit(snap_data_wr, 7); end
-            74: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd1; wr_data = hex_digit(snap_data_wr, 6); end
-            75: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd2; wr_data = hex_digit(snap_data_wr, 5); end
-            76: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd3; wr_data = hex_digit(snap_data_wr, 4); end
-            77: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd4; wr_data = hex_digit(snap_data_wr, 3); end
-            78: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd5; wr_data = hex_digit(snap_data_wr, 2); end
-            79: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd6; wr_data = hex_digit(snap_data_wr, 1); end
-            80: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd7; wr_data = hex_digit(snap_data_wr, 0); end
-            81: begin wr_en = 1'b1; wr_addr = ADDR_RU_WR + 13'd0; wr_data = bin_digit(snap_ru_wr, 0); end
-            82: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd0; wr_data = hex_digit(snap_rs1_data, 7); end
-            83: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd1; wr_data = hex_digit(snap_rs1_data, 6); end
-            84: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd2; wr_data = hex_digit(snap_rs1_data, 5); end
-            85: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd3; wr_data = hex_digit(snap_rs1_data, 4); end
-            86: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd4; wr_data = hex_digit(snap_rs1_data, 3); end
-            87: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd5; wr_data = hex_digit(snap_rs1_data, 2); end
-            88: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd6; wr_data = hex_digit(snap_rs1_data, 1); end
-            89: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd7; wr_data = hex_digit(snap_rs1_data, 0); end
-            90: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd0; wr_data = hex_digit(snap_rs2_data, 7); end
-            91: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd1; wr_data = hex_digit(snap_rs2_data, 6); end
-            92: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd2; wr_data = hex_digit(snap_rs2_data, 5); end
-            93: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd3; wr_data = hex_digit(snap_rs2_data, 4); end
-            94: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd4; wr_data = hex_digit(snap_rs2_data, 3); end
-            95: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd5; wr_data = hex_digit(snap_rs2_data, 2); end
-            96: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd6; wr_data = hex_digit(snap_rs2_data, 1); end
-            97: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd7; wr_data = hex_digit(snap_rs2_data, 0); end
-            98: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd0; wr_data = hex_digit(snap_imm_out, 7); end
-            99: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd1; wr_data = hex_digit(snap_imm_out, 6); end
-            100: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd2; wr_data = hex_digit(snap_imm_out, 5); end
-            101: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd3; wr_data = hex_digit(snap_imm_out, 4); end
-            102: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd4; wr_data = hex_digit(snap_imm_out, 3); end
-            103: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd5; wr_data = hex_digit(snap_imm_out, 2); end
-            104: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd6; wr_data = hex_digit(snap_imm_out, 1); end
-            105: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd7; wr_data = hex_digit(snap_imm_out, 0); end
-            106: begin wr_en = 1'b1; wr_addr = ADDR_IMM_SRC + 13'd0; wr_data = hex_digit(snap_imm_src, 0); end
-            107: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd0; wr_data = hex_digit(snap_dm_addr, 7); end
-            108: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd1; wr_data = hex_digit(snap_dm_addr, 6); end
-            109: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd2; wr_data = hex_digit(snap_dm_addr, 5); end
-            110: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd3; wr_data = hex_digit(snap_dm_addr, 4); end
-            111: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd4; wr_data = hex_digit(snap_dm_addr, 3); end
-            112: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd5; wr_data = hex_digit(snap_dm_addr, 2); end
-            113: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd6; wr_data = hex_digit(snap_dm_addr, 1); end
-            114: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd7; wr_data = hex_digit(snap_dm_addr, 0); end
-            115: begin wr_en = 1'b1; wr_addr = ADDR_OPCODE + 13'd0; wr_data = hex_digit(snap_opcode, 1); end
-            116: begin wr_en = 1'b1; wr_addr = ADDR_OPCODE + 13'd1; wr_data = hex_digit(snap_opcode, 0); end
-            117: begin wr_en = 1'b1; wr_addr = ADDR_FUNCT3 + 13'd0; wr_data = hex_digit(snap_funct3, 0); end
-            118: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd0; wr_data = hex_digit(snap_dm_wdata, 7); end
-            119: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd1; wr_data = hex_digit(snap_dm_wdata, 6); end
-            120: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd2; wr_data = hex_digit(snap_dm_wdata, 5); end
-            121: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd3; wr_data = hex_digit(snap_dm_wdata, 4); end
-            122: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd4; wr_data = hex_digit(snap_dm_wdata, 3); end
-            123: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd5; wr_data = hex_digit(snap_dm_wdata, 2); end
-            124: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd6; wr_data = hex_digit(snap_dm_wdata, 1); end
-            125: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd7; wr_data = hex_digit(snap_dm_wdata, 0); end
-            126: begin wr_en = 1'b1; wr_addr = ADDR_FUNCT7 + 13'd0; wr_data = hex_digit(snap_funct7, 1); end
-            127: begin wr_en = 1'b1; wr_addr = ADDR_FUNCT7 + 13'd1; wr_data = hex_digit(snap_funct7, 0); end
+            0: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd0; wr_data = hex_digit(snap_instruction, 7); wr_attr = 8'h08; end
+            1: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd1; wr_data = hex_digit(snap_instruction, 6); wr_attr = 8'h08; end
+            2: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd2; wr_data = hex_digit(snap_instruction, 5); wr_attr = 8'h08; end
+            3: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd3; wr_data = hex_digit(snap_instruction, 4); wr_attr = 8'h08; end
+            4: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd4; wr_data = hex_digit(snap_instruction, 3); wr_attr = 8'h08; end
+            5: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd5; wr_data = hex_digit(snap_instruction, 2); wr_attr = 8'h08; end
+            6: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd6; wr_data = hex_digit(snap_instruction, 1); wr_attr = 8'h08; end
+            7: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_663 + 13'd7; wr_data = hex_digit(snap_instruction, 0); wr_attr = 8'h08; end
+            8: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd0; wr_data = hex_digit(snap_pc, 7); wr_attr = 8'h08; end
+            9: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd1; wr_data = hex_digit(snap_pc, 6); wr_attr = 8'h08; end
+            10: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd2; wr_data = hex_digit(snap_pc, 5); wr_attr = 8'h08; end
+            11: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd3; wr_data = hex_digit(snap_pc, 4); wr_attr = 8'h08; end
+            12: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd4; wr_data = hex_digit(snap_pc, 3); wr_attr = 8'h08; end
+            13: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd5; wr_data = hex_digit(snap_pc, 2); wr_attr = 8'h08; end
+            14: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd6; wr_data = hex_digit(snap_pc, 1); wr_attr = 8'h08; end
+            15: begin wr_en = 1'b1; wr_addr = ADDR_PC + 13'd7; wr_data = hex_digit(snap_pc, 0); wr_attr = 8'h08; end
+            16: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd0; wr_data = hex_digit(snap_instruction, 7); wr_attr = 8'h08; end
+            17: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd1; wr_data = hex_digit(snap_instruction, 6); wr_attr = 8'h08; end
+            18: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd2; wr_data = hex_digit(snap_instruction, 5); wr_attr = 8'h08; end
+            19: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd3; wr_data = hex_digit(snap_instruction, 4); wr_attr = 8'h08; end
+            20: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd4; wr_data = hex_digit(snap_instruction, 3); wr_attr = 8'h08; end
+            21: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd5; wr_data = hex_digit(snap_instruction, 2); wr_attr = 8'h08; end
+            22: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd6; wr_data = hex_digit(snap_instruction, 1); wr_attr = 8'h08; end
+            23: begin wr_en = 1'b1; wr_addr = ADDR_INSTRUCTION_1019 + 13'd7; wr_data = hex_digit(snap_instruction, 0); wr_attr = 8'h08; end
+            24: begin wr_en = 1'b1; wr_addr = ADDR_HALTED + 13'd0; wr_data = bin_digit(snap_halted, 0); wr_attr = 8'h09; end
+            25: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd0; wr_data = hex_digit(snap_cycles_at_done, 15); wr_attr = 8'h09; end
+            26: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd1; wr_data = hex_digit(snap_cycles_at_done, 14); wr_attr = 8'h09; end
+            27: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd2; wr_data = hex_digit(snap_cycles_at_done, 13); wr_attr = 8'h09; end
+            28: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd3; wr_data = hex_digit(snap_cycles_at_done, 12); wr_attr = 8'h09; end
+            29: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd4; wr_data = hex_digit(snap_cycles_at_done, 11); wr_attr = 8'h09; end
+            30: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd5; wr_data = hex_digit(snap_cycles_at_done, 10); wr_attr = 8'h09; end
+            31: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd6; wr_data = hex_digit(snap_cycles_at_done, 9); wr_attr = 8'h09; end
+            32: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd7; wr_data = hex_digit(snap_cycles_at_done, 8); wr_attr = 8'h09; end
+            33: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd8; wr_data = hex_digit(snap_cycles_at_done, 7); wr_attr = 8'h09; end
+            34: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd9; wr_data = hex_digit(snap_cycles_at_done, 6); wr_attr = 8'h09; end
+            35: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd10; wr_data = hex_digit(snap_cycles_at_done, 5); wr_attr = 8'h09; end
+            36: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd11; wr_data = hex_digit(snap_cycles_at_done, 4); wr_attr = 8'h09; end
+            37: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd12; wr_data = hex_digit(snap_cycles_at_done, 3); wr_attr = 8'h09; end
+            38: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd13; wr_data = hex_digit(snap_cycles_at_done, 2); wr_attr = 8'h09; end
+            39: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd14; wr_data = hex_digit(snap_cycles_at_done, 1); wr_attr = 8'h09; end
+            40: begin wr_en = 1'b1; wr_addr = ADDR_CYCLES_AT_DONE + 13'd15; wr_data = hex_digit(snap_cycles_at_done, 0); wr_attr = 8'h09; end
+            41: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd0; wr_data = hex_digit(snap_next_pc, 7); wr_attr = 8'h09; end
+            42: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd1; wr_data = hex_digit(snap_next_pc, 6); wr_attr = 8'h09; end
+            43: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd2; wr_data = hex_digit(snap_next_pc, 5); wr_attr = 8'h09; end
+            44: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd3; wr_data = hex_digit(snap_next_pc, 4); wr_attr = 8'h09; end
+            45: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd4; wr_data = hex_digit(snap_next_pc, 3); wr_attr = 8'h09; end
+            46: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd5; wr_data = hex_digit(snap_next_pc, 2); wr_attr = 8'h09; end
+            47: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd6; wr_data = hex_digit(snap_next_pc, 1); wr_attr = 8'h09; end
+            48: begin wr_en = 1'b1; wr_addr = ADDR_NEXT_PC + 13'd7; wr_data = hex_digit(snap_next_pc, 0); wr_attr = 8'h09; end
+            49: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd0; wr_data = hex_digit(snap_instr_at_done, 15); wr_attr = 8'h09; end
+            50: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd1; wr_data = hex_digit(snap_instr_at_done, 14); wr_attr = 8'h09; end
+            51: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd2; wr_data = hex_digit(snap_instr_at_done, 13); wr_attr = 8'h09; end
+            52: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd3; wr_data = hex_digit(snap_instr_at_done, 12); wr_attr = 8'h09; end
+            53: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd4; wr_data = hex_digit(snap_instr_at_done, 11); wr_attr = 8'h09; end
+            54: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd5; wr_data = hex_digit(snap_instr_at_done, 10); wr_attr = 8'h09; end
+            55: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd6; wr_data = hex_digit(snap_instr_at_done, 9); wr_attr = 8'h09; end
+            56: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd7; wr_data = hex_digit(snap_instr_at_done, 8); wr_attr = 8'h09; end
+            57: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd8; wr_data = hex_digit(snap_instr_at_done, 7); wr_attr = 8'h09; end
+            58: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd9; wr_data = hex_digit(snap_instr_at_done, 6); wr_attr = 8'h09; end
+            59: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd10; wr_data = hex_digit(snap_instr_at_done, 5); wr_attr = 8'h09; end
+            60: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd11; wr_data = hex_digit(snap_instr_at_done, 4); wr_attr = 8'h09; end
+            61: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd12; wr_data = hex_digit(snap_instr_at_done, 3); wr_attr = 8'h09; end
+            62: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd13; wr_data = hex_digit(snap_instr_at_done, 2); wr_attr = 8'h09; end
+            63: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd14; wr_data = hex_digit(snap_instr_at_done, 1); wr_attr = 8'h09; end
+            64: begin wr_en = 1'b1; wr_addr = ADDR_INSTR_AT_DONE + 13'd15; wr_data = hex_digit(snap_instr_at_done, 0); wr_attr = 8'h09; end
+            65: begin wr_en = 1'b1; wr_addr = ADDR_BRANCH + 13'd0; wr_data = bin_digit(snap_branch, 0); wr_attr = (snap_branch ? 8'h0C : 8'h09); end
+            66: begin wr_en = 1'b1; wr_addr = ADDR_RS1_ADDR + 13'd0; wr_data = hex_digit(snap_rs1_addr, 1); wr_attr = 8'h09; end
+            67: begin wr_en = 1'b1; wr_addr = ADDR_RS1_ADDR + 13'd1; wr_data = hex_digit(snap_rs1_addr, 0); wr_attr = 8'h09; end
+            68: begin wr_en = 1'b1; wr_addr = ADDR_RS2_ADDR + 13'd0; wr_data = hex_digit(snap_rs2_addr, 1); wr_attr = 8'h09; end
+            69: begin wr_en = 1'b1; wr_addr = ADDR_RS2_ADDR + 13'd1; wr_data = hex_digit(snap_rs2_addr, 0); wr_attr = 8'h09; end
+            70: begin wr_en = 1'b1; wr_addr = ADDR_RD_ADDR + 13'd0; wr_data = hex_digit(snap_rd_addr, 1); wr_attr = 8'h09; end
+            71: begin wr_en = 1'b1; wr_addr = ADDR_RD_ADDR + 13'd1; wr_data = hex_digit(snap_rd_addr, 0); wr_attr = 8'h09; end
+            72: begin wr_en = 1'b1; wr_addr = ADDR_RU_DATA_WR_SRC + 13'd0; wr_data = hex_digit(snap_ru_data_wr_src, 0); wr_attr = 8'h09; end
+            73: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd0; wr_data = hex_digit(snap_data_wr, 7); wr_attr = 8'h09; end
+            74: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd1; wr_data = hex_digit(snap_data_wr, 6); wr_attr = 8'h09; end
+            75: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd2; wr_data = hex_digit(snap_data_wr, 5); wr_attr = 8'h09; end
+            76: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd3; wr_data = hex_digit(snap_data_wr, 4); wr_attr = 8'h09; end
+            77: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd4; wr_data = hex_digit(snap_data_wr, 3); wr_attr = 8'h09; end
+            78: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd5; wr_data = hex_digit(snap_data_wr, 2); wr_attr = 8'h09; end
+            79: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd6; wr_data = hex_digit(snap_data_wr, 1); wr_attr = 8'h09; end
+            80: begin wr_en = 1'b1; wr_addr = ADDR_DATA_WR + 13'd7; wr_data = hex_digit(snap_data_wr, 0); wr_attr = 8'h09; end
+            81: begin wr_en = 1'b1; wr_addr = ADDR_RU_WR + 13'd0; wr_data = bin_digit(snap_ru_wr, 0); wr_attr = 8'h09; end
+            82: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd0; wr_data = hex_digit(snap_rs1_data, 7); wr_attr = 8'h09; end
+            83: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd1; wr_data = hex_digit(snap_rs1_data, 6); wr_attr = 8'h09; end
+            84: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd2; wr_data = hex_digit(snap_rs1_data, 5); wr_attr = 8'h09; end
+            85: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd3; wr_data = hex_digit(snap_rs1_data, 4); wr_attr = 8'h09; end
+            86: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd4; wr_data = hex_digit(snap_rs1_data, 3); wr_attr = 8'h09; end
+            87: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd5; wr_data = hex_digit(snap_rs1_data, 2); wr_attr = 8'h09; end
+            88: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd6; wr_data = hex_digit(snap_rs1_data, 1); wr_attr = 8'h09; end
+            89: begin wr_en = 1'b1; wr_addr = ADDR_RS1_DATA + 13'd7; wr_data = hex_digit(snap_rs1_data, 0); wr_attr = 8'h09; end
+            90: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd0; wr_data = hex_digit(snap_rs2_data, 7); wr_attr = 8'h09; end
+            91: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd1; wr_data = hex_digit(snap_rs2_data, 6); wr_attr = 8'h09; end
+            92: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd2; wr_data = hex_digit(snap_rs2_data, 5); wr_attr = 8'h09; end
+            93: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd3; wr_data = hex_digit(snap_rs2_data, 4); wr_attr = 8'h09; end
+            94: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd4; wr_data = hex_digit(snap_rs2_data, 3); wr_attr = 8'h09; end
+            95: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd5; wr_data = hex_digit(snap_rs2_data, 2); wr_attr = 8'h09; end
+            96: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd6; wr_data = hex_digit(snap_rs2_data, 1); wr_attr = 8'h09; end
+            97: begin wr_en = 1'b1; wr_addr = ADDR_RS2_DATA + 13'd7; wr_data = hex_digit(snap_rs2_data, 0); wr_attr = 8'h09; end
+            98: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd0; wr_data = hex_digit(snap_imm_out, 7); wr_attr = 8'h09; end
+            99: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd1; wr_data = hex_digit(snap_imm_out, 6); wr_attr = 8'h09; end
+            100: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd2; wr_data = hex_digit(snap_imm_out, 5); wr_attr = 8'h09; end
+            101: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd3; wr_data = hex_digit(snap_imm_out, 4); wr_attr = 8'h09; end
+            102: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd4; wr_data = hex_digit(snap_imm_out, 3); wr_attr = 8'h09; end
+            103: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd5; wr_data = hex_digit(snap_imm_out, 2); wr_attr = 8'h09; end
+            104: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd6; wr_data = hex_digit(snap_imm_out, 1); wr_attr = 8'h09; end
+            105: begin wr_en = 1'b1; wr_addr = ADDR_IMM_OUT + 13'd7; wr_data = hex_digit(snap_imm_out, 0); wr_attr = 8'h09; end
+            106: begin wr_en = 1'b1; wr_addr = ADDR_IMM_SRC + 13'd0; wr_data = hex_digit(snap_imm_src, 0); wr_attr = 8'h09; end
+            107: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd0; wr_data = hex_digit(snap_dm_addr, 7); wr_attr = 8'h09; end
+            108: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd1; wr_data = hex_digit(snap_dm_addr, 6); wr_attr = 8'h09; end
+            109: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd2; wr_data = hex_digit(snap_dm_addr, 5); wr_attr = 8'h09; end
+            110: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd3; wr_data = hex_digit(snap_dm_addr, 4); wr_attr = 8'h09; end
+            111: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd4; wr_data = hex_digit(snap_dm_addr, 3); wr_attr = 8'h09; end
+            112: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd5; wr_data = hex_digit(snap_dm_addr, 2); wr_attr = 8'h09; end
+            113: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd6; wr_data = hex_digit(snap_dm_addr, 1); wr_attr = 8'h09; end
+            114: begin wr_en = 1'b1; wr_addr = ADDR_DM_ADDR + 13'd7; wr_data = hex_digit(snap_dm_addr, 0); wr_attr = 8'h09; end
+            115: begin wr_en = 1'b1; wr_addr = ADDR_OPCODE + 13'd0; wr_data = hex_digit(snap_opcode, 1); wr_attr = 8'h09; end
+            116: begin wr_en = 1'b1; wr_addr = ADDR_OPCODE + 13'd1; wr_data = hex_digit(snap_opcode, 0); wr_attr = 8'h09; end
+            117: begin wr_en = 1'b1; wr_addr = ADDR_FUNCT3 + 13'd0; wr_data = hex_digit(snap_funct3, 0); wr_attr = 8'h09; end
+            118: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd0; wr_data = hex_digit(snap_dm_wdata, 7); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            119: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd1; wr_data = hex_digit(snap_dm_wdata, 6); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            120: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd2; wr_data = hex_digit(snap_dm_wdata, 5); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            121: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd3; wr_data = hex_digit(snap_dm_wdata, 4); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            122: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd4; wr_data = hex_digit(snap_dm_wdata, 3); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            123: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd5; wr_data = hex_digit(snap_dm_wdata, 2); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            124: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd6; wr_data = hex_digit(snap_dm_wdata, 1); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            125: begin wr_en = 1'b1; wr_addr = ADDR_DM_WDATA + 13'd7; wr_data = hex_digit(snap_dm_wdata, 0); wr_attr = (mem_write_access ? 8'h38 : 8'h09); end
+            126: begin wr_en = 1'b1; wr_addr = ADDR_FUNCT7 + 13'd0; wr_data = hex_digit(snap_funct7, 1); wr_attr = 8'h09; end
+            127: begin wr_en = 1'b1; wr_addr = ADDR_FUNCT7 + 13'd1; wr_data = hex_digit(snap_funct7, 0); wr_attr = 8'h09; end
                     default: ;  // no write
                 endcase
             end
             GRP_PROC1: begin
                 unique case (ctr_proc1)
-            0: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd0; wr_data = hex_digit(snap_dm_rdata, 7); end
-            1: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd1; wr_data = hex_digit(snap_dm_rdata, 6); end
-            2: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd2; wr_data = hex_digit(snap_dm_rdata, 5); end
-            3: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd3; wr_data = hex_digit(snap_dm_rdata, 4); end
-            4: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd4; wr_data = hex_digit(snap_dm_rdata, 3); end
-            5: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd5; wr_data = hex_digit(snap_dm_rdata, 2); end
-            6: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd6; wr_data = hex_digit(snap_dm_rdata, 1); end
-            7: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd7; wr_data = hex_digit(snap_dm_rdata, 0); end
-            8: begin wr_en = 1'b1; wr_addr = ADDR_DM_CTRL + 13'd0; wr_data = hex_digit(snap_dm_ctrl, 0); end
-            9: begin wr_en = 1'b1; wr_addr = ADDR_DM_WR + 13'd0; wr_data = hex_digit(snap_dm_wr, 0); end
-            10: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd0; wr_data = hex_digit(snap_alu_a, 7); end
-            11: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd1; wr_data = hex_digit(snap_alu_a, 6); end
-            12: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd2; wr_data = hex_digit(snap_alu_a, 5); end
-            13: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd3; wr_data = hex_digit(snap_alu_a, 4); end
-            14: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd4; wr_data = hex_digit(snap_alu_a, 3); end
-            15: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd5; wr_data = hex_digit(snap_alu_a, 2); end
-            16: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd6; wr_data = hex_digit(snap_alu_a, 1); end
-            17: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd7; wr_data = hex_digit(snap_alu_a, 0); end
-            18: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd0; wr_data = hex_digit(snap_alu_b, 7); end
-            19: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd1; wr_data = hex_digit(snap_alu_b, 6); end
-            20: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd2; wr_data = hex_digit(snap_alu_b, 5); end
-            21: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd3; wr_data = hex_digit(snap_alu_b, 4); end
-            22: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd4; wr_data = hex_digit(snap_alu_b, 3); end
-            23: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd5; wr_data = hex_digit(snap_alu_b, 2); end
-            24: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd6; wr_data = hex_digit(snap_alu_b, 1); end
-            25: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd7; wr_data = hex_digit(snap_alu_b, 0); end
-            26: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd0; wr_data = hex_digit(snap_alu_res, 7); end
-            27: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd1; wr_data = hex_digit(snap_alu_res, 6); end
-            28: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd2; wr_data = hex_digit(snap_alu_res, 5); end
-            29: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd3; wr_data = hex_digit(snap_alu_res, 4); end
-            30: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd4; wr_data = hex_digit(snap_alu_res, 3); end
-            31: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd5; wr_data = hex_digit(snap_alu_res, 2); end
-            32: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd6; wr_data = hex_digit(snap_alu_res, 1); end
-            33: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd7; wr_data = hex_digit(snap_alu_res, 0); end
-            34: begin wr_en = 1'b1; wr_addr = ADDR_ALU_OP + 13'd0; wr_data = hex_digit(snap_alu_op, 1); end
-            35: begin wr_en = 1'b1; wr_addr = ADDR_ALU_OP + 13'd1; wr_data = hex_digit(snap_alu_op, 0); end
-            36: begin wr_en = 1'b1; wr_addr = ADDR_BR_OP + 13'd0; wr_data = hex_digit(snap_br_op, 1); end
-            37: begin wr_en = 1'b1; wr_addr = ADDR_BR_OP + 13'd1; wr_data = hex_digit(snap_br_op, 0); end
-            38: begin wr_en = 1'b1; wr_addr = ADDR_ALUA_SRC + 13'd0; wr_data = hex_digit(snap_alua_src, 0); end
-            39: begin wr_en = 1'b1; wr_addr = ADDR_ALUB_SRC + 13'd0; wr_data = bin_digit(snap_alub_src, 0); end
-            40: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd0; wr_data = hex_digit(snap_cycle_count, 15); end
-            41: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd1; wr_data = hex_digit(snap_cycle_count, 14); end
-            42: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd2; wr_data = hex_digit(snap_cycle_count, 13); end
-            43: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd3; wr_data = hex_digit(snap_cycle_count, 12); end
-            44: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd4; wr_data = hex_digit(snap_cycle_count, 11); end
-            45: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd5; wr_data = hex_digit(snap_cycle_count, 10); end
-            46: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd6; wr_data = hex_digit(snap_cycle_count, 9); end
-            47: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd7; wr_data = hex_digit(snap_cycle_count, 8); end
-            48: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd8; wr_data = hex_digit(snap_cycle_count, 7); end
-            49: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd9; wr_data = hex_digit(snap_cycle_count, 6); end
-            50: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd10; wr_data = hex_digit(snap_cycle_count, 5); end
-            51: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd11; wr_data = hex_digit(snap_cycle_count, 4); end
-            52: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd12; wr_data = hex_digit(snap_cycle_count, 3); end
-            53: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd13; wr_data = hex_digit(snap_cycle_count, 2); end
-            54: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd14; wr_data = hex_digit(snap_cycle_count, 1); end
-            55: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd15; wr_data = hex_digit(snap_cycle_count, 0); end
+            0: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd0; wr_data = hex_digit(snap_dm_rdata, 7); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            1: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd1; wr_data = hex_digit(snap_dm_rdata, 6); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            2: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd2; wr_data = hex_digit(snap_dm_rdata, 5); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            3: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd3; wr_data = hex_digit(snap_dm_rdata, 4); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            4: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd4; wr_data = hex_digit(snap_dm_rdata, 3); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            5: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd5; wr_data = hex_digit(snap_dm_rdata, 2); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            6: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd6; wr_data = hex_digit(snap_dm_rdata, 1); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            7: begin wr_en = 1'b1; wr_addr = ADDR_DM_RDATA + 13'd7; wr_data = hex_digit(snap_dm_rdata, 0); wr_attr = (mem_read_access ? 8'h28 : 8'h09); end
+            8: begin wr_en = 1'b1; wr_addr = ADDR_DM_CTRL + 13'd0; wr_data = hex_digit(snap_dm_ctrl, 0); wr_attr = 8'h09; end
+            9: begin wr_en = 1'b1; wr_addr = ADDR_DM_WR + 13'd0; wr_data = hex_digit(snap_dm_wr, 0); wr_attr = (snap_dm_wr ? 8'h3B : 8'h09); end
+            10: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd0; wr_data = hex_digit(snap_alu_a, 7); wr_attr = 8'h09; end
+            11: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd1; wr_data = hex_digit(snap_alu_a, 6); wr_attr = 8'h09; end
+            12: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd2; wr_data = hex_digit(snap_alu_a, 5); wr_attr = 8'h09; end
+            13: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd3; wr_data = hex_digit(snap_alu_a, 4); wr_attr = 8'h09; end
+            14: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd4; wr_data = hex_digit(snap_alu_a, 3); wr_attr = 8'h09; end
+            15: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd5; wr_data = hex_digit(snap_alu_a, 2); wr_attr = 8'h09; end
+            16: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd6; wr_data = hex_digit(snap_alu_a, 1); wr_attr = 8'h09; end
+            17: begin wr_en = 1'b1; wr_addr = ADDR_ALU_A + 13'd7; wr_data = hex_digit(snap_alu_a, 0); wr_attr = 8'h09; end
+            18: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd0; wr_data = hex_digit(snap_alu_b, 7); wr_attr = 8'h09; end
+            19: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd1; wr_data = hex_digit(snap_alu_b, 6); wr_attr = 8'h09; end
+            20: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd2; wr_data = hex_digit(snap_alu_b, 5); wr_attr = 8'h09; end
+            21: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd3; wr_data = hex_digit(snap_alu_b, 4); wr_attr = 8'h09; end
+            22: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd4; wr_data = hex_digit(snap_alu_b, 3); wr_attr = 8'h09; end
+            23: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd5; wr_data = hex_digit(snap_alu_b, 2); wr_attr = 8'h09; end
+            24: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd6; wr_data = hex_digit(snap_alu_b, 1); wr_attr = 8'h09; end
+            25: begin wr_en = 1'b1; wr_addr = ADDR_ALU_B + 13'd7; wr_data = hex_digit(snap_alu_b, 0); wr_attr = 8'h09; end
+            26: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd0; wr_data = hex_digit(snap_alu_res, 7); wr_attr = 8'h09; end
+            27: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd1; wr_data = hex_digit(snap_alu_res, 6); wr_attr = 8'h09; end
+            28: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd2; wr_data = hex_digit(snap_alu_res, 5); wr_attr = 8'h09; end
+            29: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd3; wr_data = hex_digit(snap_alu_res, 4); wr_attr = 8'h09; end
+            30: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd4; wr_data = hex_digit(snap_alu_res, 3); wr_attr = 8'h09; end
+            31: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd5; wr_data = hex_digit(snap_alu_res, 2); wr_attr = 8'h09; end
+            32: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd6; wr_data = hex_digit(snap_alu_res, 1); wr_attr = 8'h09; end
+            33: begin wr_en = 1'b1; wr_addr = ADDR_ALU_RES + 13'd7; wr_data = hex_digit(snap_alu_res, 0); wr_attr = 8'h09; end
+            34: begin wr_en = 1'b1; wr_addr = ADDR_ALU_OP + 13'd0; wr_data = hex_digit(snap_alu_op, 1); wr_attr = 8'h09; end
+            35: begin wr_en = 1'b1; wr_addr = ADDR_ALU_OP + 13'd1; wr_data = hex_digit(snap_alu_op, 0); wr_attr = 8'h09; end
+            36: begin wr_en = 1'b1; wr_addr = ADDR_BR_OP + 13'd0; wr_data = hex_digit(snap_br_op, 1); wr_attr = 8'h09; end
+            37: begin wr_en = 1'b1; wr_addr = ADDR_BR_OP + 13'd1; wr_data = hex_digit(snap_br_op, 0); wr_attr = 8'h09; end
+            38: begin wr_en = 1'b1; wr_addr = ADDR_ALUA_SRC + 13'd0; wr_data = hex_digit(snap_alua_src, 0); wr_attr = 8'h09; end
+            39: begin wr_en = 1'b1; wr_addr = ADDR_ALUB_SRC + 13'd0; wr_data = bin_digit(snap_alub_src, 0); wr_attr = 8'h09; end
+            40: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd0; wr_data = hex_digit(snap_cycle_count, 15); wr_attr = 8'h09; end
+            41: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd1; wr_data = hex_digit(snap_cycle_count, 14); wr_attr = 8'h09; end
+            42: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd2; wr_data = hex_digit(snap_cycle_count, 13); wr_attr = 8'h09; end
+            43: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd3; wr_data = hex_digit(snap_cycle_count, 12); wr_attr = 8'h09; end
+            44: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd4; wr_data = hex_digit(snap_cycle_count, 11); wr_attr = 8'h09; end
+            45: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd5; wr_data = hex_digit(snap_cycle_count, 10); wr_attr = 8'h09; end
+            46: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd6; wr_data = hex_digit(snap_cycle_count, 9); wr_attr = 8'h09; end
+            47: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd7; wr_data = hex_digit(snap_cycle_count, 8); wr_attr = 8'h09; end
+            48: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd8; wr_data = hex_digit(snap_cycle_count, 7); wr_attr = 8'h09; end
+            49: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd9; wr_data = hex_digit(snap_cycle_count, 6); wr_attr = 8'h09; end
+            50: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd10; wr_data = hex_digit(snap_cycle_count, 5); wr_attr = 8'h09; end
+            51: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd11; wr_data = hex_digit(snap_cycle_count, 4); wr_attr = 8'h09; end
+            52: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd12; wr_data = hex_digit(snap_cycle_count, 3); wr_attr = 8'h09; end
+            53: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd13; wr_data = hex_digit(snap_cycle_count, 2); wr_attr = 8'h09; end
+            54: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd14; wr_data = hex_digit(snap_cycle_count, 1); wr_attr = 8'h09; end
+            55: begin wr_en = 1'b1; wr_addr = ADDR_CYCLE_COUNT + 13'd15; wr_data = hex_digit(snap_cycle_count, 0); wr_attr = 8'h09; end
                     default: ;  // no write
                 endcase
             end
@@ -529,6 +539,6 @@ module screen_writer_single_cycle (
 
     assign vmem_wr_en   = wr_en;
     assign vmem_wr_addr = wr_addr;
-    assign vmem_wr_data = {8'h0F, wr_data};  // ATTR_DYNAMIC + char
+    assign vmem_wr_data = {wr_attr, wr_data};
 
 endmodule

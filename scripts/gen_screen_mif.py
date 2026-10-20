@@ -55,7 +55,7 @@ ADDR_BITS = 13                        # 2**13 = 8192 > 7200
 # Video word: {attribute[15:8], char[7:0]}
 # The attribute byte is {background[7:4], foreground[3:0]}: the foreground
 # colour index lives in the LOW nibble.
-DYNAMIC_FG_INDEX = 8   # runtime values: white on black
+IN_FLIGHT_FG_INDEX = 8   # the instruction in flight: white on black
 
 # Template colour -> palette index.  A colour that is not listed here falls
 # back to the body colour; the coverage check refuses to generate the
@@ -73,6 +73,26 @@ COLOR_TO_INDEX = {
     'FFD966': 15,  # HAZARDS SIGNALS
 }
 BODY_INDEX = 9
+
+# Semantic colours of the dynamic fields.  'hot' switches to a different
+# attribute while the named signal is asserted.
+FIELD_SEMANTICS = {
+    'stall':           {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'stall', 'fg': 11, 'bg': 3}},
+    'load_use_hazard': {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'load_use_hazard', 'fg': 11, 'bg': 3}},
+    'branch_flush':    {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'branch_flush', 'fg': 11, 'bg': 3}},
+    'trap_flush':      {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'trap_flush', 'fg': 11, 'bg': 3}},
+    'flush':           {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'flush', 'fg': 11, 'bg': 3}},
+    'dm_wr':           {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'dm_wr', 'fg': 11, 'bg': 3}},
+    'dm_rdata':        {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'mem_read_access', 'fg': 8, 'bg': 2}},
+    'dm_wdata':        {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'mem_write_access', 'fg': 8, 'bg': 3}},
+    'branch':          {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'branch', 'fg': 12, 'bg': 0}},
+    'ex_branch_taken': {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'ex_branch_taken', 'fg': 12, 'bg': 0}},
+}
+# The instruction in flight is always the brightest thing on the screen.
+IN_FLIGHT_FIELDS = (
+    'pc', 'instruction', 'if_pc', 'if_instruction', 'id_pc', 'id_instruction',
+    'ex_pc', 'ex_instruction', 'mem_instruction', 'wb_instruction',
+)
 
 
 # Signal catalog
@@ -265,6 +285,7 @@ class Slot:
     origin: str         # human-readable provenance (for debugging)
     fg: int = BODY_INDEX  # foreground palette index of the field
     bg: int = 0           # background palette index of the field
+    hot: Optional[dict] = None  # attribute while the named signal is high
 
     @property
     def start_address(self) -> int:
@@ -275,7 +296,7 @@ class Slot:
         return self.start_address + self.width - 1
 
     def to_dict(self) -> dict:
-        return {
+        payload = {
             'name': self.name,
             'label': self.label,
             'row': self.row,
@@ -289,6 +310,9 @@ class Slot:
             'origin': self.origin,
             'attr': {'fg': self.fg, 'bg': self.bg},
         }
+        if self.hot is not None:
+            payload['hot'] = dict(self.hot)
+        return payload
 
 
 @dataclass
@@ -298,6 +322,21 @@ class Block:
     row_start: int      # header row (0-based)
     col_start: int      # left column of the block (0-based)
     col_end: int        # right column (exclusive)
+
+
+def slot_attributes(name: str) -> Tuple[int, int, Optional[dict]]:
+    """Foreground index, background index and hot attribute of a field.
+
+    The semantic table decides the colour of the fields that change meaning;
+    the fields that show an instruction in flight are always white; every
+    other field keeps the body colour."""
+    semantics = FIELD_SEMANTICS.get(name)
+    if semantics is not None:
+        attr = semantics['attr']
+        return attr['fg'], attr['bg'], semantics.get('hot')
+    if name in IN_FLIGHT_FIELDS:
+        return IN_FLIGHT_FG_INDEX, 0, None
+    return BODY_INDEX, 0, None
 
 
 # Excel addresses the theme colours by index, not by the order of the
@@ -557,6 +596,7 @@ def detect_tagged_slots(grid: List[List[str]],
             elif placeholder_type == 'hex':
                 fmt = 'hex'
 
+            fg, bg, hot = slot_attributes(rtl_name)
             slots.append(Slot(
                 name=rtl_name,
                 row=r,
@@ -567,6 +607,9 @@ def detect_tagged_slots(grid: List[List[str]],
                 display_min=display_min,
                 label=label,
                 origin=f'tagged after "{label}" on row {r + 1}',
+                fg=fg,
+                bg=bg,
+                hot=hot,
             ))
 
     return slots
@@ -603,6 +646,7 @@ def parse_registers(grid: List[List[str]],
         for c in range(start_col, start_col + width):
             occupied.add((r, c))
 
+        fg, bg, hot = slot_attributes(f'x{reg_idx}')
         slots.append(Slot(
             name=f'x{reg_idx}',
             row=r,
@@ -613,6 +657,9 @@ def parse_registers(grid: List[List[str]],
             display_min=8,
             label=f'X{reg_idx}',
             origin=f'register table row {r + 1}',
+            fg=fg,
+            bg=bg,
+            hot=hot,
         ))
 
     if len(slots) != 32:
@@ -752,11 +799,12 @@ def build_mif(grid: List[List[str]], colors: List[List[int]],
             if ch != ' ':
                 buf[r * SCREEN_W + c] = cell_word(colors[r][c], 0, ch)
 
-    # Dynamic placeholders: a fixed attribute until every field gets its own.
+    # Dynamic placeholders: the base attribute of their field, so the first
+    # sweep of the writer does not repaint the console.
     for s in slots:
         for i in range(s.width):
             a = s.start_address + i
-            buf[a] = cell_word(DYNAMIC_FG_INDEX, 0, '0')
+            buf[a] = cell_word(s.fg, s.bg, '0')
 
     with open(out_path, 'w') as fp:
         fp.write(

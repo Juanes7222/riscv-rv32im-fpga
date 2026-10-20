@@ -25,7 +25,7 @@ import json
 import re
 import sys
 from collections import Counter
-from typing import List
+from typing import List, Set, Tuple
 from pathlib import Path
 
 # The register table is not fed by 32 separate ports: the whole register file
@@ -40,6 +40,24 @@ REG_BUS_WIDTH = REG_COUNT * 32
 # are kept small.
 MAX_GROUP_CHARS = 128
 
+# The instruction register of every pipeline stage, and the prefix of the
+# wire that tells whether the stage holds a real instruction.
+STAGE_INSTRUCTIONS = (
+    ('if', 'if_instruction'),
+    ('id', 'id_instruction'),
+    ('ex', 'ex_instruction'),
+    ('mem', 'mem_instruction'),
+    ('wb', 'wb_instruction'),
+)
+
+# The canonical bubble of the pipeline: it occupies a stage without doing
+# anything, so it does not light the stage up.
+BUBBLE_INSTRUCTION = 0x00000013
+
+# The opcodes of the instructions that access the data memory.
+LOAD_OPCODE = 0b0000011
+STORE_OPCODE = 0b0100011
+
 
 def is_reg_field(name: str) -> bool:
     return re.fullmatch(r'x\d+', name) is not None
@@ -49,7 +67,91 @@ def reg_index(name: str) -> int:
     return int(name[1:])
 
 
-def build_group(gname: str, gfields: list) -> dict:
+def attr_expression(f: dict, snapshots: Set[str], local_wires: Set[str]) -> str:
+    """The attribute expression of a field.
+
+    A constant when the field has no hot signal, a 2:1 mux on the snapshot
+    of that signal otherwise.  The signal is read from the snapshot bank, so
+    the colour describes the value that is on screen.  The character
+    multiplexer is not affected."""
+    attr = f['attr']
+    fg, bg = attr['fg'], attr['bg']
+    hot = f.get('hot')
+    if not hot:
+        return f"8'h{bg << 4 | fg:02X}"
+    signal = hot['signal']
+    if signal in snapshots:
+        source = f"snap_{signal}"
+    elif signal in local_wires:
+        source = signal
+    else:
+        raise ValueError(
+            f"Field '{f['name']}' names the hot signal '{signal}', which this "
+            'design neither samples nor derives.'
+        )
+    return (f"({source} ? "
+            f"8'h{hot['bg'] << 4 | hot['fg']:02X} : "
+            f"8'h{bg << 4 | fg:02X})")
+
+
+def format_wires(specs: List[Tuple[str, List[str]]]) -> List[str]:
+    """Format a block of wire declarations with the assignment signs aligned.
+
+    Every specification is a name and the parts of its expression; the last
+    part is closed with a semicolon."""
+    if not specs:
+        return []
+    width = max(len(name) for name, _ in specs)
+    lines = []
+    for name, expr in specs:
+        head = f"    wire {name.ljust(width)} = "
+        indent = ' ' * (len(head) + 1)
+        parts = list(expr)
+        parts[-1] += ';'
+        lines.append(head + parts[0])
+        lines.extend(indent + part for part in parts[1:])
+    return lines
+
+
+def derived_wires(snapshots: Set[str]) -> List[List[Tuple[str, List[str]]]]:
+    """The derived wires of this design, as blocks of declarations.
+
+    Only the signals whose snapshot exists in this design are emitted, so a
+    writer never references a signal it does not have."""
+    stages: List[Tuple[str, List[str]]] = []
+    bubble = f"32'h{BUBBLE_INSTRUCTION:08X}"
+    for stage, instr in STAGE_INSTRUCTIONS:
+        if instr in snapshots:
+            stages.append((f'stage_{stage}_active', [
+                f"(snap_{instr} != 32'h00000000) &&",
+                f"(snap_{instr} != {bubble})",
+            ]))
+    if not stages and 'instruction' in snapshots:
+        # The single-cycle design has no pipeline: the instruction in flight
+        # is the one of the only stage.
+        stages.append(('stage_active', [
+            "(snap_instruction != 32'h00000000) &&",
+            f"(snap_instruction != {bubble})",
+        ]))
+
+    memory: List[Tuple[str, List[str]]] = []
+    mem_instr = 'mem_instruction' if 'mem_instruction' in snapshots else 'instruction'
+    if mem_instr in snapshots:
+        memory.append(('mem_access', [
+            f"(snap_{mem_instr}[6:0] == 7'b{LOAD_OPCODE:07b}) ||",
+            f"(snap_{mem_instr}[6:0] == 7'b{STORE_OPCODE:07b})",
+        ]))
+    if 'dm_wr' in snapshots:
+        memory.append(('mem_write_access', ['snap_dm_wr']))
+    if any(name == 'mem_access' for name, _ in memory) and \
+            any(name == 'mem_write_access' for name, _ in memory):
+        memory.append(('mem_read_access', ['mem_access && !mem_write_access']))
+
+    return [block for block in (stages, memory) if block]
+
+
+def build_group(gname: str, gfields: list, snapshots: Set[str],
+                local_wires: Set[str]) -> dict:
     """Build the character list, the address map and the case block of a group."""
     # A signal may feed more than one slot; the address constants then need
     # distinct names.
@@ -60,6 +162,9 @@ def build_group(gname: str, gfields: list) -> dict:
         if name_count[f['name']] > 1:
             return f"ADDR_{name}_{f['start_address']}"
         return f"ADDR_{name}"
+
+    # Every character of a field shares its attribute.
+    attrs = {f['name']: attr_expression(f, snapshots, local_wires) for f in gfields}
 
     chars = []
     for f in gfields:
@@ -102,7 +207,8 @@ def build_group(gname: str, gfields: list) -> dict:
                 data_expr = "8'h30"  # '0'
 
         cases.append(
-            f"            {i}: begin wr_en = 1'b1; wr_addr = {addr}; wr_data = {data_expr}; end"
+            f"            {i}: begin wr_en = 1'b1; wr_addr = {addr}; "
+            f"wr_data = {data_expr}; wr_attr = {attrs[name]}; end"
         )
 
     # Snapshot entries of this group: (register name, source signal)
@@ -158,23 +264,28 @@ def generate_rtl(fields: list, mode: str) -> str:
                    if not is_reg_field(f['name']) and not is_table_field(f)]
     reg_fields = [f for f in fields if is_reg_field(f['name'])]
 
-    # One group per set of fields, each group small enough for its character
-    # multiplexer to fit in the pixel clock period.  The register table is a
-    # group of its own: it is written in two pipeline stages, see below.
-    groups = []
-    for i, chunk in enumerate(chunk_fields(proc_fields, MAX_GROUP_CHARS)):
-        g = build_group(f'PROC{i}' if i else 'PROC', chunk)
-        if g['n'] > 0:
-            groups.append(g)
-    if reg_fields:
-        groups.append(build_group('REGS', reg_fields))
-
     # Input port list: the union of the groups
     port_names = sorted(set(f['name'] for f in proc_fields))
     port_widths = {f['name']: f['signal_bits'] for f in proc_fields}
     if reg_fields:
         port_names.append(REG_BUS)
         port_widths[REG_BUS] = REG_BUS_WIDTH
+    snapshots = set(port_names)
+
+    # The derived wires the attribute expressions may reference.
+    wires = derived_wires(snapshots)
+    local_wires = {name for block in wires for name, _ in block}
+
+    # One group per set of fields, each group small enough for its character
+    # multiplexer to fit in the pixel clock period.  The register table is a
+    # group of its own: it is written in two pipeline stages, see below.
+    groups = []
+    for i, chunk in enumerate(chunk_fields(proc_fields, MAX_GROUP_CHARS)):
+        g = build_group(f'PROC{i}' if i else 'PROC', chunk, snapshots, local_wires)
+        if g['n'] > 0:
+            groups.append(g)
+    if reg_fields:
+        groups.append(build_group('REGS', reg_fields, snapshots, local_wires))
 
     input_ports = '\n'.join(
         f"    input logic [{port_widths[n]-1}:0] {n},"
@@ -269,6 +380,9 @@ def generate_rtl(fields: list, mode: str) -> str:
         f"            ctr_{g['name'].lower()} <= '0;" for g in groups
     )
 
+    derived = '\n'.join('\n'.join(format_wires(block)) for block in wires)
+    derived_block = f"{derived}\n" if derived else ''
+
     sv = f'''// screen_writer_{mode} - auto-generated by gen_screen_writer.py
 // Character-level round-robin, {total_chars} characters split in {n_groups}
 // alternating groups.  Displayed values come from a snapshot bank loaded
@@ -310,6 +424,8 @@ module screen_writer_{mode} (
     // Snapshot bank - the whole screen is rendered from one instant
 {snap_decls}
 
+    // Derived signals used by the attribute expressions.
+{derived_block}
     // Helper functions: value --> ASCII
     function automatic [7:0] hex_digit (
         input logic [63:0] value,
@@ -335,6 +451,7 @@ module screen_writer_{mode} (
     logic        wr_en;
     logic [12:0] wr_addr;
     logic [7:0]  wr_data;
+    logic [7:0]  wr_attr;
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
@@ -358,6 +475,7 @@ module screen_writer_{mode} (
         wr_en   = 1'b0;
         wr_addr = '0;
         wr_data = 8'h20;  // space
+        wr_attr = 8'h09;  // body colour
 
         case (grp_ctr)
 {chr(10).join(case_blocks)}
@@ -367,7 +485,7 @@ module screen_writer_{mode} (
 
     assign vmem_wr_en   = wr_en;
     assign vmem_wr_addr = wr_addr;
-    assign vmem_wr_data = {{8'h0F, wr_data}};  // ATTR_DYNAMIC + char
+    assign vmem_wr_data = {{wr_attr, wr_data}};
 
 endmodule
 '''

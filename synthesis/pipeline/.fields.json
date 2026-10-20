@@ -611,7 +611,7 @@
       "end_address": 1299,
       "origin": "tagged after \"PC\" on row 9",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -679,7 +679,7 @@
       "end_address": 1459,
       "origin": "tagged after \"Instr\" on row 10",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -747,7 +747,7 @@
       "end_address": 1779,
       "origin": "tagged after \"IF_PC\" on row 12",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -764,7 +764,7 @@
       "end_address": 1939,
       "origin": "tagged after \"IF_Instr\" on row 13",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -782,6 +782,11 @@
       "origin": "tagged after \"Branch\" on row 14",
       "attr": {
         "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "branch",
+        "fg": 12,
         "bg": 0
       }
     },
@@ -849,7 +854,7 @@
       "end_address": 2481,
       "origin": "tagged after \"WB_Instr\" on row 16",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -985,7 +990,7 @@
       "end_address": 3379,
       "origin": "tagged after \"ID_PC\" on row 22",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -1002,7 +1007,7 @@
       "end_address": 3539,
       "origin": "tagged after \"ID_Instr\" on row 23",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -1036,7 +1041,7 @@
       "end_address": 4533,
       "origin": "tagged after \"EX_PC\" on row 29",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -1055,6 +1060,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 8,
+        "bg": 3
       }
     },
     {
@@ -1070,7 +1080,7 @@
       "end_address": 4693,
       "origin": "tagged after \"EX_Instr\" on row 30",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -1089,6 +1099,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "mem_read_access",
+        "fg": 8,
+        "bg": 2
       }
     },
     {
@@ -1140,6 +1155,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "stall",
+        "fg": 11,
+        "bg": 3
       }
     },
     {
@@ -1174,6 +1194,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "dm_wr",
+        "fg": 11,
+        "bg": 3
       }
     },
     {
@@ -1191,6 +1216,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "load_use_hazard",
+        "fg": 11,
+        "bg": 3
       }
     },
     {
@@ -1225,6 +1255,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "branch_flush",
+        "fg": 11,
+        "bg": 3
       }
     },
     {
@@ -1242,6 +1277,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "trap_flush",
+        "fg": 11,
+        "bg": 3
       }
     },
     {
@@ -1259,6 +1299,11 @@
       "attr": {
         "fg": 9,
         "bg": 0
+      },
+      "hot": {
+        "signal": "flush",
+        "fg": 11,
+        "bg": 3
       }
     },
     {
@@ -1410,7 +1455,7 @@
       "end_address": 6802,
       "origin": "tagged after \"MEM_Instr\" on row 43",
       "attr": {
-        "fg": 9,
+        "fg": 8,
         "bg": 0
       }
     },
@@ -1462,6 +1507,11 @@
       "origin": "tagged after \"MEM_Branch\" on row 44",
       "attr": {
         "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "ex_branch_taken",
+        "fg": 12,
         "bg": 0
       }
     },
