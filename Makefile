@@ -13,6 +13,7 @@ endif
 # Paths
 SYNTH_DIR        = synthesis/$(ARCH)
 RESULTS_DIR      = results/$(ARCH)
+RTL_ROOT         = rtl
 VERIF_COMMON_DIR = verification/cocotb/common
 VERIF_ARCH_DIR   = verification/cocotb/$(ARCH)
 
@@ -28,6 +29,13 @@ QUARTUS_STA = quartus_sta.exe
 
 SOF_FILE = $(SYNTH_DIR)/output_files/$(PROJECT).sof
 STA_RPT  = $(SYNTH_DIR)/output_files/$(PROJECT).sta.rpt
+
+# Screen console artifacts.  The .mif carries the memory dump of the program
+# that is loaded, so it is regenerated whenever the memory image changes.
+WRITER_single_cycle = screen_writer_sc.sv
+WRITER_pipeline     = screen_writer_pipeline.sv
+SCREEN_MIF    = $(SYNTH_DIR)/screen.mif
+SCREEN_WRITER = $(RTL_ROOT)/$(ARCH)/$(WRITER_$(ARCH)).sv
 
 # Memory depths for synthesis - keep small for fast Quartus compilation.
 # cocotb overrides these via environment variables (16384 / 8192).
@@ -47,13 +55,29 @@ DMEM_MEM = $(BUILD_DIR)/dmem.mem
 
 MEM_CONFIG_VH = rtl/shared/mem_config.vh
 
-$(MEM_CONFIG_VH): $(IMEM_MEM) $(DMEM_MEM)
+# Always regenerate the header: it carries paths relative to the Quartus
+# project directory, and any other flow (a simulation run, a previous
+# architecture) may have left a header with the wrong paths behind.
+$(MEM_CONFIG_VH): FORCE
+	@if [ ! -f "$(IMEM_MEM)" ] || [ ! -f "$(DMEM_MEM)" ]; then \
+	    echo "Error: $(IMEM_MEM) / $(DMEM_MEM) not found."; \
+	    echo "Generate them first with: make mem ELF=<path/to/program.elf>"; \
+	    exit 1; \
+	fi
 	python3 scripts/gen_mem_config.py \
 		--imem $(abspath $(IMEM_MEM)) \
 		--dmem $(abspath $(DMEM_MEM)) \
 		--relative-to $(abspath $(SYNTH_DIR)) \
 		--validate-linux-path $(abspath $(IMEM_MEM)) \
 		--validate-linux-dmem $(abspath $(DMEM_MEM))
+
+FORCE:
+
+$(SCREEN_MIF): $(IMEM_MEM) $(DMEM_MEM) scripts/RiscVScreenV3.xlsx \
+               scripts/gen_screen_mif.py scripts/gen_screen_writer.py
+	bash scripts/gen_screen_artifacts.sh
+
+$(SCREEN_WRITER): $(SCREEN_MIF)
 
 # Default target: show help
 all: help
@@ -101,7 +125,7 @@ sync-all:
 
 
 .PHONY: build build-only
-build: check-project $(MEM_CONFIG_VH)
+build: check-project $(MEM_CONFIG_VH) $(SCREEN_MIF)
 	@echo "[$(ARCH)] Starting synthesis..."
 	@SECONDS=0; \
 	$(call quartus_compile,build.tcl); \
@@ -121,13 +145,8 @@ build-only: check-project
 # to generate .mem files and mem_config.vh for the validation program.
 # Usage: make build-fpga ARCH=pipeline
 .PHONY: build-fpga
-build-fpga: check-project
+build-fpga: check-project $(MEM_CONFIG_VH) $(SCREEN_MIF)
 	@echo "[$(ARCH)] Building with SignalTap II for FPGA validation..."
-	@if [ ! -f "$(MEM_CONFIG_VH)" ]; then \
-		echo "Error: $(MEM_CONFIG_VH) not found."; \
-		echo "Run 'python scripts/fpga_validate.py --elf <path> --fpga-only' first."; \
-		exit 1; \
-	fi
 	@echo "[$(ARCH)] Using mem_config.vh: $$(grep 'IMEM_FILE\|DMEM_FILE' $(MEM_CONFIG_VH) | tr -d '\n')"
 	@echo "[$(ARCH)] Generating .stp file..."
 	@cd $(SYNTH_DIR) && $(QUARTUS_SH) -t ../../scripts/create_stp.tcl $(ARCH) || \
@@ -368,9 +387,14 @@ rebuild: clean build
 .PHONY: mem
 mem: $(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem
 
-$(BUILD_DIR)/program.bin: check-elf
+# The binary is rebuilt whenever an ELF is given.  Timestamps alone are not
+# enough: two different programs can carry the same mtime, and the resulting
+# bitstream would silently hold the previous program.
+ifneq ($(ELF),)
+$(BUILD_DIR)/program.bin: FORCE
 	@mkdir -p $(BUILD_DIR)
 	riscv-none-elf-objcopy -O binary $(ELF) $@
+endif
 
 $(BUILD_DIR)/imem.mem: $(BUILD_DIR)/program.bin
 	python3 scripts/elf_to_mem.py $< $(IMEM_DEPTH) $@

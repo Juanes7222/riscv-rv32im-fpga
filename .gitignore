@@ -317,3 +317,6 @@ Anteproyecto.pdf
 .venv-win/
 
 !vga_font_rom.hex
+
+# Compiled simulation binaries
+*.vvp
