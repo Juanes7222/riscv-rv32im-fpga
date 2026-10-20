@@ -93,6 +93,8 @@ IN_FLIGHT_FIELDS = (
     'pc', 'instruction', 'if_pc', 'if_instruction', 'id_pc', 'id_instruction',
     'ex_pc', 'ex_instruction', 'mem_instruction', 'wb_instruction',
 )
+# The values of the register table keep the blue of their labels.
+REGISTER_FG_INDEX = 13
 
 
 # Signal catalog
@@ -328,14 +330,17 @@ def slot_attributes(name: str) -> Tuple[int, int, Optional[dict]]:
     """Foreground index, background index and hot attribute of a field.
 
     The semantic table decides the colour of the fields that change meaning;
-    the fields that show an instruction in flight are always white; every
-    other field keeps the body colour."""
+    the fields that show an instruction in flight are always white; the
+    values of the register table keep the blue of their labels; every other
+    field keeps the body colour."""
     semantics = FIELD_SEMANTICS.get(name)
     if semantics is not None:
         attr = semantics['attr']
         return attr['fg'], attr['bg'], semantics.get('hot')
     if name in IN_FLIGHT_FIELDS:
         return IN_FLIGHT_FG_INDEX, 0, None
+    if re.fullmatch(r'x\d+', name):
+        return REGISTER_FG_INDEX, 0, None
     return BODY_INDEX, 0, None
 
 

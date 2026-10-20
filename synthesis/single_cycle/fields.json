@@ -16,7 +16,7 @@
       "end_address": 1933,
       "origin": "register table row 13",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -33,7 +33,7 @@
       "end_address": 2093,
       "origin": "register table row 14",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -50,7 +50,7 @@
       "end_address": 2253,
       "origin": "register table row 15",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -67,7 +67,7 @@
       "end_address": 2413,
       "origin": "register table row 16",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -84,7 +84,7 @@
       "end_address": 2573,
       "origin": "register table row 17",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -101,7 +101,7 @@
       "end_address": 2733,
       "origin": "register table row 18",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -118,7 +118,7 @@
       "end_address": 2893,
       "origin": "register table row 19",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -135,7 +135,7 @@
       "end_address": 3053,
       "origin": "register table row 20",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -152,7 +152,7 @@
       "end_address": 3213,
       "origin": "register table row 21",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -169,7 +169,7 @@
       "end_address": 3373,
       "origin": "register table row 22",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -186,7 +186,7 @@
       "end_address": 3533,
       "origin": "register table row 23",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -203,7 +203,7 @@
       "end_address": 3693,
       "origin": "register table row 24",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -220,7 +220,7 @@
       "end_address": 3853,
       "origin": "register table row 25",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -237,7 +237,7 @@
       "end_address": 4013,
       "origin": "register table row 26",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -254,7 +254,7 @@
       "end_address": 4173,
       "origin": "register table row 27",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -271,7 +271,7 @@
       "end_address": 4333,
       "origin": "register table row 28",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -288,7 +288,7 @@
       "end_address": 4493,
       "origin": "register table row 29",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -305,7 +305,7 @@
       "end_address": 4653,
       "origin": "register table row 30",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -322,7 +322,7 @@
       "end_address": 4813,
       "origin": "register table row 31",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -339,7 +339,7 @@
       "end_address": 4973,
       "origin": "register table row 32",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -356,7 +356,7 @@
       "end_address": 5133,
       "origin": "register table row 33",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -373,7 +373,7 @@
       "end_address": 5293,
       "origin": "register table row 34",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -390,7 +390,7 @@
       "end_address": 5453,
       "origin": "register table row 35",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -407,7 +407,7 @@
       "end_address": 5613,
       "origin": "register table row 36",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -424,7 +424,7 @@
       "end_address": 5773,
       "origin": "register table row 37",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -441,7 +441,7 @@
       "end_address": 5933,
       "origin": "register table row 38",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -458,7 +458,7 @@
       "end_address": 6093,
       "origin": "register table row 39",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -475,7 +475,7 @@
       "end_address": 6253,
       "origin": "register table row 40",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -492,7 +492,7 @@
       "end_address": 6413,
       "origin": "register table row 41",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -509,7 +509,7 @@
       "end_address": 6573,
       "origin": "register table row 42",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -526,7 +526,7 @@
       "end_address": 6733,
       "origin": "register table row 43",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },
@@ -543,7 +543,7 @@
       "end_address": 6893,
       "origin": "register table row 44",
       "attr": {
-        "fg": 9,
+        "fg": 13,
         "bg": 0
       }
     },

@@ -94,6 +94,17 @@ def attr_expression(f: dict, snapshots: Set[str], local_wires: Set[str]) -> str:
             f"8'h{bg << 4 | fg:02X})")
 
 
+def group_attribute(gfields: list, snapshots: Set[str], local_wires: Set[str]) -> str:
+    """The attribute of a group whose fields share one attribute.
+
+    The register table is written one row at a time, so the writer cannot
+    select an attribute per row: every row has to carry the same one."""
+    expressions = {attr_expression(f, snapshots, local_wires) for f in gfields}
+    if len(expressions) != 1:
+        raise ValueError('The register rows must share one attribute.')
+    return expressions.pop()
+
+
 def format_wires(specs: List[Tuple[str, List[str]]]) -> List[str]:
     """Format a block of wire declarations with the assignment signs aligned.
 
@@ -350,6 +361,7 @@ def generate_rtl(fields: list, mode: str) -> str:
                 wr_en   = 1'b1;
                 wr_addr = reg_addr + {{10'd0, reg_col}};
                 wr_data = hex_digit(reg_value, 7 - reg_col);
+                wr_attr = {group_attribute(g['fields'], snapshots, local_wires)};
             end""")
         else:
             counter_fsm.append(f"""                GRP_{gname}: begin

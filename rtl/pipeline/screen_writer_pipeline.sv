@@ -799,6 +799,7 @@ module screen_writer_pipeline (
                 wr_en   = 1'b1;
                 wr_addr = reg_addr + {10'd0, reg_col};
                 wr_data = hex_digit(reg_value, 7 - reg_col);
+                wr_attr = 8'h0D;
             end
             default: ;  // no write
         endcase
