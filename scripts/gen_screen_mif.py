@@ -21,6 +21,10 @@ kinds of slots:
                      and width.
   * Tabular slots  - repetitive blocks (Registers, Prog. Memory, Data Memory)
                      parsed by row-pattern, not by coordinate.
+  * Rewrite slots  - the characters of the stage-box headers and of the flow
+                     arrows between the boxes.  They hold a constant
+                     character and a dynamic attribute: the background tells
+                     whether the stage they belong to holds an instruction.
 
 Placeholder conventions
 -----------------------
@@ -96,6 +100,88 @@ IN_FLIGHT_FIELDS = (
 # The values of the register table keep the blue of their labels.
 REGISTER_FG_INDEX = 13
 
+# The stage boxes of each sheet and the signal that lights them up.  The two
+# designs derive different signals, so the map is per sheet: a stage is
+# active when its instruction register holds neither zero nor the canonical
+# bubble.
+STAGE_HEADERS: Dict[str, Dict[str, str]] = {
+    'Pipeline': {
+        'FETCH':     'stage_if_active',
+        'IF/ID':     'stage_id_active',
+        'DECODE':    'stage_id_active',
+        'ID/EX':     'stage_ex_active',
+        'EXECUTE':   'stage_ex_active',
+        'EX/MEM':    'stage_mem_active',
+        'MEMORY':    'stage_mem_active',
+        'MEM/WB':    'stage_mem_active',
+        'WRITEBACK': 'stage_wb_active',
+    },
+    'Single-cycle': {
+        'FETCH':     'stage_active',
+        'DECODE':    'stage_active',
+        'EXECUTE':   'stage_active',
+        'MEMORY':    'mem_access',
+        'WRITEBACK': 'mem_write_access',
+    },
+}
+
+# The cells that draw the flow between the stage boxes and the signal that
+# lights them up.  An arrow belongs to the stage whose box it leaves, so the
+# highlight walks along the flow as the instruction advances.  The table is
+# explicit: the template geometry is fixed, and a template edit that moves
+# an arrow has to be reflected here.
+FLOW_ARROWS: Dict[str, Dict[Tuple[int, int], str]] = {
+    'Pipeline': {
+        # The --> that leaves the FETCH box and enters the DECODE box.
+        (9, 24): 'stage_if_active',
+        (9, 25): 'stage_if_active',
+        (9, 26): 'stage_if_active',
+        (9, 27): 'stage_if_active',
+        (9, 28): 'stage_if_active',
+        (9, 29): 'stage_if_active',
+        # The V that leaves the FETCH box and enters the IF/ID box.
+        (17, 11): 'stage_if_active',
+        # The v that leaves the DECODE box and enters the ID/EX box.
+        (24, 43): 'stage_id_active',
+        # The ^ in the bottom border of the IF/ID box.
+        (25, 12): 'stage_id_active',
+        # The ^ in the bottom border of the ID/EX box and the v that leaves it.
+        (33, 43): 'stage_ex_active',
+        (36, 43): 'stage_ex_active',
+        # The --> that leaves the EXECUTE box and enters the EX/MEM box.
+        (41, 55): 'stage_ex_active',
+        (41, 56): 'stage_ex_active',
+        (41, 57): 'stage_ex_active',
+        (41, 58): 'stage_ex_active',
+        (41, 59): 'stage_ex_active',
+        # The ^ that carries the flow from the MEM/WB box to the WRITEBACK box.
+        (9, 72): 'stage_mem_active',
+        # The ^ in the bottom border of the MEM/WB box and the ^ above it:
+        # both carry the flow from the MEMORY box to the MEM/WB box.
+        (18, 72): 'stage_mem_active',
+        (19, 72): 'stage_mem_active',
+        # The ^ that carries the flow from the EX/MEM box to the MEMORY box
+        # and the ^ in the bottom border of the EX/MEM box.
+        (33, 72): 'stage_mem_active',
+        (44, 72): 'stage_mem_active',
+    },
+    'Single-cycle': {
+        # The V that leaves the FETCH box and enters the DECODE box.
+        (11, 58): 'stage_active',
+        # The V that leaves the DECODE box and enters the EXECUTE box.
+        (29, 60): 'stage_active',
+        # The ^ that leaves the MEMORY box and enters the WRITEBACK box.
+        (17, 89): 'mem_access',
+        (30, 89): 'mem_access',
+    },
+}
+
+# The glyphs the template uses to draw the flow between the boxes.
+FLOW_GLYPHS = frozenset('->^vV')
+VERTICAL_GLYPHS = frozenset('^vV')
+
+# The background of an active stage box and of the arrow that leaves it.
+ACTIVE_BG_INDEX = 1
 
 # Signal catalog
 # Each entry:  rtl_name --> (fmt, signal_bits, display_min_chars)
@@ -280,7 +366,7 @@ class Slot:
     row: int            # 0-based row in viewport
     col: int            # 0-based start column
     width: int          # visible width in characters
-    fmt: str            # 'hex' | 'bin'
+    fmt: str            # 'hex' | 'bin' | 'text'
     signal_bits: int    # actual RTL bit width
     display_min: int    # minimum chars needed
     label: str          # visual label as written in the sheet
@@ -288,6 +374,8 @@ class Slot:
     fg: int = BODY_INDEX  # foreground palette index of the field
     bg: int = 0           # background palette index of the field
     hot: Optional[dict] = None  # attribute while the named signal is high
+    kind: str = 'value'  # 'value' | 'text'
+    text: Optional[str] = None  # the character of a 'text' slot
 
     @property
     def start_address(self) -> int:
@@ -312,6 +400,9 @@ class Slot:
             'origin': self.origin,
             'attr': {'fg': self.fg, 'bg': self.bg},
         }
+        if self.kind == 'text':
+            payload['kind'] = self.kind
+            payload['text'] = self.text
         if self.hot is not None:
             payload['hot'] = dict(self.hot)
         return payload
@@ -324,6 +415,8 @@ class Block:
     row_start: int      # header row (0-based)
     col_start: int      # left column of the block (0-based)
     col_end: int        # right column (exclusive)
+    name_start: int = 0  # first column of the header name (0-based)
+    name_end: int = 0    # column behind the header name (exclusive)
 
 
 def slot_attributes(name: str) -> Tuple[int, int, Optional[dict]]:
@@ -471,7 +564,8 @@ def find_blocks(grid: List[List[str]]) -> Dict[str, Block]:
     header_names = [
         'Registers', 'Prog. Memory', 'Data Memory',
         'FETCH', 'DECODE', 'EXECUTE', 'MEMORY', 'WRITEBACK',
-        'HALTED', 'HELP', 'Logo', 'FSM', 'TPU', "Counters", "Pipeline", "Control", "Performance"
+        'HALTED', 'HELP', 'Logo', 'FSM', 'TPU', "Counters", "Pipeline", "Control", "Performance",
+        'IF/ID', 'ID/EX', 'EX/MEM', 'MEM/WB',
     ]
     header_names.sort(key=len, reverse=True)
     header_re = re.compile('|'.join(re.escape(h) for h in header_names))
@@ -500,7 +594,8 @@ def find_blocks(grid: List[List[str]]) -> Dict[str, Block]:
                 right += 1     # include the '|' as the boundary
 
             blocks[name] = Block(name=name, row_start=r,
-                                 col_start=left, col_end=right)
+                                 col_start=left, col_end=right,
+                                 name_start=c0, name_end=c1)
 
     return blocks
 
@@ -747,7 +842,144 @@ def read_mem_words(path: str) -> List[int]:
     return words
 
 
-# Step 6 - Validation
+# Step 6 - Stage headers and flow arrows
+def identifier(text: str) -> str:
+    """A name that can be used as an identifier in the generated RTL."""
+    return re.sub(r'[^0-9A-Za-z]+', '_', text).strip('_').lower()
+
+
+def header_run(grid: List[List[str]], block: Block) -> Tuple[int, int]:
+    """The columns of the title of a block.
+
+    The title is the header name and the parenthesised suffix the template
+    adds to it ('FETCH (IF)'); the border of the box is not part of it."""
+    row = grid[block.row_start]
+    end = block.name_end
+    while end < SCREEN_W and row[end] != ' ':
+        end += 1
+    probe = end
+    while probe < SCREEN_W and row[probe] == ' ':
+        probe += 1
+    if probe < SCREEN_W and row[probe] == '(':
+        close = probe
+        while close < SCREEN_W and row[close] != ')':
+            close += 1
+        if close < SCREEN_W:
+            end = close + 1
+    return block.name_start, end
+
+
+def is_vertical_arrow(row: List[str], col: int) -> bool:
+    """Tell whether a vertical glyph draws the flow.
+
+    It does when it stands alone between spaces, or when it pierces the
+    horizontal border of a box."""
+    left = row[col - 1] if col > 0 else ' '
+    right = row[col + 1] if col + 1 < SCREEN_W else ' '
+    return (left == ' ' and right == ' ') or (left == '-' and right == '-')
+
+
+def find_flow_arrows(grid: List[List[str]]) -> Set[Tuple[int, int]]:
+    """The cells of the template that draw the flow between the boxes.
+
+    A run of flow glyphs is a flow arrow when it ends in an arrow head; a
+    plain run of dashes is the border of a box."""
+    cells: Set[Tuple[int, int]] = set()
+    for r in range(SCREEN_H):
+        row = grid[r]
+        col = 0
+        while col < SCREEN_W:
+            if row[col] not in FLOW_GLYPHS:
+                col += 1
+                continue
+            start = col
+            while col < SCREEN_W and row[col] in FLOW_GLYPHS:
+                col += 1
+            run = row[start:col]
+            if '>' in run or '<' in run:
+                cells.update((r, c) for c in range(start, col))
+            else:
+                cells.update((r, c) for c in range(start, col)
+                             if row[c] in VERTICAL_GLYPHS
+                             and is_vertical_arrow(row, c))
+    return cells
+
+
+def text_slot(name: str, text: str, row: int, col: int, fg: int,
+              signal: str, label: str, origin: str) -> Slot:
+    """A rewrite field: a static character with a dynamic attribute.
+
+    The character and its foreground are the ones of the template; only the
+    background changes, to tell that the stage holds an instruction."""
+    return Slot(
+        name=name,
+        row=row,
+        col=col,
+        width=1,
+        fmt='text',
+        signal_bits=8,
+        display_min=1,
+        label=label,
+        origin=origin,
+        fg=fg,
+        bg=0,
+        hot={'signal': signal, 'fg': fg, 'bg': ACTIVE_BG_INDEX},
+        kind='text',
+        text=text,
+    )
+
+
+def stage_header_slots(grid: List[List[str]], colors: List[List[int]],
+                       blocks: Dict[str, Block], sheet: str) -> List[Slot]:
+    """One rewrite field per character of every stage-box header."""
+    slots: List[Slot] = []
+    for name, signal in STAGE_HEADERS[sheet].items():
+        block = blocks.get(name)
+        if block is None:
+            print(f'Warning: stage box "{name}" not found in the template.',
+                  file=sys.stderr)
+            continue
+        start, end = header_run(grid, block)
+        title = ''.join(grid[block.row_start][start:end])
+        for index, col in enumerate(range(start, end)):
+            slots.append(text_slot(
+                name=f'stage_{identifier(name)}_{index}',
+                text=grid[block.row_start][col],
+                row=block.row_start,
+                col=col,
+                fg=colors[block.row_start][col],
+                signal=signal,
+                label=title,
+                origin=f'stage header "{title}" on row {block.row_start + 1}',
+            ))
+    return slots
+
+
+def flow_arrow_slots(grid: List[List[str]], colors: List[List[int]],
+                     sheet: str) -> List[Slot]:
+    """One rewrite field per cell of every flow arrow of the sheet."""
+    arrows = FLOW_ARROWS[sheet]
+    detected = find_flow_arrows(grid)
+    slots: List[Slot] = []
+    for (row, col), signal in sorted(arrows.items()):
+        if (row, col) not in detected:
+            print(f'Warning: flow arrow at row {row} col {col} not found '
+                  'in the template.', file=sys.stderr)
+            continue
+        slots.append(text_slot(
+            name=f'arrow_{row}_{col}',
+            text=grid[row][col],
+            row=row,
+            col=col,
+            fg=colors[row][col],
+            signal=signal,
+            label=grid[row][col],
+            origin=f'flow arrow on row {row + 1}, col {col + 1}',
+        ))
+    return slots
+
+
+# Step 7 - Validation
 def validate_slots(slots: List[Slot]) -> None:
     """Fail hard on overlaps or width violations."""
     occupied: Dict[Tuple[int, int], Slot] = {}
@@ -783,7 +1015,7 @@ def validate_slots(slots: List[Slot]) -> None:
             )
 
 
-# Step 7 - Build artifacts
+# Step 8 - Build artifacts
 def cell_word(fg: int, bg: int, ch: str) -> int:
     """Compose a video-memory word: {attribute[15:8], character[7:0]}.
 
@@ -807,6 +1039,8 @@ def build_mif(grid: List[List[str]], colors: List[List[int]],
     # Dynamic placeholders: the base attribute of their field, so the first
     # sweep of the writer does not repaint the console.
     for s in slots:
+        if s.kind == 'text':
+            continue      # static text with a dynamic attribute
         for i in range(s.width):
             a = s.start_address + i
             buf[a] = cell_word(s.fg, s.bg, '0')
@@ -896,6 +1130,12 @@ def main() -> int:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 
+    # Stage headers and flow arrows: static cells whose background follows
+    # the stage they belong to.
+    header_slots = stage_header_slots(grid, colors, blocks, args.sheet)
+    arrow_slots = flow_arrow_slots(grid, colors, args.sheet)
+    slots += header_slots + arrow_slots
+
     # Validate
     try:
         validate_slots(slots)
@@ -907,6 +1147,8 @@ def main() -> int:
     build_mif(grid, colors, slots, Path(args.out_mif))
     write_field_map(slots, Path(args.out_fields))
 
+    print(f'Rewrite fields: {len(header_slots)} stage header characters, '
+          f'{len(arrow_slots)} flow arrow characters')
     print(f'OK: {len(slots)} slots --> {args.out_mif} + {args.out_fields}')
     return 0
 

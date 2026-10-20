@@ -1144,6 +1144,894 @@
         "fg": 9,
         "bg": 0
       }
+    },
+    {
+      "name": "stage_fetch_0",
+      "label": "FETCH",
+      "row": 3,
+      "col": 51,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 531,
+      "end_address": 531,
+      "origin": "stage header \"FETCH\" on row 4",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "F",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_1",
+      "label": "FETCH",
+      "row": 3,
+      "col": 52,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 532,
+      "end_address": 532,
+      "origin": "stage header \"FETCH\" on row 4",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_2",
+      "label": "FETCH",
+      "row": 3,
+      "col": 53,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 533,
+      "end_address": 533,
+      "origin": "stage header \"FETCH\" on row 4",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "T",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_3",
+      "label": "FETCH",
+      "row": 3,
+      "col": 54,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 534,
+      "end_address": 534,
+      "origin": "stage header \"FETCH\" on row 4",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_4",
+      "label": "FETCH",
+      "row": 3,
+      "col": 55,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 535,
+      "end_address": 535,
+      "origin": "stage header \"FETCH\" on row 4",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "H",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_0",
+      "label": "DECODE",
+      "row": 13,
+      "col": 51,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2131,
+      "end_address": 2131,
+      "origin": "stage header \"DECODE\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "D",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_1",
+      "label": "DECODE",
+      "row": 13,
+      "col": 52,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2132,
+      "end_address": 2132,
+      "origin": "stage header \"DECODE\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_2",
+      "label": "DECODE",
+      "row": 13,
+      "col": 53,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2133,
+      "end_address": 2133,
+      "origin": "stage header \"DECODE\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_3",
+      "label": "DECODE",
+      "row": 13,
+      "col": 54,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2134,
+      "end_address": 2134,
+      "origin": "stage header \"DECODE\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "O",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_4",
+      "label": "DECODE",
+      "row": 13,
+      "col": 55,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2135,
+      "end_address": 2135,
+      "origin": "stage header \"DECODE\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "D",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_5",
+      "label": "DECODE",
+      "row": 13,
+      "col": 56,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2136,
+      "end_address": 2136,
+      "origin": "stage header \"DECODE\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_0",
+      "label": "EXECUTE",
+      "row": 31,
+      "col": 51,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5011,
+      "end_address": 5011,
+      "origin": "stage header \"EXECUTE\" on row 32",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_1",
+      "label": "EXECUTE",
+      "row": 31,
+      "col": 52,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5012,
+      "end_address": 5012,
+      "origin": "stage header \"EXECUTE\" on row 32",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "X",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_2",
+      "label": "EXECUTE",
+      "row": 31,
+      "col": 53,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5013,
+      "end_address": 5013,
+      "origin": "stage header \"EXECUTE\" on row 32",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_3",
+      "label": "EXECUTE",
+      "row": 31,
+      "col": 54,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5014,
+      "end_address": 5014,
+      "origin": "stage header \"EXECUTE\" on row 32",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_4",
+      "label": "EXECUTE",
+      "row": 31,
+      "col": 55,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5015,
+      "end_address": 5015,
+      "origin": "stage header \"EXECUTE\" on row 32",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "U",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_5",
+      "label": "EXECUTE",
+      "row": 31,
+      "col": 56,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5016,
+      "end_address": 5016,
+      "origin": "stage header \"EXECUTE\" on row 32",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "T",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_6",
+      "label": "EXECUTE",
+      "row": 31,
+      "col": 57,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5017,
+      "end_address": 5017,
+      "origin": "stage header \"EXECUTE\" on row 32",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_0",
+      "label": "MEMORY",
+      "row": 22,
+      "col": 87,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3607,
+      "end_address": 3607,
+      "origin": "stage header \"MEMORY\" on row 23",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_1",
+      "label": "MEMORY",
+      "row": 22,
+      "col": 88,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3608,
+      "end_address": 3608,
+      "origin": "stage header \"MEMORY\" on row 23",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_2",
+      "label": "MEMORY",
+      "row": 22,
+      "col": 89,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3609,
+      "end_address": 3609,
+      "origin": "stage header \"MEMORY\" on row 23",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_3",
+      "label": "MEMORY",
+      "row": 22,
+      "col": 90,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3610,
+      "end_address": 3610,
+      "origin": "stage header \"MEMORY\" on row 23",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "O",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_4",
+      "label": "MEMORY",
+      "row": 22,
+      "col": 91,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3611,
+      "end_address": 3611,
+      "origin": "stage header \"MEMORY\" on row 23",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "R",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_5",
+      "label": "MEMORY",
+      "row": 22,
+      "col": 92,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3612,
+      "end_address": 3612,
+      "origin": "stage header \"MEMORY\" on row 23",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "Y",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_0",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 85,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2165,
+      "end_address": 2165,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "W",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_1",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 86,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2166,
+      "end_address": 2166,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "R",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_2",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 87,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2167,
+      "end_address": 2167,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "I",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_3",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 88,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2168,
+      "end_address": 2168,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "T",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_4",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 89,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2169,
+      "end_address": 2169,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_5",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 90,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2170,
+      "end_address": 2170,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "B",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_6",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 91,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2171,
+      "end_address": 2171,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "A",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_7",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 92,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2172,
+      "end_address": 2172,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_8",
+      "label": "WRITEBACK",
+      "row": 13,
+      "col": 93,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2173,
+      "end_address": 2173,
+      "origin": "stage header \"WRITEBACK\" on row 14",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "K",
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_11_58",
+      "label": "V",
+      "row": 11,
+      "col": 58,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1818,
+      "end_address": 1818,
+      "origin": "flow arrow on row 12, col 59",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "V",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_17_89",
+      "label": "^",
+      "row": 17,
+      "col": 89,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2809,
+      "end_address": 2809,
+      "origin": "flow arrow on row 18, col 90",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_29_60",
+      "label": "V",
+      "row": 29,
+      "col": 60,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4700,
+      "end_address": 4700,
+      "origin": "flow arrow on row 30, col 61",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "V",
+      "hot": {
+        "signal": "stage_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_30_89",
+      "label": "^",
+      "row": 30,
+      "col": 89,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4889,
+      "end_address": 4889,
+      "origin": "flow arrow on row 31, col 90",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "mem_access",
+        "fg": 9,
+        "bg": 1
+      }
     }
   ]
 }

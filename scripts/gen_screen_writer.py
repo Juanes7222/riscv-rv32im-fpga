@@ -63,6 +63,13 @@ def is_reg_field(name: str) -> bool:
     return re.fullmatch(r'x\d+', name) is not None
 
 
+def is_text_field(field: dict) -> bool:
+    """A rewrite field: a static character with a dynamic attribute.
+
+    It carries no signal, so it has no port and no snapshot entry."""
+    return field.get('kind') == 'text'
+
+
 def reg_index(name: str) -> int:
     return int(name[1:])
 
@@ -186,7 +193,9 @@ def build_group(gname: str, gfields: list, snapshots: Set[str],
         fmt = f['fmt']
         bits = f['signal_bits']
         for pos in range(width):
-            if fmt == 'hex':
+            if is_text_field(f):
+                chars.append((f, pos, 0, 'text'))
+            elif fmt == 'hex':
                 nibble = width - 1 - pos
                 chars.append((f, pos, nibble, 'hex'))
             else:
@@ -203,22 +212,27 @@ def build_group(gname: str, gfields: list, snapshots: Set[str],
         name = f['name']
         bits = f['signal_bits']
         addr = f"{addr_ident(f)} + 13'd{pos}"
-        if is_reg_field(name):
-            src = f"snap_{REG_BUS}[{32 * reg_index(name)} +: 32]"
+        if is_text_field(f):
+            # A rewrite field writes the character of the template with a
+            # dynamic attribute.
+            data_expr = f"8'h{ord(f['text'][pos]):02X}"
         else:
-            src = f"snap_{name}"
-        if fmt == 'hex':
-            # For signals narrower than the display width, pad with '0' on the left
-            # idx is the nibble from MSB to LSB
-            if bits > (idx * 4):
-                data_expr = f"hex_digit({src}, {idx})"
+            if is_reg_field(name):
+                src = f"snap_{REG_BUS}[{32 * reg_index(name)} +: 32]"
             else:
-                data_expr = "8'h30"  # '0'
-        else:
-            if idx < bits:
-                data_expr = f"bin_digit({src}, {idx})"
+                src = f"snap_{name}"
+            if fmt == 'hex':
+                # For signals narrower than the display width, pad with '0' on the left
+                # idx is the nibble from MSB to LSB
+                if bits > (idx * 4):
+                    data_expr = f"hex_digit({src}, {idx})"
+                else:
+                    data_expr = "8'h30"  # '0'
             else:
-                data_expr = "8'h30"  # '0'
+                if idx < bits:
+                    data_expr = f"bin_digit({src}, {idx})"
+                else:
+                    data_expr = "8'h30"  # '0'
 
         cases.append(
             f"            {i}: begin wr_en = 1'b1; wr_addr = {addr}; "
@@ -231,7 +245,8 @@ def build_group(gname: str, gfields: list, snapshots: Set[str],
     else:
         seen = []
         for f in gfields:
-            if not is_reg_field(f['name']) and f['name'] not in seen:
+            if (not is_reg_field(f['name']) and not is_text_field(f)
+                    and f['name'] not in seen):
                 seen.append(f['name'])
         snap = [(n, n) for n in seen]
 
@@ -278,9 +293,11 @@ def generate_rtl(fields: list, mode: str) -> str:
                    if not is_reg_field(f['name']) and not is_table_field(f)]
     reg_fields = [f for f in fields if is_reg_field(f['name'])]
 
-    # Input port list: the union of the groups
-    port_names = sorted(set(f['name'] for f in proc_fields))
-    port_widths = {f['name']: f['signal_bits'] for f in proc_fields}
+    # Input port list: the union of the groups.  A rewrite field carries no
+    # signal, so it has no port.
+    signal_fields = [f for f in proc_fields if not is_text_field(f)]
+    port_names = sorted(set(f['name'] for f in signal_fields))
+    port_widths = {f['name']: f['signal_bits'] for f in signal_fields}
     if reg_fields:
         port_names.append(REG_BUS)
         port_widths[REG_BUS] = REG_BUS_WIDTH
@@ -344,17 +361,22 @@ def generate_rtl(fields: list, mode: str) -> str:
             f"                    snap_{src} <= {src};"
             for _, src in g['snap']
         )
+        # A group of rewrite fields samples no signal, so it loads nothing.
+        load_block = ''
+        if load:
+            load_block = (
+                "                    // Load the bank at the end of a sweep, so the next sweep\n"
+                "                    // renders every character from the same captured instant.\n"
+                f"                    if (ctr_{lower} == N_{gname} - 1) begin\n"
+                f"{load}\n"
+                "                    end\n"
+            )
 
         if gname == 'REGS':
             reg_group = g
             counter_fsm.append(f"""                GRP_{gname}: begin
                     ctr_{lower} <= (ctr_{lower} == N_{gname} - 1) ? '0 : ctr_{lower} + 1'b1;
-                    // Load the bank at the end of a sweep, so the next sweep
-                    // renders every character from the same captured instant.
-                    if (ctr_{lower} == N_{gname} - 1) begin
-{load}
-                    end
-                    // Stage 1: select the register row of this character.
+{load_block}                    // Stage 1: select the register row of this character.
                     reg_value <= snap_{REG_BUS}[32*ctr_{lower}[7:3] +: 32];
                     reg_addr  <= REG_ADDR[13*ctr_{lower}[7:3] +: 13];
                     reg_col   <= ctr_{lower}[2:0];
@@ -369,12 +391,7 @@ def generate_rtl(fields: list, mode: str) -> str:
         else:
             counter_fsm.append(f"""                GRP_{gname}: begin
                     ctr_{lower} <= (ctr_{lower} == N_{gname} - 1) ? '0 : ctr_{lower} + 1'b1;
-                    // Load the bank at the end of a sweep, so the next sweep
-                    // renders every character from the same captured instant.
-                    if (ctr_{lower} == N_{gname} - 1) begin
-{load}
-                    end
-                end""")
+{load_block}                end""")
             case_blocks.append(f"""            GRP_{gname}: begin
                 unique case (ctr_{lower})
 {g['cases']}
