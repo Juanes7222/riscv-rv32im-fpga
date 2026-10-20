@@ -9,7 +9,10 @@ module register_file (
 
     input  logic [4:0]  rd_addr,
     input  logic [31:0] rd_data,
-    input  logic        wr_en
+    input  logic        wr_en,
+
+    // Whole register file for the VGA console: x0 in [31:0] ... x31 in [1023:992].
+    output logic [1023:0] dbg_regs
 );
 
     logic [31:0] regs [0:31];
@@ -17,6 +20,14 @@ module register_file (
     // Read ports: purely combinational, x0 hardwired to zero at the output.
     assign rs1_data = (rs1_addr == 5'b0) ? 32'b0 : regs[rs1_addr];
     assign rs2_data = (rs2_addr == 5'b0) ? 32'b0 : regs[rs2_addr];
+
+    // Debug view of the whole file.  x0 is never written, so it is forced to
+    // zero here instead of relying on the reset.
+    always_comb begin
+        for (int i = 0; i < 32; i++) begin
+            dbg_regs[32*i +: 32] = (i == 0) ? 32'h0 : regs[i];
+        end
+    end
 
     // Write port: synchronous, synchronous reset, x0 protected at write gate.
     always_ff @(posedge clk) begin

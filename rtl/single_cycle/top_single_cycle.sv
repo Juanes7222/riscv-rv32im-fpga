@@ -81,6 +81,7 @@ module top_single_cycle #(
     logic [31:0] rs1_data;
     logic [31:0] rs2_data;
     logic [31:0] rd_data;
+    logic [1023:0] rf_dbg_regs;   // whole register file, for the VGA console
 
     // Immediate
     logic [31:0] imm_out;
@@ -250,7 +251,8 @@ module top_single_cycle #(
         .rd_data  (rd_data),
         .wr_en    (wr_en_gated),    // gated - not ru_wr directly (ADR 023)
         .rs1_data (rs1_data),
-        .rs2_data (rs2_data)
+        .rs2_data (rs2_data),
+        .dbg_regs (rf_dbg_regs)
     );
 
     imm_gen u_imm (
@@ -457,6 +459,7 @@ module top_single_cycle #(
         .data_wr      (rd_data),          // alias for ru_data_wr_src display
         .cycle_count  (cycle_count),
         .halted       (program_done),
+        .reg_values   (rf_dbg_regs),
         .vmem_wr_en   (vmem_wr_en),
         .vmem_wr_addr (vmem_wr_addr),
         .vmem_wr_data (vmem_wr_data)

@@ -64,6 +64,7 @@ module top_pipeline #(
     logic [4:0]  id_rs1_addr, id_rs2_addr, id_rd_addr;
     logic [31:0] id_rs1_data, id_rs2_data;
     logic [31:0] id_rs1_data_wb_fwd, id_rs2_data_wb_fwd;
+    logic [1023:0] rf_dbg_regs;   // whole register file, for the VGA console
     logic [31:0] id_imm;
 
     // ID control signals
@@ -302,7 +303,8 @@ module top_pipeline #(
         .rd_data  (wb_rd_data),
         .wr_en    (wb_wr_en_gated),
         .rs1_data (id_rs1_data),
-        .rs2_data (id_rs2_data)
+        .rs2_data (id_rs2_data),
+        .dbg_regs (rf_dbg_regs)
     );
 
     // WB-to-ID forwarding: when the producer is in WB, the register file still
@@ -791,6 +793,9 @@ module top_pipeline #(
 
         // Counters
         .instr_retired    (instr_retired),
+
+        // Register file (whole file, for the register table)
+        .reg_values       (rf_dbg_regs),
 
         // Hazard / control
         .stall            (stall),

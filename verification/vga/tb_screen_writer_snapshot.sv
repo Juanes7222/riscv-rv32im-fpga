@@ -5,12 +5,17 @@
 // sampled signal, so the number on screen never existed on the bus.  This
 // test drives the PC with a counter that changes every cycle and verifies
 // that all eight characters of the field come from one captured instant.
+//
+// It also checks that the register table is written from the packed register
+// file bus: every register holds the same pattern, so each row of the table
+// must show it.
 
 module tb_screen_writer_snapshot;
 
     logic clk = 1'b0;
     logic rst_n = 1'b0;
     logic [31:0] pc = 32'h11111111;
+    logic [1023:0] reg_values = {1024{1'b0}};
 
     logic [31:0] alu_a;
     logic [31:0] alu_b;
@@ -48,10 +53,13 @@ module tb_screen_writer_snapshot;
     logic [15:0] vmem_wr_data;
 
     localparam int FIELD_WIDTH = 8;
+    localparam logic [31:0] REG_PATTERN = 32'hA5A5A5A5;
 
     logic [7:0]  field_char [0:FIELD_WIDTH-1];
     logic [31:0] field_snap [0:FIELD_WIDTH-1];
+    logic [7:0]  reg_char   [0:FIELD_WIDTH-1];
     integer      field_pos = 0;
+    integer      reg_pos = 0;
     integer      groups = 0;
     integer      errors = 0;
     integer      i;
@@ -246,7 +254,7 @@ module tb_screen_writer_snapshot;
         end
     end
 
-    // Collect the characters written into the PC field.
+    // Collect the characters written into the PC field and into x0.
     always_ff @(posedge clk) begin
         if (rst_n && vmem_wr_en) begin
             if (vmem_wr_addr == u_dut.ADDR_PC) begin
@@ -259,6 +267,14 @@ module tb_screen_writer_snapshot;
                 field_snap[field_pos] = u_dut.snap_pc;
                 field_pos = field_pos + 1;
             end
+            if (vmem_wr_addr == u_dut.ADDR_X0) begin
+                reg_pos = 0;
+            end
+            if (vmem_wr_addr >= u_dut.ADDR_X0 &&
+                vmem_wr_addr < u_dut.ADDR_X0 + FIELD_WIDTH) begin
+                reg_char[reg_pos] = vmem_wr_data[7:0];
+                reg_pos = reg_pos + 1;
+            end
         end
     end
 
@@ -266,6 +282,7 @@ module tb_screen_writer_snapshot;
         .clk(clk),
         .rst_n(rst_n),
         .pc(pc),
+        .reg_values(reg_values),
         .alu_a(alu_a),
         .alu_b(alu_b),
         .alu_op(alu_op),
@@ -302,14 +319,20 @@ module tb_screen_writer_snapshot;
     );
 
     initial begin
+        // Every register holds the same pattern.
+        for (i = 0; i < 32; i = i + 1) begin
+            reg_values[32*i +: 32] = REG_PATTERN;
+        end
+
         repeat (4) @(posedge clk);
         rst_n = 1'b1;
         // Let several full sweeps run.
         repeat (u_dut.N_CHARS * 6) @(posedge clk);
 
         $display("PC field address : %0d", u_dut.ADDR_PC);
+        $display("x0 field address  : %0d", u_dut.ADDR_X0);
         $display("sweeps captured   : %0d", groups);
-        $write("digits            : ");
+        $write("PC digits         : ");
         for (i = 0; i < FIELD_WIDTH; i = i + 1) begin
             $write("%s ", field_char[i]);
         end
@@ -331,10 +354,24 @@ module tb_screen_writer_snapshot;
             end
         end
 
+        // The register table must show the pattern of x0.
+        $write("x0 digits         : ");
+        for (i = 0; i < FIELD_WIDTH; i = i + 1) begin
+            $write("%s ", reg_char[i]);
+        end
+        $display("");
+        for (i = 0; i < FIELD_WIDTH; i = i + 1) begin
+            logic [3:0] nibble;
+            nibble = (REG_PATTERN >> ((FIELD_WIDTH - 1 - i) * 4)) & 4'hF;
+            if (reg_char[i] !== ((nibble < 4'd10) ? (8'd48 + nibble) : (8'd55 + nibble))) begin
+                errors = errors + 1;
+            end
+        end
+
         if (errors == 0) begin
-            $display("PASS: the field is rendered from one coherent instant");
+            $display("PASS: fields are coherent and the register table is filled");
         end else begin
-            $display("FAIL: %0d mismatches (torn field)", errors);
+            $display("FAIL: %0d mismatches", errors);
         end
         $finish;
     end

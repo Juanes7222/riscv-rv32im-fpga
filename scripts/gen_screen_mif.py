@@ -505,13 +505,17 @@ def parse_registers(grid: List[List[str]],
 def parse_memory_table(grid: List[List[str]],
                        block: Block,
                        occupied: Set[Tuple[int, int]],
-                       header_name: str) -> List[Slot]:
-    """Parse a memory table.  Each row inside the block must match:
+                       header_name: str) -> List[Tuple[int, int, int, int]]:
+    """Locate the rows of a memory table.
+
+    The table is a static dump of the memory image, so it produces no
+    dynamic slots.  It only marks its cells as occupied and returns where
+    the address and the data live, so the dump can be filled in later.
+
+    Each row inside the block must match:
         <addr> : <X-run>
-    We look for a 4-char address pattern followed by a colon and an X-run.
-    Returns two slots per row: address display + data value."""
-    slots: List[Slot] = []
-    data_count = 0
+    """
+    locations: List[Tuple[int, int, int, int]] = []
 
     for offset in range(1, 41):
         r = block.row_start + offset
@@ -539,33 +543,36 @@ def parse_memory_table(grid: List[List[str]],
         for c in range(data_start, data_start + data_width):
             occupied.add((r, c))
 
-        slots.append(Slot(
-            name=f'{header_name.lower().replace(" ", "_")}_addr_{data_count}',
-            row=r,
-            col=addr_start,
-            width=addr_width,
-            fmt='hex',
-            signal_bits=16,
-            display_min=4,
-            label='Addr',
-            origin=f'{header_name} row {r + 1} address',
-        ))
+        locations.append((r, addr_start, data_start, data_width))
 
-        slots.append(Slot(
-            name=f'{header_name.lower().replace(" ", "_")}_data_{data_count}',
-            row=r,
-            col=data_start,
-            width=data_width,
-            fmt='hex',
-            signal_bits=32,
-            display_min=8,
-            label='Data',
-            origin=f'{header_name} row {r + 1} data',
-        ))
+    return locations
 
-        data_count += 1
 
-    return slots
+def fill_memory_table(grid: List[List[str]],
+                      locations: List[Tuple[int, int, int, int]],
+                      words: List[int]) -> None:
+    """Write the real address and content of the memory into the grid.
+
+    The memories are word addressed, so row i shows the word at byte
+    address 4*i."""
+    for i, (r, addr_col, data_col, data_width) in enumerate(locations):
+        for k, ch in enumerate('%04x' % (4 * i)):
+            grid[r][addr_col + k] = ch
+        word = words[i] if i < len(words) else 0
+        for k, ch in enumerate('%08x' % (word & 0xFFFFFFFF)):
+            if k < data_width:
+                grid[r][data_col + k] = ch
+
+
+def read_mem_words(path: str) -> List[int]:
+    """Read a $readmemh image: one 32-bit hex word per line."""
+    words: List[int] = []
+    with open(path) as fp:
+        for line in fp:
+            line = line.strip()
+            if line:
+                words.append(int(line, 16))
+    return words
 
 
 # Step 6 - Validation
@@ -657,6 +664,10 @@ def main() -> int:
                     help='Which sheet to compile')
     ap.add_argument('--out-mif', required=True, help='Output .mif path')
     ap.add_argument('--out-fields', required=True, help='Output JSON field map')
+    ap.add_argument('--imem', required=True,
+                    help='Instruction memory image (.mem) dumped in the console')
+    ap.add_argument('--dmem', required=True,
+                    help='Data memory image (.mem) dumped in the console')
     args = ap.parse_args()
 
     # Load worksheet
@@ -681,9 +692,11 @@ def main() -> int:
     if 'Registers' in blocks:
         slots += parse_registers(grid, blocks['Registers'], occupied)
     if 'Prog. Memory' in blocks:
-        slots += parse_memory_table(grid, blocks['Prog. Memory'], occupied, 'Prog. Memory')
+        loc = parse_memory_table(grid, blocks['Prog. Memory'], occupied, 'Prog. Memory')
+        fill_memory_table(grid, loc, read_mem_words(args.imem))
     if 'Data Memory' in blocks:
-        slots += parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
+        loc = parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
+        fill_memory_table(grid, loc, read_mem_words(args.dmem))
 
     # Parse tagged signals in the remaining free areas
     try:

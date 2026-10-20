@@ -5,6 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PY=.venv/bin/python
+IMEM=${IMEM:-build/imem.mem}
+DMEM=${DMEM:-build/dmem.mem}
 
 # The repository stores text files with CRLF line endings.
 crlf() {
@@ -13,6 +15,7 @@ crlf() {
 
 "$PY" scripts/gen_screen_mif.py \
     --xlsx scripts/RiscVScreenV3.xlsx --sheet Single-cycle \
+    --imem "$IMEM" --dmem "$DMEM" \
     --out-mif synthesis/single_cycle/screen.mif \
     --out-fields synthesis/single_cycle/fields.json
 
@@ -22,6 +25,7 @@ crlf() {
 
 "$PY" scripts/gen_screen_mif.py \
     --xlsx scripts/RiscVScreenV3.xlsx --sheet Pipeline \
+    --imem "$IMEM" --dmem "$DMEM" \
     --out-mif synthesis/pipeline/screen.mif \
     --out-fields synthesis/pipeline/.fields.json
 

@@ -13,29 +13,47 @@ The bank is loaded once per sweep, so all characters of a sweep -- and
 therefore every field on screen -- describe a single machine state.
 Sampling the live signals per character would assemble a multi-digit
 field from as many different instants as it has characters.
+
+The characters are produced by two round-robin groups that alternate:
+the processor fields and the register table.  A single group with all the
+characters would need a multiplexer with hundreds of inputs, and its delay
+does not fit in the 13.5 ns period of the 74.25 MHz pixel clock.
 """
 
 import argparse
 import json
+import re
 import sys
 from collections import Counter
+from typing import List
 from pathlib import Path
 
+# The register table is not fed by 32 separate ports: the whole register file
+# crosses as one packed bus, x0 in [31:0] ... x31 in [1023:992].
+REG_BUS = 'reg_values'
+REG_COUNT = 32
+REG_BUS_WIDTH = REG_COUNT * 32
 
-def generate_rtl(fields: list, mode: str) -> str:
-    """Produce the SystemVerilog source for the screen writer."""
+# Maximum number of characters of one round-robin group.  The character
+# multiplexer of a group is the critical path of the pixel clock domain, and
+# its delay grows with the number of sources it selects from, so the groups
+# are kept small.
+MAX_GROUP_CHARS = 128
 
-    # Keep only processor-level fields (skip register-file and memory tables)
-    proc_fields = [
-        f for f in fields
-        if not f['name'].startswith('x') and
-           not f['name'].startswith('data_memory_') and
-           not f['name'].startswith('prog._memory_')
-    ]
 
+def is_reg_field(name: str) -> bool:
+    return re.fullmatch(r'x\d+', name) is not None
+
+
+def reg_index(name: str) -> int:
+    return int(name[1:])
+
+
+def build_group(gname: str, gfields: list) -> dict:
+    """Build the character list, the address map and the case block of a group."""
     # A signal may feed more than one slot; the address constants then need
     # distinct names.
-    name_count = Counter(f['name'] for f in proc_fields)
+    name_count = Counter(f['name'] for f in gfields)
 
     def addr_ident(f: dict) -> str:
         name = f['name'].upper()
@@ -43,10 +61,8 @@ def generate_rtl(fields: list, mode: str) -> str:
             return f"ADDR_{name}_{f['start_address']}"
         return f"ADDR_{name}"
 
-    # Build a flat list of character writes
-    # Each entry: (field, pos_in_field, nibble_or_bit, fmt)
     chars = []
-    for f in proc_fields:
+    for f in gfields:
         width = f['width']
         fmt = f['fmt']
         bits = f['signal_bits']
@@ -58,44 +74,107 @@ def generate_rtl(fields: list, mode: str) -> str:
                 bit = width - 1 - pos
                 chars.append((f, pos, bit, 'bin'))
 
-    n_chars = len(chars)
-    ctr_width = (n_chars - 1).bit_length() if n_chars > 1 else 1
-
-    # Build parameter address constants
     params = '\n'.join(
         f"    localparam logic [12:0] {addr_ident(f)} = 13'd{f['start_address']};"
-        for f in proc_fields
+        for f in gfields
     )
 
-    # Build the case block: each entry writes one char from the snapshot bank
     cases = []
     for i, (f, pos, idx, fmt) in enumerate(chars):
         name = f['name']
         bits = f['signal_bits']
         addr = f"{addr_ident(f)} + 13'd{pos}"
-        snap = f"snap_{name}"
+        if is_reg_field(name):
+            src = f"snap_{REG_BUS}[{32 * reg_index(name)} +: 32]"
+        else:
+            src = f"snap_{name}"
         if fmt == 'hex':
             # For signals narrower than the display width, pad with '0' on the left
             # idx is the nibble from MSB to LSB
             if bits > (idx * 4):
-                data_expr = f"hex_digit({snap}, {idx})"
+                data_expr = f"hex_digit({src}, {idx})"
             else:
                 data_expr = "8'h30"  # '0'
         else:
             if idx < bits:
-                data_expr = f"bin_digit({snap}, {idx})"
+                data_expr = f"bin_digit({src}, {idx})"
             else:
                 data_expr = "8'h30"  # '0'
 
         cases.append(
-            f"        {i}: begin wr_en = 1'b1; wr_addr = {addr}; wr_data = {data_expr}; end"
+            f"            {i}: begin wr_en = 1'b1; wr_addr = {addr}; wr_data = {data_expr}; end"
         )
 
-    case_block = '\n'.join(cases)
+    # Snapshot entries of this group: (register name, source signal)
+    if gname == 'REGS':
+        snap = [(REG_BUS, REG_BUS)]
+    else:
+        seen = []
+        for f in gfields:
+            if not is_reg_field(f['name']) and f['name'] not in seen:
+                seen.append(f['name'])
+        snap = [(n, n) for n in seen]
 
-    # Build input port list
+    return {
+        'name': gname,
+        'fields': gfields,
+        'params': params,
+        'cases': '\n'.join(cases),
+        'n': len(chars),
+        'ctr_w': (len(chars) - 1).bit_length() if len(chars) > 1 else 1,
+        'snap': snap,
+    }
+
+
+def chunk_fields(gfields: list, max_chars: int) -> List[list]:
+    """Split the fields into groups of at most max_chars characters.
+
+    A field is never split: all its characters belong to the same group, so
+    the group can be swept independently."""
+    chunks = []
+    current = []
+    total = 0
+    for f in gfields:
+        if current and total + f['width'] > max_chars:
+            chunks.append(current)
+            current = []
+            total = 0
+        current.append(f)
+        total += f['width']
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def generate_rtl(fields: list, mode: str) -> str:
+    """Produce the SystemVerilog source for the screen writer."""
+
+    # The memory tables are static content of the framebuffer.
+    def is_table_field(f: dict) -> bool:
+        return (f['name'].startswith('data_memory_') or
+                f['name'].startswith('prog._memory_'))
+
+    proc_fields = [f for f in fields
+                   if not is_reg_field(f['name']) and not is_table_field(f)]
+    reg_fields = [f for f in fields if is_reg_field(f['name'])]
+
+    # One group per set of fields, each group small enough for its character
+    # multiplexer to fit in the pixel clock period.  The register table is a
+    # group of its own: it is written in two pipeline stages, see below.
+    groups = []
+    for i, chunk in enumerate(chunk_fields(proc_fields, MAX_GROUP_CHARS)):
+        g = build_group(f'PROC{i}' if i else 'PROC', chunk)
+        if g['n'] > 0:
+            groups.append(g)
+    if reg_fields:
+        groups.append(build_group('REGS', reg_fields))
+
+    # Input port list: the union of the groups
     port_names = sorted(set(f['name'] for f in proc_fields))
     port_widths = {f['name']: f['signal_bits'] for f in proc_fields}
+    if reg_fields:
+        port_names.append(REG_BUS)
+        port_widths[REG_BUS] = REG_BUS_WIDTH
 
     input_ports = '\n'.join(
         f"    input logic [{port_widths[n]-1}:0] {n},"
@@ -107,20 +186,93 @@ def generate_rtl(fields: list, mode: str) -> str:
         f"    logic [{port_widths[n]-1}:0] snap_{n};"
         for n in port_names
     )
-
     snap_reset = '\n'.join(
         f"            snap_{n} <= '0;"
         for n in port_names
     )
 
-    snap_load = '\n'.join(
-        f"                snap_{n} <= {n};"
-        for n in port_names
+    # Per group: index constant, counter, case block, snapshot load.
+    # The register group is special: its 256 characters are written in two
+    # pipeline stages, because a multiplexer over 256 sources is too deep for
+    # the pixel clock.  Stage 1 selects the register row, stage 2 the
+    # character inside the row.
+    group_consts = []
+    counter_decls = []
+    counter_fsm = []
+    case_blocks = []
+    total_chars = 0
+    reg_group = None
+
+    for idx, g in enumerate(groups):
+        gname = g['name']
+        lower = gname.lower()
+        total_chars += g['n']
+
+        group_consts.append(f"    localparam int GRP_{gname} = {idx};")
+        counter_decls.append(
+            f"    localparam int N_{gname} = {g['n']};\n"
+            f"    localparam int CTR_{gname}_W = {g['ctr_w']};\n"
+            f"    logic [CTR_{gname}_W-1:0] ctr_{lower};"
+        )
+
+        load = '\n'.join(
+            f"                    snap_{src} <= {src};"
+            for _, src in g['snap']
+        )
+
+        if gname == 'REGS':
+            reg_group = g
+            counter_fsm.append(f"""                GRP_{gname}: begin
+                    ctr_{lower} <= (ctr_{lower} == N_{gname} - 1) ? '0 : ctr_{lower} + 1'b1;
+                    // Load the bank at the end of a sweep, so the next sweep
+                    // renders every character from the same captured instant.
+                    if (ctr_{lower} == N_{gname} - 1) begin
+{load}
+                    end
+                    // Stage 1: select the register row of this character.
+                    reg_value <= snap_{REG_BUS}[32*ctr_{lower}[7:3] +: 32];
+                    reg_addr  <= REG_ADDR[13*ctr_{lower}[7:3] +: 13];
+                    reg_col   <= ctr_{lower}[2:0];
+                end""")
+            case_blocks.append(f"""            GRP_{gname}: begin
+                // Stage 2: the character inside the row selected by stage 1.
+                wr_en   = 1'b1;
+                wr_addr = reg_addr + {{10'd0, reg_col}};
+                wr_data = hex_digit(reg_value, 7 - reg_col);
+            end""")
+        else:
+            counter_fsm.append(f"""                GRP_{gname}: begin
+                    ctr_{lower} <= (ctr_{lower} == N_{gname} - 1) ? '0 : ctr_{lower} + 1'b1;
+                    // Load the bank at the end of a sweep, so the next sweep
+                    // renders every character from the same captured instant.
+                    if (ctr_{lower} == N_{gname} - 1) begin
+{load}
+                    end
+                end""")
+            case_blocks.append(f"""            GRP_{gname}: begin
+                unique case (ctr_{lower})
+{g['cases']}
+                    default: ;  // no write
+                endcase
+            end""")
+
+    # Register table: base address of every row, packed so that the row can
+    # be selected with a variable part-select.
+    reg_addr_list = []
+    for f in sorted(reg_fields, key=lambda f: reg_index(f['name'])):
+        reg_addr_list.append(f"13'd{f['start_address']}")
+    reg_addr_array = ', '.join(reversed(reg_addr_list))
+
+    n_groups = len(groups)
+    grp_w = max(1, (n_groups - 1).bit_length())
+    ctr_resets = '\n'.join(
+        f"            ctr_{g['name'].lower()} <= '0;" for g in groups
     )
 
     sv = f'''// screen_writer_{mode} - auto-generated by gen_screen_writer.py
-// Character-level round-robin.  Refresh = {n_chars} cycles @ 50 MHz.
-// Displayed values come from a snapshot bank loaded once per sweep.
+// Character-level round-robin, {total_chars} characters split in {n_groups}
+// alternating groups.  Displayed values come from a snapshot bank loaded
+// once per sweep.
 
 module screen_writer_{mode} (
     input logic        clk,
@@ -136,12 +288,24 @@ module screen_writer_{mode} (
 );
 
     // Field address map (from fields.json)
-{params}
+{chr(10).join(g['params'] for g in groups)}
 
-    localparam int N_CHARS = {n_chars};
-    localparam int CTR_W     = {ctr_width};
+    // The groups rotate: one group is written per cycle.
+{chr(10).join(group_consts)}
 
-    logic [{ctr_width-1}:0] char_ctr;
+    localparam int N_GROUPS = {n_groups};
+    localparam int GRP_W    = {grp_w};
+    localparam int N_CHARS  = {total_chars};
+
+{chr(10).join(counter_decls)}
+
+    logic [GRP_W-1:0] grp_ctr;
+
+    // Register table, stage 1: the row of the character being written.
+    localparam logic [{REG_COUNT * 13 - 1}:0] REG_ADDR = {{{reg_addr_array}}};
+    logic [31:0] reg_value;
+    logic [12:0] reg_addr;
+    logic [2:0]  reg_col;
 
     // Snapshot bank - the whole screen is rendered from one instant
 {snap_decls}
@@ -167,22 +331,25 @@ module screen_writer_{mode} (
         bin_digit = 8'd48 + shifted[0];  // '0' or '1'
     endfunction
 
-    // Round-robin FSM - one char per cycle
+    // Round-robin FSM - one char per cycle, groups alternate
     logic        wr_en;
     logic [12:0] wr_addr;
     logic [7:0]  wr_data;
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            char_ctr <= '0;
+            grp_ctr <= '0;
+            reg_value <= '0;
+            reg_addr  <= '0;
+            reg_col   <= '0;
 {snap_reset}
+{ctr_resets}
         end else begin
-            char_ctr <= (char_ctr == N_CHARS - 1) ? '0 : char_ctr + 1'b1;
-            // Load the bank at the end of a sweep, so the next sweep renders
-            // every character from the same captured instant.
-            if (char_ctr == N_CHARS - 1) begin
-{snap_load}
-            end
+            grp_ctr <= (grp_ctr == N_GROUPS - 1) ? '0 : grp_ctr + 1'b1;
+            case (grp_ctr)
+{chr(10).join(counter_fsm)}
+                default: ;  // no write
+            endcase
         end
     end
 
@@ -192,8 +359,8 @@ module screen_writer_{mode} (
         wr_addr = '0;
         wr_data = 8'h20;  // space
 
-        unique case (char_ctr)
-{case_block}
+        case (grp_ctr)
+{chr(10).join(case_blocks)}
             default: ;  // no write
         endcase
     end
