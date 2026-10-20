@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
+pipeline,coremark.elf,pass,457786,327372,1.3984,0x5000

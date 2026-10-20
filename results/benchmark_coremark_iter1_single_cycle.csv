@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
+single_cycle,coremark.elf,pass,327888,327854,1.0001,0x5000

@@ -125,6 +125,11 @@ def _write_dmem_pipe(dmem, words: list[int]) -> None:
 
 async def _apply_reset(dut, reset_cycles: int = 5) -> None:
     # Assert active-low reset, hold for `reset_cycles` clocks, then deassert.
+    # The step-mode keys and switches are top-level inputs of both designs.
+    # Undefined they make the clock enables of the design unknown and the
+    # processor does not run at all.
+    dut.key_step.value = 0
+    dut.step_mode.value = 0
     dut.rst_n.value = 0
     for _ in range(reset_cycles):
         await RisingEdge(dut.clk)

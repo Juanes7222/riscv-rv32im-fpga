@@ -185,6 +185,7 @@ module top_pipeline #(
     logic trap_flush;
     logic flush;
     logic load_use_hazard;
+    logic mem_raw_hazard;
 
     assign branch_flush = ex_branch_taken;
     assign trap_flush   = wb_trap_entry || wb_mret_exec;
@@ -410,32 +411,26 @@ module top_pipeline #(
         .mem_ru_data_wr_src     (mem_ru_data_wr_src),
         .div_busy               (ex_div_busy),
         .stall                  (stall),
-        .load_use               (load_use_hazard)
+        .load_use               (load_use_hazard),
+        .mem_raw                (mem_raw_hazard)
     );
 
-    // ID/EX flush: bubble on branch, trap, AND load-use. The standard
-    // MIPS load-use stall inserts a NOP into ID/EX (so the load can advance
-    // to MEM and the consumer enters EX in the next cycle). It does NOT
-    // hold ID/EX, because holding would keep the load stuck in EX and
-    // the data would never reach MEM/WB. The div stall, on the other hand,
-    // holds ID/EX (so the div stays in EX for 34 cycles).
-    logic id_ex_flush;
+    // ID/EX flush: bubble on branch, trap, load-use and mem-raw.
+    //
+    // A load-use hazard costs two cycles: the load advances to MEM while the
+    // consumer waits in ID, and the consumer then reads the value from
+    // MEM/WB.  Both cycles have to keep the consumer in ID, and the IF/ID is
+    // held for that.  The ID/EX register must not capture the consumer while
+    // it is still in the IF/ID, or the consumer would be executed twice, so a
+    // bubble is inserted instead.  Holding the ID/EX would duplicate the
+    // instruction that is in the EX stage instead, because the EX/MEM
+    // register captures it at the same clock edge.
+    //
+    // The div stall holds the ID/EX (so the div stays in EX for 34 cycles).
     // The step freeze suppresses the bubbles: they are combinational
     // functions of the held state and would destroy the frozen instruction.
-    assign id_ex_flush = (flush || load_use_hazard) & ~step_hold;
-
-    // ID/EX hold: the register must keep its contents while the pipeline
-    // is stalled for a reason other than the load-use bubble.  The IF/ID is
-    // held in that case, so the instruction in ID would otherwise be copied
-    // into EX while it stays in ID - and it would be executed twice.  A
-    // branch is the visible victim: the duplicated execution redirects the
-    // PC a second time, with a stale operand.
-    //
-    // Holding the ID/EX also keeps a branch in EX until the stall is
-    // over, so its redirect is not lost (the PC unit gives the stall
-    // priority over the branch redirect).
-    logic id_ex_hold;
-    assign id_ex_hold = ex_div_busy || (stall && !load_use_hazard) || step_hold;
+    logic id_ex_flush;
+    assign id_ex_flush = (flush || load_use_hazard || mem_raw_hazard) & ~step_hold;
 
     // ID/EX register                                                       //
     // flush: id_ex_flush (branch/trap/load-use). stall: only on div_busy
@@ -445,7 +440,7 @@ module top_pipeline #(
         .clk               (clk),
         .rst               (rst),
         .flush             (id_ex_flush),
-        .stall             (id_ex_hold),
+        .stall             (ex_div_busy || step_hold),
         .id_pc             (id_pc),
         .id_instruction    (id_instruction),
         .id_rs1_data       (id_rs1_data_wb_fwd),

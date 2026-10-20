@@ -58,27 +58,26 @@ directly behind a load.
 
 ## Decision
 
-The ID/EX register holds its contents while the pipeline is stalled for a
-reason other than the load-use bubble:
+The MEM-RAW hazard inserts a bubble in the ID/EX register, exactly like the
+load-use hazard:
 
 ```systemverilog
-logic id_ex_hold;
-assign id_ex_hold = ex_div_busy || (stall && !load_use_hazard);
+assign id_ex_flush = flush || load_use_hazard || mem_raw_hazard;
 ```
 
-The IF/ID register and the ID/EX register now advance together: the IF/ID is
-held only while the ID/EX is held, so an instruction can no longer be in two
-stages at the same time.
+The hazard unit exposes the MEM-RAW hazard, so the two stall cycles of a
+load-use sequence are handled in the same way.
 
-Holding the ID/EX also fixes a second consequence of the same defect: the PC
-unit gives the stall priority over the branch redirect, so a taken branch in
-EX during a stall lost its redirect.  With the ID/EX held, the branch stays
-in EX until the stall is over and its redirect is applied.
+Holding the ID/EX register instead of inserting a bubble looks equivalent and
+is wrong: the EX/MEM register captures the contents of the EX stage at the
+same clock edge, so holding the ID/EX duplicates the instruction that is in
+the EX stage.  The symptom is the same class of failure - an instruction
+executed twice - but it moves to the load instead of the branch.
 
 The regression test
 `verification/cocotb/pipeline/test_pipeline_hazards.py::test_load_use_on_branch_executes_branch_once`
-counts how many times the branch reaches the write-back stage and requires
-exactly one.
+counts how many times the branch and the load reach the write-back stage and
+requires exactly one each.
 
 ## Consequences
 
@@ -87,69 +86,22 @@ exactly one.
   requires.
 * A load-use hazard whose consumer is a branch now costs two stall cycles,
   like any other load-use hazard.
-* The hazard unit keeps its three outputs: `load_use` (the bubble), `stall`
-  (the PC and the IF/ID) and the division stall.
+* The hazard unit keeps its outputs: `load_use` and `mem_raw` (the two
+  bubbles), `stall` (the PC and the IF/ID) and the division stall.
 
-## Open issue: the pipeline still differs from the single-cycle in CoreMark
+## Resolution: the CoreMark divergence
 
-With the defect above fixed the pipeline terminates CoreMark, but it does not
-execute the same instruction stream as the single-cycle: the first
-divergence is in `core_list_mergesort`, at the branch
+With the fix above the pipeline and the single-cycle retire the same
+instructions with the same register values.
 
-```
-3ec:  bgtz s0, 3cc        <- taken by the pipeline, not taken by the single-cycle
-```
+The bug was found with a comparison of the two designs on the same ELF: the
+program counter and the whole register file are logged on every retirement
+and the two streams are aligned by program counter.  The alignment matters,
+because the pipeline holds the last instruction in the write-back stage
+during the 34 cycles of a division, while the single-cycle holds the
+division itself.
 
-and at that point the registers `s0`, `s2` and `s3` already differ (the
-pipeline is one node behind in the list traversal).  The four synthetic
-benchmarks and the riscv-tests execute identically in both designs, so the
-defect is not in the hazard logic itself.
-
-The comparison method is documented in `docs/hardware_validation.md`: both
-designs are run with the same ELF and the stream of retired program counters
-is compared; the single-cycle repeats a program counter during a division
-(the counter only advances when an instruction retires) and the pipeline
-repeats the previous counter during the same division, so the streams have
-to be compressed before they are compared.
-
-Until the divergence is located, the CoreMark rows of
-`results/results_synthetic_benchmarks.csv` are not valid measurements of the
-pipeline CPI; the synthetic benchmarks are.
-
-### What has been localised so far
-
-The divergence is in `calc_func`, the byte-swap helper of the CoreMark list
-operations:
-
-```
-7c:  lh   a0, 2(a0)      <- the load
-80:  slli a4, a5, 0x10
-```
-
-* Both designs retire the same instructions for 1483 instructions, and the
-  difference appears in the register file: `a0` and `s0` differ, the memory
-  does not.  The load at `0x7c` returns `0x0000` in the single-cycle and
-  `0xffff` in the pipeline.
-* The data memory contents are identical in the two designs at the point of
-  the divergence, so the pipeline did not write the wrong value: it read a
-  value that was still the old one.
-* The address, the decode, the byte enables, the halfword selection and the
-  register write-back of that load are all correct in the pipeline
-  (`mem_alu_result` carries the right address, the byte lanes hold the right
-  bytes, the write-back address and data are right).  The isolated
-  store-to-load, odd-address halfword and byte-lane tests behave identically
-  in both designs.
-* The value is therefore lost between the store that writes the halfword and
-  the load that reads it, in the pipeline only.  The load data is not carried
-  by the MEM/WB register - it bypasses it and is taken from the live output
-  of the data memory at the write-back cycle, which is correct only while
-  the load leaves the MEM stage in the cycle in which it was read.  Making
-  the MEM/WB register carry the load data was tried and is wrong: the
-  registered output of the data memory is one cycle later than the data the
-  instruction needs.
-
-The comparison method is reusable: run the same ELF on both designs, log the
-program counter and the whole register file on every retirement, and compare
-the two streams (the streams have to be compressed, because the pipeline
-holds the last instruction in the write-back stage during the 34 cycles of a
-division, while the single-cycle holds the division itself).
+The comparison showed that the pipeline retired the load of the byte-swap
+helper of the CoreMark list operations twice.  The duplication was the one
+described above, in the instruction that was in the EX stage during the
+MEM-RAW stall.

@@ -18,7 +18,8 @@ module hazard_detection_unit (
     input  logic [1:0]  mem_ru_data_wr_src,
     input  logic        div_busy,
     output logic        stall,
-    output logic        load_use
+    output logic        load_use,
+    output logic        mem_raw
 );
     logic load_use_hazard;
     logic mem_raw_hazard;
@@ -39,6 +40,7 @@ module hazard_detection_unit (
                          ((mem_rd_addr == id_rs1_addr) || (mem_rd_addr == id_rs2_addr));
 
         load_use = load_use_hazard;
+        mem_raw  = mem_raw_hazard;
         stall    = load_use_hazard || mem_raw_hazard || div_busy;
     end
 endmodule

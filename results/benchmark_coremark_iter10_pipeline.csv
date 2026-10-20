@@ -1,2 +1,2 @@
 architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
-pipeline,coremark.elf,pass,148851,79418,1.8743,0x5000
+pipeline,coremark.elf,pass,4417297,3151560,1.4016,0x5000

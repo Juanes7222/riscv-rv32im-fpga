@@ -1,2 +1,2 @@
 architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
-single_cycle,branch_stress.elf,pass,4004,4004,1.0000,0x708
+single_cycle,branch_stress.elf,timeout,20000001,20000001,1.0000,0x708

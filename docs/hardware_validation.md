@@ -183,6 +183,7 @@ and was not done here.
 | 12 | the RTL dumped the whole waveform on every simulation | a CoreMark run wrote 10 GB of VCD and became I/O bound; the dump is now off unless `-DDUMP_VCD` is given |
 | 13 | the synthetic benchmarks put `tohost` at 0x100, the riscv-tests at 0x708 | one bitstream could not detect the end of every benchmark; the synthetic programs now use 0x708 |
 | 14 | the pipeline counter only counted the instructions that write a register | the CPI of the pipeline excluded the branches and the stores and was up to twice the correct value (ADR 024) |
+| 15 | the MEM-RAW hazard let the ID/EX register capture the consumer that was still in the IF/ID | the consumer was executed twice; with a branch the PC was redirected twice, with a load the program diverged from the single-cycle and CoreMark never finished (ADR 043) |
 
 ---
 

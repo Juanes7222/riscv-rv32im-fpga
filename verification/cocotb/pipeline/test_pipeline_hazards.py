@@ -255,15 +255,20 @@ async def test_load_use_on_branch_executes_branch_once(dut):
         dut.u_rf.regs[i].value = model.regs[i]
     await Timer(2, unit="ns")
 
-    # Count how many times the branch reaches the write-back stage.
+    # Count how many times each instruction reaches the write-back stage.
     branch_retired = 0
+    load_retired = 0
     for _ in range(14):
         await step_clock(dut)
         if int(dut.wb_instruction.value) == beq:
             branch_retired += 1
+        if int(dut.wb_instruction.value) == lw:
+            load_retired += 1
 
     assert branch_retired == 1, (
         f"the branch was retired {branch_retired} times, expected once")
+    assert load_retired == 1, (
+        f"the load was retired {load_retired} times, expected once")
 
     model.step()  # LW
     model.step()  # BEQ
