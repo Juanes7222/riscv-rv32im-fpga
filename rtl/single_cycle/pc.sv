@@ -12,6 +12,9 @@ module pc (
     input  logic [31:0] trap_target,
     input  logic [31:0] mepc_value,
 
+    // step_hold: 1 freezes the processor (step mode).
+    input  logic        step_hold,
+
     output logic [31:0] pc,
     output logic [31:0] pc_plus4
 );
@@ -30,11 +33,12 @@ module pc (
                      branch     ? branch_target : pc_plus4;
 
     // PC register: synchronous reset to 0x00000000, stall during division
+    // or while the step mode freezes the processor
     always_ff @(posedge clk) begin
         if (!rst_n)
             pc <= 32'h0000_0000;
-        else if (div_busy)
-            pc <= pc;           // stall: DIV_RUNNING or DIV_DONE active
+        else if (div_busy || step_hold)
+            pc <= pc;           // stall: DIV_RUNNING or DIV_DONE active, or frozen by step mode
         else
             pc <= next_pc;
     end

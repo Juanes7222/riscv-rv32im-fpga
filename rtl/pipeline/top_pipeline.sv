@@ -9,6 +9,8 @@ module top_pipeline #(
 )(
     input  logic        clk,        // 50 MHz - DE1-SoC PIN_AF14
     input  logic        rst_n,      // Active-low synchronous reset - KEY[0]
+    input  logic        key_step,   // KEY[1], active high: releases the frozen processor for one cycle
+    input  logic        step_mode,  // SW[9], active high: freezes the processor
     output logic [9:0]  ledr,       // if_pc[9:0] - same convention as single-cycle
     output logic [6:0]  seven_seg_display0,
     output logic [6:0]  seven_seg_display1,
@@ -188,6 +190,32 @@ module top_pipeline #(
     assign trap_flush   = wb_trap_entry || wb_mret_exec;
     assign flush        = branch_flush || trap_flush;
 
+    // Step mode: SW[9] freezes the pipeline, KEY[1] releases it for one
+    // cycle.  The freeze is OR-ed into the clock enables of the pipeline
+    // registers, never into the clock itself.
+    logic step_hold;
+
+    step_mode u_step_mode (
+        .clk       (clk),
+        .rst_n     (rst_n),
+        .key_step  (key_step),
+        .step_mode (step_mode),
+        .step_hold (step_hold)
+    );
+
+    // Clock enable of the IF stage: the hazard stall plus the step freeze.
+    // A pending trap still overrides the hazard stall, but not the freeze:
+    // the pipeline must not move until the user releases it.
+    logic pipe_stall;
+    assign pipe_stall = (stall && !trap_flush) || step_hold;
+
+    // While the pipeline is frozen no flush may be applied: the flush
+    // signals are combinational functions of the held state, so they would
+    // destroy the frozen instructions.  The pending flush is applied on the
+    // release cycle, when the pipeline advances again.
+    logic flush_eff;
+    assign flush_eff = flush & ~step_hold;
+
     // Performance counters                                                 //
     logic [63:0] cycle_count;
     logic [63:0] instr_retired;
@@ -232,6 +260,7 @@ module top_pipeline #(
     ) u_perf (
         .clk                  (clk),
         .rst_n                (rst_n),
+        .enable               (~step_hold),
         .div_busy             (ex_div_busy),
         .valid_wb             (valid_wb),
         .program_done         (program_done_pulse),
@@ -281,7 +310,7 @@ module top_pipeline #(
     pc_unit u_pcunit (
         .clk           (clk),
         .rst           (rst),
-        .stall         (stall && !trap_flush),
+        .stall         (pipe_stall),
         .branch_taken  (branch_flush || trap_flush),
         .mask_pc_lsb   (1'b0),              // masking already applied above
         .branch_target (pc_redirect_target),
@@ -306,8 +335,8 @@ module top_pipeline #(
     if_id_register u_if_id (
         .clk            (clk),
         .rst            (rst),
-        .stall          (stall && !trap_flush),
-        .flush          (flush),
+        .stall          (pipe_stall),
+        .flush          (flush_eff),
         .if_pc          (if_pc),
         .if_instruction (if_instruction),
         .id_pc          (id_pc),
@@ -326,7 +355,7 @@ module top_pipeline #(
         .rs2_addr (id_rs2_addr),
         .rd_addr  (wb_rd_addr),
         .rd_data  (wb_rd_data),
-        .wr_en    (wb_wr_en_gated),
+        .wr_en    (wb_wr_en_gated & ~step_hold),
         .rs1_data (id_rs1_data),
         .rs2_data (id_rs2_data),
         .dbg_regs (rf_dbg_regs)
@@ -391,7 +420,9 @@ module top_pipeline #(
     // the data would never reach MEM/WB. The div stall, on the other hand,
     // holds ID/EX (so the div stays in EX for 34 cycles).
     logic id_ex_flush;
-    assign id_ex_flush = flush || load_use_hazard;
+    // The step freeze suppresses the bubbles: they are combinational
+    // functions of the held state and would destroy the frozen instruction.
+    assign id_ex_flush = (flush || load_use_hazard) & ~step_hold;
 
     // ID/EX hold: the register must keep its contents while the pipeline
     // is stalled for a reason other than the load-use bubble.  The IF/ID is
@@ -404,7 +435,7 @@ module top_pipeline #(
     // over, so its redirect is not lost (the PC unit gives the stall
     // priority over the branch redirect).
     logic id_ex_hold;
-    assign id_ex_hold = ex_div_busy || (stall && !load_use_hazard);
+    assign id_ex_hold = ex_div_busy || (stall && !load_use_hazard) || step_hold;
 
     // ID/EX register                                                       //
     // flush: id_ex_flush (branch/trap/load-use). stall: only on div_busy
@@ -535,8 +566,8 @@ module top_pipeline #(
     ex_mem_register u_ex_mem (
         .clk                (clk),
         .rst                (rst),
-        .stall              (ex_div_busy),
-        .flush              (trap_flush),
+        .stall              (ex_div_busy || step_hold),
+        .flush              (trap_flush & ~step_hold),
         .ex_alu_result      (ex_alu_result),
         .ex_rs2_data_fwd    (ex_rs2_fwd),
         .ex_rs1_data_fwd    (ex_rs1_fwd),
@@ -598,7 +629,7 @@ module top_pipeline #(
     mem_wb_register u_mem_wb (
         .clk                (clk),
         .rst                (rst),
-        .stall              (ex_div_busy),
+        .stall              (ex_div_busy || step_hold),
         .mem_alu_result     (mem_alu_result),
         .mem_dm_rd_data     ('0),
         .mem_rs1_data       (mem_rs1_data),
@@ -662,7 +693,7 @@ module top_pipeline #(
         .rst_n      (rst_n),
         .csr_addr   (wb_csr_addr),
         .csr_wdata  (wb_csr_wdata),
-        .csr_wr     (wb_csr_wr_gated),
+        .csr_wr     (wb_csr_wr_gated & ~step_hold),
         .csr_op     (wb_csr_op),
         .csr_rdata  (csr_rdata),
         .trap_entry (wb_trap_entry),

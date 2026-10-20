@@ -4,6 +4,9 @@ module perf_counters #(
     input  logic        clk,
     input  logic        rst_n,
 
+    // enable: 0 freezes the counters (step mode).
+    input  logic        enable,
+
     // Single-cycle: connect div_busy. Tie to 1'b0 when PIPELINE_MODE = 1.
     input  logic        div_busy,
 
@@ -42,7 +45,7 @@ module perf_counters #(
             program_done_synced  <= 1'b0;
             cycles_at_done       <= 64'h0;
             instr_at_done        <= 64'h0;
-        end else begin
+        end else if (enable) begin
             cycle_count          <= cycle_count + 64'h1;
             instr_retired        <= instr_retired + {{63{1'b0}}, instr_retired_en};
             program_done_synced  <= program_done_synced || program_done;

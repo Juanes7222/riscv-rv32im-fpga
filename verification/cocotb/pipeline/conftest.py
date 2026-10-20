@@ -28,11 +28,30 @@ RESET_CYCLES    = 4
 
 
 # ──────────────────────────────────────────────────────────────────────
+# Board inputs
+# ──────────────────────────────────────────────────────────────────────
+
+def init_board_inputs(dut) -> None:
+    """Drive the board inputs that are not part of the clock or the reset.
+
+    The step-mode keys and switches are top-level inputs of both designs.
+    Left undefined they make the clock enables of the design unknown, and
+    the processor does not run at all.  The ports are set only when the
+    design exposes them, so the helper also works on older revisions.
+    """
+    if hasattr(dut, "key_step"):
+        dut.key_step.value = 0
+    if hasattr(dut, "step_mode"):
+        dut.step_mode.value = 0
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Cocotb Clock + RisingEdge pattern (riscv-tests)
 # ──────────────────────────────────────────────────────────────────────
 
 async def start_clock(dut) -> None:
     """Start the cocotb Clock coroutine. Runs in the background."""
+    init_board_inputs(dut)
     cocotb.start_soon(Clock(dut.clk, CLOCK_PERIOD_NS, unit="ns").start())
 
 
@@ -41,6 +60,7 @@ async def apply_reset(dut) -> None:
 
     Used by the riscv-tests. Uses RisingEdge so the test waits for the
     cocotb Clock to actually toggle."""
+    init_board_inputs(dut)
     dut.rst_n.value = 0
     for _ in range(RESET_CYCLES):
         await RisingEdge(dut.clk)
@@ -62,6 +82,7 @@ async def step_clock(dut) -> None:
 
 async def reset_dut(dut, hold_cycles: int = 2) -> None:
     """Assert reset for `hold_cycles` cycles. Does NOT step after deassert."""
+    init_board_inputs(dut)
     dut.rst_n.value = 0
     await Timer(2, unit="ns")
     for _ in range(hold_cycles):

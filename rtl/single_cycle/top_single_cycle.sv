@@ -5,6 +5,8 @@ module top_single_cycle #(
 )(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
+    input logic key_step, // KEY[1], active high: releases the frozen processor for one cycle
+    input logic step_mode,// SW[9], active high: freezes the processor
     output logic [9:0] ledr,       // pc[9:0]
     output logic [6:0] seven_seg_display0, // Connect to your 7-segment display output
     output logic [6:0] seven_seg_display1,
@@ -198,11 +200,25 @@ module top_single_cycle #(
 `endif
 // synthesis translate_on
 
+    // Step mode: SW[9] freezes the processor, KEY[1] releases it for one
+    // cycle.  The freeze is applied to the write enables and to the PC,
+    // never to the clock itself.
+    logic step_hold;
+
+    step_mode u_step_mode (
+        .clk       (clk),
+        .rst_n     (rst_n),
+        .key_step  (key_step),
+        .step_mode (step_mode),
+        .step_hold (step_hold)
+    );
+
     perf_counters #(
         .PIPELINE_MODE (1'b0)
     ) u_perf (
         .clk                  (clk),
         .rst_n                (rst_n),
+        .enable               (~step_hold),
         .div_busy             (div_busy),
         .valid_wb             (1'b0),
         .program_done         (program_done_pulse),
@@ -224,6 +240,7 @@ module top_single_cycle #(
         .mret_exec   (mret_exec),
         .trap_target (trap_target),
         .mepc_value  (mepc_value),
+        .step_hold   (step_hold),
         .pc          (pc),
         .pc_plus4    (pc_plus4)
     );
@@ -264,7 +281,7 @@ module top_single_cycle #(
         .rs2_addr (rs2_addr),
         .rd_addr  (rd_addr),
         .rd_data  (rd_data),
-        .wr_en    (wr_en_gated),    // gated - not ru_wr directly (ADR 023)
+        .wr_en    (wr_en_gated & ~step_hold),  // gated - not ru_wr directly (ADR 023)
         .rs1_data (rs1_data),
         .rs2_data (rs2_data),
         .dbg_regs (rf_dbg_regs)
@@ -312,7 +329,7 @@ module top_single_cycle #(
         .rst_n       (rst_n),
         .csr_addr    (csr_addr),
         .csr_wdata   (csr_wdata),
-        .csr_wr      (csr_wr),
+        .csr_wr      (csr_wr & ~step_hold),
         .csr_op      (csr_op),
         .csr_rdata   (csr_rdata),
         .trap_entry  (trap_entry),
