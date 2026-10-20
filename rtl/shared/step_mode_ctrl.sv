@@ -7,13 +7,22 @@
 // The module only produces the freeze request.  Each design applies it to
 // its own clock enables, so the clock itself is never gated.
 //
-// Button polarity
-// ---------------
+// Button polarity and timing
+// -------------------------
 // key_step is the RAW KEY[1] pin level: the DE1-SoC push buttons are
 // active low, so the pin is wired directly and needs no inversion.  The
 // pin is 1 while the button is released and 0 while it is pressed.  The
 // module detects the falling edge of the synchronised pin, so the step
-// fires a few clocks after the PRESS.
+// fires after the PRESS.
+//
+// Timing, counted in processor clocks from the clock that samples the
+// press (clock 0):
+//   clock 2: the synchronised key has fallen, the one-cycle release
+//             request is asserted,
+//   clock 3: the request is registered,
+//   clock 4: the processor advances - the single clock in which the
+//             freeze is released,
+//   clock 5: the processor is frozen again.
 module step_mode_ctrl (
     input  logic clk,        // processor clock
     input  logic rst_n,      // active-low synchronous reset

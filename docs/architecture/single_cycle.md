@@ -25,13 +25,23 @@ not exposed as ports.
 
 ```systemverilog
 module top_single_cycle (
-    input  logic clk,    // 50 MHz oscillator from DE1-SoC (PIN_AF14)
-    input  logic rst_n   // Active-low synchronous reset - connected to KEY[0]
+    input  logic clk,       // 50 MHz oscillator from DE1-SoC (PIN_AF14)
+    input  logic rst_n,     // Active-low synchronous reset - connected to KEY[0]
+    input  logic key_step,  // KEY[1] raw pin, active low: 0 while pressed
+    input  logic step_mode  // SW[9], active high: freezes the processor
 );
 ```
 
 All internal signals are declared as `logic` inside the module body.
 Reset vector: `32'h0000_0000` (see [ADR 012](../decisions/012_reset_vector.md)).
+
+The step mode (`step_mode` and `key_step`, see
+[ADR 044](../decisions/044_step_mode_processor_freeze.md)) freezes the
+processor so the console can be read: `step_mode` requests the freeze and
+one press of KEY[1] releases the processor for exactly one clock. The
+freeze is applied to the clock enables that already exist (the PC hold,
+the register file, CSR and counter write enables); the clock is never
+gated.
 
 ---
 
@@ -190,7 +200,7 @@ standard single-cycle datapath. It is dormant for all non-division instructions.
 
 ---
 
-## PC Unit Design (`rtl/single_cycle/pc_unit.sv`)
+## PC Unit Design (`rtl/single_cycle/pc.sv`)
 
 ### Ports
 
@@ -202,6 +212,7 @@ standard single-cycle datapath. It is dormant for all non-division instructions.
 | `mask_pc_lsb` | input | 1 | Force bit 0 of branch target to zero (JALR) |
 | `alu_res` | input | 32 | Branch/jump target from ALU |
 | `div_busy` | input | 1 | Stall: hold PC while high |
+| `step_hold` | input | 1 | Stall: hold PC while the step mode freezes the processor (ADR 044) |
 | `pc` | output | 32 | Current PC |
 | `pc_plus4` | output | 32 | PC + 4 |
 
@@ -215,9 +226,9 @@ next_pc       = branch    ? branch_target               // combinational
               :              pc_plus4
 
 always_ff @(posedge clk) begin
-    if (!rst_n)        pc <= 32'h0000_0000   // reset (ADR 012)
-    else if (div_busy) pc <= pc               // stall: DIV_RUNNING or DIV_DONE active
-    else               pc <= next_pc          // normal advance
+    if (!rst_n)                 pc <= 32'h0000_0000   // reset (ADR 012)
+    else if (div_busy || step_hold) pc <= pc        // stall: division busy or frozen
+    else                        pc <= next_pc       // normal advance
 end
 ```
 

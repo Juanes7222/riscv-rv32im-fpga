@@ -25,6 +25,7 @@ for the normative RTL specification and full design rationale.
 |------|-----------|-------|-------------|
 | `clk` | input | 1 | Clock - used by the radix-2 restoring divisor FSM |
 | `rst_n` | input | 1 | Active-low synchronous reset - resets all FSM registers |
+| `hold` | input | 1 | 1 freezes the divider FSM state (step mode, ADR 044) |
 | `a` | input | 32 | Operand A |
 | `b` | input | 32 | Operand B |
 | `alu_op` | input | 5 | Operation select (see encoding below) |
@@ -71,6 +72,11 @@ for the normative RTL specification and full design rationale.
   file write enable (see [ADR 023](../decisions/023_wr_en_gated.md)).
 - Division corner cases are resolved in `DIV_IDLE` without asserting `div_busy`.
   `div_done` pulses once; effective CPI = 1.
+- **`hold` freezes the divider state.** While `hold` is high the FSM registers keep
+  their values: a division in flight is suspended instead of restarted and
+  `div_done` is kept high instead of being consumed, so the result is still
+  written when the processor is released. The single-cycle ties `hold` to
+  `step_hold`, the pipeline ties it to `1'b0` (ADR 044).
 
 ### Division Corner Cases
 
@@ -85,8 +91,44 @@ for the normative RTL specification and full design rationale.
 
 ---
 
-## register_file
+## step_mode_ctrl
 
+**File:** `rtl/shared/step_mode_ctrl.sv`  
+**Type:** Sequential (synchronous reset, no clock gating)  
+**Description:** Produces the freeze request of the step mode: SW[9] freezes
+the processor and KEY[1] releases it for exactly one clock, so the console
+can be read and the instruction can be stepped one stage at a time. Each
+design applies the request to its own clock enables, so the clock itself is
+never gated. See [ADR 044](../decisions/044_step_mode_processor_freeze.md).
+
+### Ports
+
+| Port | Direction | Width | Description |
+|------|-----------|-------|-------------|
+| `clk` | input | 1 | Processor clock (not the VGA clock) |
+| `rst_n` | input | 1 | Active-low synchronous reset |
+| `key_step` | input | 1 | KEY[1] raw pin, active low: 0 while the button is pressed |
+| `step_mode` | input | 1 | SW[9], active high: 1 freezes the processor |
+| `step_hold` | output | 1 | 1 while the processor is frozen |
+
+### Behavioral Notes
+
+- **`key_step` is the raw board pin, active low.** The DE1-SoC push buttons
+  are active low and the pin is wired directly, without inversion: the pin
+  is 1 while the button is released and 0 while it is pressed. The module
+  detects the falling edge of the synchronised pin, so the step fires after
+  the press.
+- **Timing**, counted in processor clocks from the clock that samples the
+  press (clock 0): the release request is asserted at clock 2, registered at
+  clock 3, the processor advances at clock 4 (the single clock in which the
+  freeze is released) and is frozen again at clock 5.
+- The key is asynchronous and sampled through four flip-flops; the switch
+  through two.
+- `step_hold` is low while the step mode is off, whatever the key does.
+
+---
+
+## register_file
 **File:** `rtl/shared/register_file.sv`  
 **Type:** Sequential (synchronous write, asynchronous read)  
 **Description:** 32 x 32-bit register file. Register x0 is hardwired to zero
