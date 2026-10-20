@@ -249,7 +249,8 @@ module screen_writer_pipeline (
     logic [31:0] snap_wb_rd_data;
     logic [1023:0] snap_reg_values;
 
-    // Derived signals used by the attribute expressions.
+    // Derived signals used by the attribute expressions; a signal may come
+    // from a snapshot of another group, so it can lag one sweep behind.
     wire stage_if_active  = (snap_if_instruction != 32'h00000000) &&
                              (snap_if_instruction != 32'h00000013);
     wire stage_id_active  = (snap_id_instruction != 32'h00000000) &&

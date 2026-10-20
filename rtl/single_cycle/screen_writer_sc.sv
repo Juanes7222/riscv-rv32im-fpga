@@ -180,7 +180,8 @@ module screen_writer_single_cycle (
     logic [0:0] snap_ru_wr;
     logic [1023:0] snap_reg_values;
 
-    // Derived signals used by the attribute expressions.
+    // Derived signals used by the attribute expressions; a signal may come
+    // from a snapshot of another group, so it can lag one sweep behind.
     wire stage_active = (snap_instruction != 32'h00000000) &&
                          (snap_instruction != 32'h00000013);
     wire mem_access       = (snap_instruction[6:0] == 7'b0000011) ||

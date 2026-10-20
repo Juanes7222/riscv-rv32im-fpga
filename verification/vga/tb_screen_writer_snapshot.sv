@@ -11,9 +11,9 @@
 // must show it.
 //
 // The last check covers the attribute byte: a field that changes meaning
-// changes its colour.  The dm_wr field is the probe: it keeps its base
-// colour while the write enable is low and turns to its hot colour while
-// the write enable is high.
+// changes its colour.  The dm_wr field is the probe: the write enable is
+// driven to the opposite of the value the field shows, so the test tells a
+// writer that reads the snapshot from one that reads the live signal.
 
 module tb_screen_writer_snapshot;
 
@@ -37,7 +37,6 @@ module tb_screen_writer_snapshot;
     logic [31:0] dm_rdata;
     logic [31:0] dm_wdata;
     logic [0:0] dm_wr;
-    logic       dm_wr_drive = 1'b0;
     logic [2:0] funct3;
     logic [6:0] funct7;
     logic [0:0] halted;
@@ -182,11 +181,13 @@ module tb_screen_writer_snapshot;
             dm_wdata <= dm_wdata + 1'b1;
         end
     end
-    // The write enable is the probe of the attribute test: it is driven in
-    // two deliberate phases instead of counting.
+    // The write enable is the probe of the attribute test.  It is driven to
+    // the opposite of the snapshot the writer shows, so the live value and
+    // the snapshot never agree: a writer that reads the live signal instead
+    // of the snapshot paints the field with the wrong colour every time.
     always_ff @(posedge clk) begin
         if (rst_n) begin
-            dm_wr <= dm_wr_drive;
+            dm_wr <= ~u_dut.snap_dm_wr;
         end
     end
     always_ff @(posedge clk) begin
@@ -293,7 +294,9 @@ module tb_screen_writer_snapshot;
                 reg_pos = reg_pos + 1;
             end
             // The attribute of the dm_wr field must follow the value the
-            // field shows, which is the snapshot of the write enable.
+            // field shows, which is the snapshot of the write enable.  The
+            // live write enable is the opposite of that snapshot, so a
+            // writer that reads the live signal fails here.
             if (vmem_wr_addr == ADDR_DM_WR) begin
                 if (u_dut.snap_dm_wr) begin
                     attr_high = attr_high + 1;
@@ -358,16 +361,10 @@ module tb_screen_writer_snapshot;
 
         repeat (4) @(posedge clk);
         rst_n = 1'b1;
-
-        // Phase 1: the write enable is low, the field keeps its base colour.
-        dm_wr_drive = 1'b0;
-        repeat (u_dut.N_CHARS * 4) @(posedge clk);
-
-        // Phase 2: the write enable is high, the field turns to its hot
-        // colour.  The snapshot bank picks the new value up at the end of
-        // the next sweep.
-        dm_wr_drive = 1'b1;
-        repeat (u_dut.N_CHARS * 4) @(posedge clk);
+        // Let several full sweeps run.  The snapshot of the write enable
+        // alternates from one sweep to the next, so the field is written in
+        // both of its colours.
+        repeat (u_dut.N_CHARS * 6) @(posedge clk);
 
         $display("PC field address : %0d", u_dut.ADDR_PC);
         $display("x0 field address  : %0d", u_dut.ADDR_X0);

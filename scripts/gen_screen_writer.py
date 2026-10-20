@@ -174,8 +174,11 @@ def build_group(gname: str, gfields: list, snapshots: Set[str],
             return f"ADDR_{name}_{f['start_address']}"
         return f"ADDR_{name}"
 
-    # Every character of a field shares its attribute.
-    attrs = {f['name']: attr_expression(f, snapshots, local_wires) for f in gfields}
+    # Every character of a field shares its attribute.  The map is keyed by
+    # the address of the slot: a signal may feed more than one slot, and the
+    # slots of one name do not have to share their attribute.
+    attrs = {f['start_address']: attr_expression(f, snapshots, local_wires)
+             for f in gfields}
 
     chars = []
     for f in gfields:
@@ -219,7 +222,7 @@ def build_group(gname: str, gfields: list, snapshots: Set[str],
 
         cases.append(
             f"            {i}: begin wr_en = 1'b1; wr_addr = {addr}; "
-            f"wr_data = {data_expr}; wr_attr = {attrs[name]}; end"
+            f"wr_data = {data_expr}; wr_attr = {attrs[f['start_address']]}; end"
         )
 
     # Snapshot entries of this group: (register name, source signal)
@@ -436,7 +439,8 @@ module screen_writer_{mode} (
     // Snapshot bank - the whole screen is rendered from one instant
 {snap_decls}
 
-    // Derived signals used by the attribute expressions.
+    // Derived signals used by the attribute expressions; a signal may come
+    // from a snapshot of another group, so it can lag one sweep behind.
 {derived_block}
     // Helper functions: value --> ASCII
     function automatic [7:0] hex_digit (
