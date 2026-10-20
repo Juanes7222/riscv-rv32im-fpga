@@ -195,7 +195,7 @@ module screen_writer_single_cycle #(
     localparam logic [3:0] TBL_DATA_MEMORY_DATACOL = 4'd6;
     localparam logic [12:0] TBL_DATA_MEMORY_MIDDLE = TBL_DATA_MEMORY_ROWS / 2;
     localparam logic [12:0] TBL_DATA_MEMORY_MAX_BASE = DMEM_DEPTH - 32;
-    localparam logic [12:0] TBL_DATA_MEMORY_LAST_WORD = DMEM_DEPTH - 1;
+    localparam logic [12:0] TBL_DATA_MEMORY_WORD_MASK = DMEM_DEPTH - 1;
 
     logic [5:0]  tbl_data_memory_row;          // the row of the table being drawn
     logic [3:0]  tbl_data_memory_col;          // the character of the row being drawn
@@ -206,16 +206,23 @@ module screen_writer_single_cycle #(
     logic [12:0] tbl_data_memory_access_base;  // the base of the last access
     logic [12:0] tbl_data_memory_access_word;  // the word address of the last access
     logic        tbl_data_memory_access_write; // the last access was a write
+    logic        tbl_data_memory_access_valid; // an access has happened
     logic        tbl_data_memory_marked_write; // the marked row is a write
+    logic        tbl_data_memory_marked_valid; // the marked row is an access
 
-    // The word the access touches, clamped to the memory.
-    wire [12:0] tbl_data_memory_hit_word = (dm_addr > (TBL_DATA_MEMORY_LAST_WORD * 4))
-                                   ? TBL_DATA_MEMORY_LAST_WORD : dm_addr[14:2];
+    // The word the access touches.  The memory masks the index to its
+    // depth, so an access beyond the memory lands in a lower word: the
+    // table has to mark the word the hardware really used.
+    wire [12:0] tbl_data_memory_hit_word = dm_addr[14:2] & TBL_DATA_MEMORY_WORD_MASK;
     // The window base: the accessed word sits in the middle of the table.
     wire [12:0] tbl_data_memory_new_base = (tbl_data_memory_hit_word > TBL_DATA_MEMORY_MIDDLE)
                                     ? (tbl_data_memory_hit_word - TBL_DATA_MEMORY_MIDDLE) : 13'd0;
     wire [12:0] tbl_data_memory_clamped = (tbl_data_memory_new_base > TBL_DATA_MEMORY_MAX_BASE)
                                   ? TBL_DATA_MEMORY_MAX_BASE : tbl_data_memory_new_base;
+    // The row of the current access.  Before the first access there is
+    // none.
+    wire tbl_data_memory_is_marked = tbl_data_memory_marked_valid
+                             && (tbl_data_memory_addr == tbl_data_memory_marked);
 
     // No table reads the program memory yet: the shadow reads
     // word 0.
@@ -286,12 +293,14 @@ module screen_writer_single_cycle #(
             tbl_data_memory_access_base <= '0;
             tbl_data_memory_access_word <= '0;
             tbl_data_memory_access_write <= 1'b0;
+            tbl_data_memory_access_valid <= 1'b0;
         end else begin
             tbl_data_memory_word <= dmem_rd_data;
             if (mem_access_live) begin
                 tbl_data_memory_access_base <= tbl_data_memory_clamped;
                 tbl_data_memory_access_word <= tbl_data_memory_hit_word;
                 tbl_data_memory_access_write <= mem_store_live;
+                tbl_data_memory_access_valid <= 1'b1;
             end
         end
     end
@@ -372,6 +381,7 @@ module screen_writer_single_cycle #(
             tbl_data_memory_addr <= '0;
             tbl_data_memory_marked <= '0;
             tbl_data_memory_marked_write <= 1'b0;
+            tbl_data_memory_marked_valid <= 1'b0;
             dmem_rd_addr <= '0;
         end else begin
             grp_ctr <= (grp_ctr == N_GROUPS - 1) ? '0 : grp_ctr + 1'b1;
@@ -445,6 +455,7 @@ module screen_writer_single_cycle #(
                         tbl_data_memory_addr <= tbl_data_memory_access_base;
                         tbl_data_memory_marked <= tbl_data_memory_access_word;
                         tbl_data_memory_marked_write <= tbl_data_memory_access_write;
+                        tbl_data_memory_marked_valid <= tbl_data_memory_access_valid;
                         dmem_rd_addr <= tbl_data_memory_access_base * 4;
                     end else if (tbl_data_memory_col == 4'd13) begin
                         tbl_data_memory_col <= 4'd0;
@@ -721,9 +732,9 @@ module screen_writer_single_cycle #(
                     wr_data = hex_digit(tbl_data_memory_word,
                                         7 - (tbl_data_memory_col - TBL_DATA_MEMORY_DATACOL));
                 // The row of the current access is marked with '>'.
-                if (tbl_data_memory_col == TBL_DATA_MEMORY_ADDCOL && tbl_data_memory_addr == tbl_data_memory_marked)
+                if (tbl_data_memory_col == TBL_DATA_MEMORY_ADDCOL && tbl_data_memory_is_marked)
                     wr_data = 8'h3E;   // '>'
-                wr_attr = (tbl_data_memory_addr == tbl_data_memory_marked)
+                wr_attr = tbl_data_memory_is_marked
                           ? (tbl_data_memory_marked_write ? 8'h38 : 8'h28) : 8'h09;
             end
             default: ;  // no write

@@ -812,7 +812,37 @@ def parse_memory_table(grid: List[List[str]],
 
         locations.append((r, addr_start, data_start, data_width))
 
+    check_memory_table(locations, header_name)
     return locations
+
+
+def check_memory_table(locations: List[Tuple[int, int, int, int]],
+                       header_name: str) -> None:
+    """Fail when the rows of a memory table are not a regular block.
+
+    The live table paints the rows of the block, so a row that the
+    detection skipped would shift the table and paint it over the wrong
+    cells.  The rows have to be consecutive and share the same columns.
+    """
+    if not locations:
+        raise ValueError(f'The block "{header_name}" holds no table row.')
+
+    first_row, first_addr, first_data, first_width = locations[0]
+    for index, (row, addr_col, data_col, data_width) in enumerate(locations):
+        if row != first_row + index:
+            raise ValueError(
+                f'The rows of the block "{header_name}" are not consecutive: '
+                f'row {index} of the table is on screen row {row}, expected '
+                f'{first_row + index}.'
+            )
+        if (addr_col, data_col, data_width) != (first_addr, first_data,
+                                                 first_width):
+            raise ValueError(
+                f'The rows of the block "{header_name}" do not share the same '
+                f'columns: row {index} has the address column {addr_col} and '
+                f'the data column {data_col}, expected {first_addr} and '
+                f'{first_data}.'
+            )
 
 
 def fill_memory_table(grid: List[List[str]],
@@ -1147,16 +1177,20 @@ def main() -> int:
     # Parse tabular blocks first (they have priority)
     if 'Registers' in blocks:
         slots += parse_registers(grid, blocks['Registers'], occupied)
-    if 'Prog. Memory' in blocks:
-        loc = parse_memory_table(grid, blocks['Prog. Memory'], occupied, 'Prog. Memory')
-        fill_memory_table(grid, loc, read_mem_words(args.imem))
-    if 'Data Memory' in blocks:
-        loc = parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
-        fill_memory_table(grid, loc, read_mem_words(args.dmem))
-        # The data memory table is live: the writer follows the last
-        # access.  The program table joins the section when it becomes
-        # live too.
-        tables.append(data_memory_table(loc))
+    try:
+        if 'Prog. Memory' in blocks:
+            loc = parse_memory_table(grid, blocks['Prog. Memory'], occupied, 'Prog. Memory')
+            fill_memory_table(grid, loc, read_mem_words(args.imem))
+        if 'Data Memory' in blocks:
+            loc = parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
+            fill_memory_table(grid, loc, read_mem_words(args.dmem))
+            # The data memory table is live: the writer follows the last
+            # access.  The program table joins the section when it becomes
+            # live too.
+            tables.append(data_memory_table(loc))
+    except ValueError as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        return 1
 
     # Parse tagged signals in the remaining free areas
     try:

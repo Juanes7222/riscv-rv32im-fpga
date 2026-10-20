@@ -377,7 +377,7 @@ def table_blocks(t: dict) -> dict:
     localparam logic [3:0] {upper}_DATACOL = 4'd{t['datacol']};
     localparam logic [12:0] {upper}_MIDDLE = {upper}_ROWS / 2;
     localparam logic [12:0] {upper}_MAX_BASE = DMEM_DEPTH - {t['rows']};
-    localparam logic [12:0] {upper}_LAST_WORD = DMEM_DEPTH - 1;
+    localparam logic [12:0] {upper}_WORD_MASK = DMEM_DEPTH - 1;
 
     logic [5:0]  {lower}_row;          // the row of the table being drawn
     logic [3:0]  {lower}_col;          // the character of the row being drawn
@@ -388,25 +388,32 @@ def table_blocks(t: dict) -> dict:
     logic [12:0] {lower}_access_base;  // the base of the last access
     logic [12:0] {lower}_access_word;  // the word address of the last access
     logic        {lower}_access_write; // the last access was a write
-    logic        {lower}_marked_write; // the marked row is a write"""
+    logic        {lower}_access_valid; // an access has happened
+    logic        {lower}_marked_write; // the marked row is a write
+    logic        {lower}_marked_valid; // the marked row is an access"""
 
     resets = '\n'.join(
         f"            {lower}_{name} <= {value};"
         for name, value in (('row', "'0"), ('col', "'0"), ('base', "'0"),
                             ('addr', "'0"), ('marked', "'0"),
-                            ('marked_write', "1'b0"))
+                            ('marked_write', "1'b0"), ('marked_valid', "1'b0"))
     )
     # The read address of the shadow starts at word 0.
     resets += f"\n            {shadow}_rd_addr <= '0;"
 
-    wires = f"""    // The word the access touches, clamped to the memory.
-    wire [12:0] {lower}_hit_word = ({follow} > ({upper}_LAST_WORD * 4))
-                                   ? {upper}_LAST_WORD : {follow}[14:2];
+    wires = f"""    // The word the access touches.  The memory masks the index to its
+    // depth, so an access beyond the memory lands in a lower word: the
+    // table has to mark the word the hardware really used.
+    wire [12:0] {lower}_hit_word = {follow}[14:2] & {upper}_WORD_MASK;
     // The window base: the accessed word sits in the middle of the table.
     wire [12:0] {lower}_new_base = ({lower}_hit_word > {upper}_MIDDLE)
                                     ? ({lower}_hit_word - {upper}_MIDDLE) : 13'd0;
     wire [12:0] {lower}_clamped = ({lower}_new_base > {upper}_MAX_BASE)
-                                  ? {upper}_MAX_BASE : {lower}_new_base;"""
+                                  ? {upper}_MAX_BASE : {lower}_new_base;
+    // The row of the current access.  Before the first access there is
+    // none.
+    wire {lower}_is_marked = {lower}_marked_valid
+                             && ({lower}_addr == {lower}_marked);"""
 
     state = f"""    // The table follows the last access.  The window and the marked row
     // are sampled at the sweep boundary, so every row of a sweep shows
@@ -417,12 +424,14 @@ def table_blocks(t: dict) -> dict:
             {lower}_access_base <= '0;
             {lower}_access_word <= '0;
             {lower}_access_write <= 1'b0;
+            {lower}_access_valid <= 1'b0;
         end else begin
             {lower}_word <= {shadow}_rd_data;
             if ({access}) begin
                 {lower}_access_base <= {lower}_clamped;
                 {lower}_access_word <= {lower}_hit_word;
                 {lower}_access_write <= {write};
+                {lower}_access_valid <= 1'b1;
             end
         end
     end"""
@@ -437,6 +446,7 @@ def table_blocks(t: dict) -> dict:
                         {lower}_addr <= {lower}_access_base;
                         {lower}_marked <= {lower}_access_word;
                         {lower}_marked_write <= {lower}_access_write;
+                        {lower}_marked_valid <= {lower}_access_valid;
                         {shadow}_rd_addr <= {lower}_access_base * 4;
                     end else if ({lower}_col == 4'd{t['row_bytes'] - 1}) begin
                         {lower}_col <= 4'd0;
@@ -449,7 +459,7 @@ def table_blocks(t: dict) -> dict:
                 end"""
 
     if t['only_access']:
-        attr = f"""                wr_attr = ({lower}_addr == {lower}_marked)
+        attr = f"""                wr_attr = {lower}_is_marked
                           ? ({lower}_marked_write ? 8'h38 : 8'h28) : 8'h09;"""
     else:
         attr = "                wr_attr = 8'h09;"
@@ -469,7 +479,7 @@ def table_blocks(t: dict) -> dict:
                     wr_data = hex_digit({lower}_word,
                                         {t['data_digits'] - 1} - ({lower}_col - {upper}_DATACOL));
                 // The row of the current access is marked with '>'.
-                if ({lower}_col == {upper}_ADDCOL && {lower}_addr == {lower}_marked)
+                if ({lower}_col == {upper}_ADDCOL && {lower}_is_marked)
                     wr_data = 8'h3E;   // '>'
 {attr}
             end"""

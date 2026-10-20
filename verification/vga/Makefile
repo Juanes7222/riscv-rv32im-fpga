@@ -22,7 +22,8 @@ PIPE_HL_TB  := tb_pipeline_stage_highlight
 PIPE_HL_RTL := ../../rtl/pipeline/screen_writer_pipeline.sv
 
 TABLE_TB  := tb_vga_table
-TABLE_RTL := ../../rtl/pipeline/screen_writer_pipeline.sv
+TABLE_RTL := ../../rtl/pipeline/screen_writer_pipeline.sv \
+             ../../rtl/single_cycle/screen_writer_sc.sv
 
 # The shadow memories include ../shared/mem_config.vh, so the include path
 # of the shared directory is needed.  MEM_CONFIG_VH switches the memory
