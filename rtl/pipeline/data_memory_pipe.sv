@@ -12,7 +12,11 @@ module data_memory_pipe #(
     input  logic [31:0] wr_data,
     input  logic        dm_wr,
     input  logic [2:0]  dm_ctrl,
-    output logic [31:0] rd_data
+    output logic [31:0] rd_data,
+    // Byte enables and per-lane write data of the pending write, exported
+    // for the VGA console shadow so it mirrors this memory exactly.
+    output logic [3:0]  dbg_wr_be,
+    output logic [31:0] dbg_wr_data
 );
 
     // Four byte-lane arrays.  Each independient array lets Quartus infer
@@ -91,6 +95,11 @@ module data_memory_pipe #(
             default:    wr_data_rep = wr_data;
         endcase
     end
+
+    // The console shadow writes what this memory writes, so it takes the
+    // enables and the lane data from here instead of recomputing them.
+    assign dbg_wr_be   = be;
+    assign dbg_wr_data = wr_data_rep;
 
 
     logic [7:0] rd_b0, rd_b1, rd_b2, rd_b3;

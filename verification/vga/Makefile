@@ -21,9 +21,26 @@ HL_TB := tb_stage_highlight
 PIPE_HL_TB  := tb_pipeline_stage_highlight
 PIPE_HL_RTL := ../../rtl/pipeline/screen_writer_pipeline.sv
 
+# The shadow memories include ../shared/mem_config.vh, so the include path
+# of the shared directory is needed.  MEM_CONFIG_VH switches the memory
+# images off: the shadow tests start from an empty memory and need none.
+SHADOW_INC   := -I../../rtl/shared
+SHADOW_NOIMG := -DMEM_CONFIG_VH
+
+SHADOW_TB  := tb_vga_shadow
+SHADOW_RTL := ../../rtl/shared/vga_mem_shadow.sv
+
+MIRROR_TB  := tb_vga_shadow_mirror
+MIRROR_RTL := ../../rtl/shared/vga_mem_shadow.sv \
+              ../../rtl/single_cycle/data_memory.sv
+
+ROM_TB  := tb_vga_rom_shadow
+ROM_RTL := ../../rtl/shared/vga_rom_shadow.sv
+ROM_IMG := ../../build/vga_rom_shadow.mem
+
 all: run
 
-run: run-step run-palette run-highlight
+run: run-step run-palette run-highlight run-shadow run-rom
 	$(SIM) -g2012 -o $(TB).vvp $(TB).sv $(RTL)
 	$(VVP) $(TB).vvp
 
@@ -41,8 +58,22 @@ run-highlight:
 	$(SIM) -g2012 -o $(PIPE_HL_TB).vvp $(PIPE_HL_TB).sv $(PIPE_HL_RTL)
 	$(VVP) $(PIPE_HL_TB).vvp
 
+run-shadow:
+	$(SIM) -g2012 $(SHADOW_NOIMG) $(SHADOW_INC) -o $(SHADOW_TB).vvp $(SHADOW_TB).sv $(SHADOW_RTL)
+	$(VVP) $(SHADOW_TB).vvp
+	$(SIM) -g2012 $(SHADOW_NOIMG) $(SHADOW_INC) -o $(MIRROR_TB).vvp $(MIRROR_TB).sv $(MIRROR_RTL)
+	$(VVP) $(MIRROR_TB).vvp
+
+run-rom: $(ROM_IMG)
+	$(SIM) -g2012 $(SHADOW_INC) -DIMEM_FILE=\"$(abspath $(ROM_IMG))\" -o $(ROM_TB).vvp $(ROM_TB).sv $(ROM_RTL)
+	$(VVP) $(ROM_TB).vvp
+
+$(ROM_IMG):
+	@mkdir -p $(dir $@)
+	@printf 'AABBCCDD\n11223344\n55667788\n99AABBCC\n' > $@
+
 clean:
 	rm -f $(TB).vvp $(STEP_TB).vvp $(PALETTE_TB).vvp $(HL_TB).vvp \
-	      $(PIPE_HL_TB).vvp
+	      $(PIPE_HL_TB).vvp $(SHADOW_TB).vvp $(MIRROR_TB).vvp $(ROM_TB).vvp
 
-.PHONY: all run run-step run-palette run-highlight clean
+.PHONY: all run run-step run-palette run-highlight run-shadow run-rom clean

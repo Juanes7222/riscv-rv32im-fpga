@@ -610,15 +610,20 @@ module top_pipeline #(
     // MEM stage                                                            //
     // DMEM synchronous read: rd_data is registered (captured at posedge),
     // naturally aligned with MEM/WB control outputs in the WB stage.
+    logic [3:0]  dmem_dbg_wr_be;
+    logic [31:0] dmem_dbg_wr_data;
+
     data_memory_pipe #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
-        .clk     (clk),
-        .addr    (mem_alu_result),
-        .wr_data (mem_rs2_data),
-        .dm_wr   (mem_dm_wr),
-        .dm_ctrl (mem_dm_ctrl),
-        .rd_data (dmem_rd_data)
+        .clk        (clk),
+        .addr       (mem_alu_result),
+        .wr_data    (mem_rs2_data),
+        .dm_wr      (mem_dm_wr),
+        .dm_ctrl    (mem_dm_ctrl),
+        .rd_data    (dmem_rd_data),
+        .dbg_wr_be  (dmem_dbg_wr_be),
+        .dbg_wr_data(dmem_dbg_wr_data)
     );
 
     // MEM/WB register                                                      //
@@ -881,6 +886,37 @@ module top_pipeline #(
         .vmem_wr_en       (vmem_wr_en),
         .vmem_wr_addr     (vmem_wr_addr),
         .vmem_wr_data     (vmem_wr_data)
+    );
+
+    // -----------------------------------------------------------------
+    // Console shadows: copies of the program and data memories that the
+    // VGA console reads.  The write port of the data shadow lives in the
+    // processor clock domain and is driven by the very same signals as the
+    // CPU's data memory, so the mirror holds exactly what the CPU's memory
+    // holds.  The read ports live in the VGA clock domain.
+    // -----------------------------------------------------------------
+    logic [31:0] dmem_shadow_rd_data;
+    logic [31:0] imem_shadow_rd_data;
+    // The screen writer walks the memories; until it does, both shadows
+    // read word 0.
+    logic [31:0] dmem_shadow_rd_addr = 32'h0;
+    logic [31:0] imem_shadow_rd_addr = 32'h0;
+
+    vga_mem_shadow #(.DEPTH(DMEM_DEPTH)) u_dmem_shadow (
+        .wr_clk (clk),
+        .wr_en  (mem_dm_wr),
+        .wr_addr(mem_alu_result),
+        .wr_data(dmem_dbg_wr_data),
+        .wr_be  (dmem_dbg_wr_be),
+        .rd_clk (vga_pixel_clk),
+        .rd_addr(dmem_shadow_rd_addr),
+        .rd_data(dmem_shadow_rd_data)
+    );
+
+    vga_rom_shadow #(.DEPTH(IMEM_DEPTH)) u_imem_shadow (
+        .rd_clk (vga_pixel_clk),
+        .rd_addr(imem_shadow_rd_addr),
+        .rd_data(imem_shadow_rd_data)
     );
 
 endmodule

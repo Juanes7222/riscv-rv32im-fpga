@@ -50,7 +50,9 @@ SHARED_VGA_SRCS = \
     $(RTL_ROOT)/shared/vga_text_mode.sv \
     $(RTL_ROOT)/shared/vga_controller.sv \
     $(RTL_ROOT)/shared/vga_font_rom.sv \
-    $(RTL_ROOT)/shared/video_memory.sv
+    $(RTL_ROOT)/shared/video_memory.sv \
+    $(RTL_ROOT)/shared/vga_mem_shadow.sv \
+    $(RTL_ROOT)/shared/vga_rom_shadow.sv
 
 export REPO_ROOT
 export SCRIPTS_ROOT
