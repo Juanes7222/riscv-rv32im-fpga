@@ -1,6 +1,7 @@
 # ADR 026 - Metric Extraction: SignalTap II via JTAG as Definitive Mechanism
 
-**Status:** Accepted  
+**Status:** Superseded by ADR 042 (the capture cannot be scripted in Quartus
+Prime 25.1; the counters are frozen in the console instead)  
 **Date:** 2026-05-04
 
 ## Context

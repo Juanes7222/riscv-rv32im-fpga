@@ -162,26 +162,39 @@ module top_single_cycle #(
 
     logic [63:0] cycle_count;
     logic [63:0] instr_retired;
+    logic [63:0] cycles_at_done;
+    logic [63:0] instr_at_done;
     logic        program_done;
 
     // program_done: detect store of value 1 to TOHOST_ADDR (ADR 026).
     // In the single-cycle, the store executes in one cycle - alu_res is
-    // the address and rs2_data is the value. Registered to provide a
-    // clean edge for SignalTap II trigger.
+    // the address and rs2_data is the value.  The pulse is the condition
+    // itself: the counters are frozen in the cycle that carries the store
+    // into the register file, which is the instant cocotb samples.
+    logic program_done_pulse;
+    assign program_done_pulse = dm_wr && (alu_res == TOHOST_ADDR)
+                             && (rs2_data == 32'd1);
+
+    // Registered copy for the console and the SignalTap II trigger.
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             program_done <= 1'b0;
-        end else if (dm_wr && (alu_res == TOHOST_ADDR) && (rs2_data == 32'd1)) begin
+        end else if (program_done_pulse) begin
             program_done <= 1'b1;
         end
     end
 
 // synthesis translate_off
 `ifndef SYNTHESIS
+    // The waveform dump is disabled by default: a long benchmark run
+    // writes gigabytes and becomes I/O bound.  Compile with -DDUMP_VCD
+    // when the waveform is needed.
+    `ifndef NO_VCD
     initial begin
         $dumpfile("dump.vcd");
         $dumpvars(0, top_single_cycle);
     end
+    `endif
 `endif
 // synthesis translate_on
 
@@ -192,10 +205,12 @@ module top_single_cycle #(
         .rst_n                (rst_n),
         .div_busy             (div_busy),
         .valid_wb             (1'b0),
-        .program_done         (program_done),
+        .program_done         (program_done_pulse),
         .cycle_count          (cycle_count),
         .instr_retired        (instr_retired),
-        .program_done_synced  ()
+        .program_done_synced  (),
+        .cycles_at_done       (cycles_at_done),
+        .instr_at_done        (instr_at_done)
     );
 
     pc u_pc (
@@ -458,6 +473,8 @@ module top_single_cycle #(
         .dm_rdata     (dm_rd_data),
         .data_wr      (rd_data),          // alias for ru_data_wr_src display
         .cycle_count  (cycle_count),
+        .cycles_at_done (cycles_at_done),
+        .instr_at_done  (instr_at_done),
         .halted       (program_done),
         .reg_values   (rf_dbg_regs),
         .vmem_wr_en   (vmem_wr_en),

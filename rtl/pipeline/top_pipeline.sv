@@ -191,20 +191,38 @@ module top_pipeline #(
     // Performance counters                                                 //
     logic [63:0] cycle_count;
     logic [63:0] instr_retired;
+    logic [63:0] cycles_at_done;
+    logic [63:0] instr_at_done;
     logic        program_done;
 
     // valid_wb: a real instruction retires in WB when it is not a bubble
-    // and the pipeline is not stalled.
+    // and the WB stage is advancing.
+    //
+    // The counter must count every executed instruction, including the
+    // branches and the stores, so that the CPI of the pipeline is defined
+    // the same way as the CPI of the single-cycle (ADR 024).  Requiring
+    // wb_ru_wr would exclude them and inflate the CPI.
+    //
+    // The division stall holds the MEM/WB register, so the instruction
+    // that is already in WB would be counted again on every cycle of the
+    // stall.  The division makes the pipeline advance flag false.
     logic valid_wb;
-    assign valid_wb = (wb_instruction != 32'h00000013) && wb_ru_wr;
+    assign valid_wb = (wb_instruction != 32'h00000013) && !ex_div_busy;
 
     // program_done: detect tohost write in MEM stage (ADR 026).
     // A store of value 1 to TOHOST_ADDR signals benchmark completion.
-    // Registered to provide a clean edge for SignalTap II trigger.
+    // The pulse is the condition itself: the counters are frozen in the
+    // cycle that carries the store into the register file, which is the
+    // instant cocotb samples.
+    logic program_done_pulse;
+    assign program_done_pulse = mem_dm_wr && (mem_alu_result == TOHOST_ADDR)
+                             && (mem_rs2_data == 32'd1);
+
+    // Registered copy for the console and the SignalTap II trigger.
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             program_done <= 1'b0;
-        end else if (mem_dm_wr && (mem_alu_result == TOHOST_ADDR) && (mem_rs2_data == 32'd1)) begin
+        end else if (program_done_pulse) begin
             program_done <= 1'b1;
         end
     end
@@ -216,10 +234,12 @@ module top_pipeline #(
         .rst_n                (rst_n),
         .div_busy             (ex_div_busy),
         .valid_wb             (valid_wb),
-        .program_done         (program_done),
+        .program_done         (program_done_pulse),
         .cycle_count          (cycle_count),
         .instr_retired        (instr_retired),
-        .program_done_synced  ()
+        .program_done_synced  (),
+        .cycles_at_done       (cycles_at_done),
+        .instr_at_done        (instr_at_done)
     );
 
     // Board I/O                                                            //
@@ -235,10 +255,15 @@ module top_pipeline #(
 
 // synthesis translate_off
    `ifndef SYNTHESIS
+      // The waveform dump is disabled by default: a long benchmark run
+      // writes gigabytes and becomes I/O bound.  Compile with -DDUMP_VCD
+      // when the waveform is needed.
+      `ifndef NO_VCD
       initial begin
          $dumpfile("dump.vcd");
          $dumpvars(0, top_pipeline);
       end
+      `endif
    `endif
 // synthesis translate_on
 
@@ -368,6 +393,19 @@ module top_pipeline #(
     logic id_ex_flush;
     assign id_ex_flush = flush || load_use_hazard;
 
+    // ID/EX hold: the register must keep its contents while the pipeline
+    // is stalled for a reason other than the load-use bubble.  The IF/ID is
+    // held in that case, so the instruction in ID would otherwise be copied
+    // into EX while it stays in ID - and it would be executed twice.  A
+    // branch is the visible victim: the duplicated execution redirects the
+    // PC a second time, with a stale operand.
+    //
+    // Holding the ID/EX also keeps a branch in EX until the stall is
+    // over, so its redirect is not lost (the PC unit gives the stall
+    // priority over the branch redirect).
+    logic id_ex_hold;
+    assign id_ex_hold = ex_div_busy || (stall && !load_use_hazard);
+
     // ID/EX register                                                       //
     // flush: id_ex_flush (branch/trap/load-use). stall: only on div_busy
     // (the div must stay in EX for 34 cycles; load-use does NOT stall here
@@ -376,7 +414,7 @@ module top_pipeline #(
         .clk               (clk),
         .rst               (rst),
         .flush             (id_ex_flush),
-        .stall             (ex_div_busy),
+        .stall             (id_ex_hold),
         .id_pc             (id_pc),
         .id_instruction    (id_instruction),
         .id_rs1_data       (id_rs1_data_wb_fwd),
@@ -793,6 +831,8 @@ module top_pipeline #(
 
         // Counters
         .instr_retired    (instr_retired),
+        .cycles_at_done   (cycles_at_done),
+        .instr_at_done    (instr_at_done),
 
         // Register file (whole file, for the register table)
         .reg_values       (rf_dbg_regs),

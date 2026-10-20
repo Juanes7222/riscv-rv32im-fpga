@@ -85,6 +85,15 @@ async def test_validation(dut):
     instr_retired = int(dut.u_perf.instr_retired.value)
     cpi = cycle_count / max(instr_retired, 1)
 
+    # The counters the console shows on the board are frozen when the
+    # program writes to tohost.  They are latched by the clock edge that
+    # ends the store, so they are visible one edge later.  They must match
+    # the values reported here, otherwise a photograph of the console cannot
+    # be compared with the simulation.
+    await RisingEdge(dut.clk)
+    cycles_at_done = int(dut.u_perf.cycles_at_done.value)
+    instr_at_done = int(dut.u_perf.instr_at_done.value)
+
     cocotb.log.info("=== Validation Results ===")
     cocotb.log.info(f"  Architecture:    {arch}")
     cocotb.log.info(f"  Program:         {elf_path.name}")
@@ -92,6 +101,8 @@ async def test_validation(dut):
     cocotb.log.info(f"  cycle_count:     {cycle_count}")
     cocotb.log.info(f"  instr_retired:   {instr_retired}")
     cocotb.log.info(f"  CPI:             {cpi:.4f}")
+    cocotb.log.info(f"  cycles_at_done:  {cycles_at_done}")
+    cocotb.log.info(f"  instr_at_done:   {instr_at_done}")
     cocotb.log.info(f"  tohost_addr:     {tohost_addr:#x}")
 
     # Write CSV
@@ -105,6 +116,12 @@ async def test_validation(dut):
         )
 
     cocotb.log.info(f"Results written to: {csv_path}")
+
+    # The on-board counters must agree with the simulated ones.
+    assert cycles_at_done == cycle_count, (
+        f"cycles_at_done ({cycles_at_done}) != cycle_count ({cycle_count})")
+    assert instr_at_done == instr_retired, (
+        f"instr_at_done ({instr_at_done}) != instr_retired ({instr_retired})")
 
     # Test must pass
     if result not in ("pass", "expected-fail-acknowledged"):

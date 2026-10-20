@@ -60,6 +60,22 @@ with no shared multiplexer:
   stage. Bubbles inserted by the hazard unit propagate `valid_wb == 0` and are
   not counted.
 
+  `valid_wb` must **not** depend on `wb_ru_wr`.  The counter has to count
+  every executed instruction, including the branches and the stores, so that
+  the CPI of the pipeline is defined exactly like the CPI of the single-cycle.
+  An earlier implementation required `wb_ru_wr` as well, which excluded the
+  branches and the stores and inflated the CPI of the pipeline by up to a
+  factor of two (the branch-stress benchmark, 4003 executed instructions,
+  was counted as 2003).  `scripts/measure_benchmarks.py` now compares the
+  instruction counts of the two designs and flags a benchmark as
+  `divergent` when they differ, which is how this defect was found.
+
+  The increment must also be gated by the division stall: the MEM/WB
+  register holds its content while the division is in flight, so an
+  instruction that is already in WB would be counted again on every cycle
+  of the 34-cycle stall.  `valid_wb` is therefore
+  `(wb_instruction != BUBBLE) && !ex_div_busy`.
+
 A `parameter bit PIPELINE_MODE` is resolved by the synthesizer during elaboration,
 so only the relevant increment path is synthesized for each architecture. A runtime
 `input` mode flag is explicitly rejected, as it would synthesize a multiplexer on

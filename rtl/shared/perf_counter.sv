@@ -17,7 +17,13 @@ module perf_counters #(
     // Outputs - observed by cocotb via DUT ports; tapped by SignalTap II (ADR 026)
     output logic [63:0] cycle_count,
     output logic [63:0] instr_retired,
-    output logic        program_done_synced  // registered for SignalTap trigger
+    output logic        program_done_synced,  // registered for SignalTap trigger
+
+    // Counters frozen at the instant the program wrote to tohost.  They are
+    // the on-board counterpart of the values cocotb reports, so the console
+    // shows the same numbers the simulation measured.
+    output logic [63:0] cycles_at_done,
+    output logic [63:0] instr_at_done
 );
 
     logic instr_retired_en;
@@ -34,10 +40,19 @@ module perf_counters #(
             cycle_count          <= 64'h0;
             instr_retired        <= 64'h0;
             program_done_synced  <= 1'b0;
+            cycles_at_done       <= 64'h0;
+            instr_at_done        <= 64'h0;
         end else begin
             cycle_count          <= cycle_count + 64'h1;
             instr_retired        <= instr_retired + {{63{1'b0}}, instr_retired_en};
             program_done_synced  <= program_done_synced || program_done;
+            // Freeze the counters when the program terminates.  The stored
+            // value is the counter of the cycle in which the program wrote to
+            // tohost, which is the instant cocotb samples.
+            if (program_done) begin
+                cycles_at_done <= cycle_count;
+                instr_at_done  <= instr_retired;
+            end
         end
     end
 

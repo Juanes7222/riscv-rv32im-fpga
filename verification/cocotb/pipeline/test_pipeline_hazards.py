@@ -38,6 +38,7 @@ _spec.loader.exec_module(_reference_model)
 
 CPU      = _reference_model.CPU
 encode_r = _reference_model.encode_r
+encode_b = _reference_model.encode_b
 encode_i = _reference_model.encode_i
 encode_s = _reference_model.encode_s
 
@@ -210,6 +211,64 @@ async def test_load_use_then_forward_mem_wb(dut):
     model.step()  # ADD
 
     _check_all_regs(dut, model, "load_use_then_forward")
+
+
+@cocotb.test()
+async def test_load_use_on_branch_executes_branch_once(dut):
+    """LW x1,0(x2) then BEQ x1,x0,+8: the branch must be executed once.
+
+    A load-use stall costs two cycles: the load advances to MEM while the
+    consumer waits in ID, and the consumer then reads the loaded value from
+    MEM/WB.  The IF/ID register is held during that wait, so the ID/EX
+    register must be held too - otherwise the consumer is copied into EX
+    while it stays in ID and the branch is executed twice.  The duplicated
+    execution redirects the PC a second time with a stale operand.
+    """
+    model = CPU()
+    addr = 0x40
+    mem_val = 0x0000CAF1          # non-zero: the branch is not taken
+    model.regs[2] = addr
+    model.store_word(addr, mem_val)
+
+    lw   = encode_i(0, 2, 0b010, 1, opcode=0b0000011)  # LW x1, 0(x2)
+    beq  = encode_b(0b000, 1, 0, 8)                     # BEQ x1, x0, +8
+    addi = encode_i(1, 0, 0b000, 3, opcode=0b0010011)    # ADDI x3, x0, 1
+    prog = [lw, beq, addi]
+
+    await start_clock(dut)
+
+    for i, w in enumerate(prog):
+        dut.u_imem.mem[i].value = w
+    for i in range(len(prog), len(prog) + 4):
+        dut.u_imem.mem[i].value = 0x00000013
+    word_addr = addr // 4
+    dut.u_dmem.mem_b0[word_addr].value = (mem_val >>  0) & 0xFF
+    dut.u_dmem.mem_b1[word_addr].value = (mem_val >>  8) & 0xFF
+    dut.u_dmem.mem_b2[word_addr].value = (mem_val >> 16) & 0xFF
+    dut.u_dmem.mem_b3[word_addr].value = (mem_val >> 24) & 0xFF
+
+    await reset_dut(dut)
+
+    _load_model_program(model, prog)
+    dut.u_rf.regs[0].value = 0
+    for i in range(32):
+        dut.u_rf.regs[i].value = model.regs[i]
+    await Timer(2, unit="ns")
+
+    # Count how many times the branch reaches the write-back stage.
+    branch_retired = 0
+    for _ in range(14):
+        await step_clock(dut)
+        if int(dut.wb_instruction.value) == beq:
+            branch_retired += 1
+
+    assert branch_retired == 1, (
+        f"the branch was retired {branch_retired} times, expected once")
+
+    model.step()  # LW
+    model.step()  # BEQ
+    model.step()  # ADDI
+    _check_all_regs(dut, model, "load_use_on_branch")
 
 
 @cocotb.test()
