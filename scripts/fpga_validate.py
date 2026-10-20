@@ -113,7 +113,8 @@ def generate_mem_config(imem_path: pathlib.Path, dmem_path: pathlib.Path,
 
 
 def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
-                          csv_path: pathlib.Path) -> dict:
+                          csv_path: pathlib.Path,
+                          max_cycles: int = 200_000) -> dict:
     """Run the validation test in cocotb and return counter values."""
     from verification.cocotb.common.tohost import (
         generate_mem_for_elf as generate_cocotb_mem,
@@ -128,6 +129,7 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     env = os.environ.copy()
     env["VALIDATION_ELF"] = str(elf_path)
     env["VALIDATION_CSV"] = str(csv_path)
+    env["VALIDATION_MAX_CYCLES"] = str(max_cycles)
     env["PATH"] = f"{REPO_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
 
     # A stale CSV must never be mistaken for a fresh reference.
