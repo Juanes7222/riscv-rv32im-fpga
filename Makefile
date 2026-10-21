@@ -96,25 +96,42 @@ setup:
 	@echo "[$(ARCH)] Project created. Run 'make build ARCH=$(ARCH)' to synthesize."
 
 
-# Runs the Quartus compilation and fails the target when Quartus reports an
-# error or when the bitstream is not regenerated.
+# Runs the Quartus compilation and fails the target when the flow did not
+# produce a new bitstream and a new timing report.
 #
-# The check is on the artifact and not only on the exit code: Quartus Lite
-# crashes with an access violation while the fitter process tears down its Tcl
-# interpreter, after the fit has already succeeded and written every output.
-# The flow engine absorbs that crash, so a plain exit-code check would be
-# enough, but the artifact check also catches a flow that silently skipped a
-# stage and left a stale bitstream behind.
+# The check is on the artifacts and not only on the exit code, because
+# Quartus Lite 25.1 dies with an access violation in its STA engine while
+# it reads the SDC file, in the middle of Analysis & Synthesis.  The crash
+# belongs to the tool, not to the design, and it is intermittent: the same
+# design compiles on the next attempt.  A run is accepted only when the
+# timing report and the bitstream of that run were written, so a flow that
+# died halfway can never pass off a stale artifact.
+#
+# The run is repeated up to QUARTUS_ATTEMPTS times before giving up.
 #
 # Usage: $(call quartus_compile,build.tcl)  |  $(call quartus_compile,build.tcl,3)
+QUARTUS_ATTEMPTS ?= 3
+
 define quartus_compile
-	before=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
-	cd $(SYNTH_DIR) && $(QUARTUS_SH) -t $(1) $(2) || exit 1; \
-	after=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
-	if [ ! -f $(abspath $(SOF_FILE)) ] || [ "$$after" -le "$$before" ]; then \
-		echo "[$(ARCH)] Error: $(SOF_FILE) missing or not regenerated."; \
-		exit 1; \
-	fi
+	before=$$(stat -c %Y $(abspath $(STA_RPT)) 2>/dev/null || echo 0); \
+	sof_before=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
+	attempt=1; \
+	while : ; do \
+		(cd $(SYNTH_DIR) && $(QUARTUS_SH) -t $(1) $(2)) ; \
+		after=$$(stat -c %Y $(abspath $(STA_RPT)) 2>/dev/null || echo 0); \
+		sof_after=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
+		if [ -f $(abspath $(STA_RPT)) ] && [ -f $(abspath $(SOF_FILE)) ] && \
+		   [ "$$after" -gt "$$before" ] && [ "$$sof_after" -gt "$$sof_before" ]; then \
+			break; \
+		fi; \
+		if [ $$attempt -ge $(QUARTUS_ATTEMPTS) ]; then \
+			echo "[$(ARCH)] Error: $(STA_RPT) and $(SOF_FILE) were not regenerated after $(QUARTUS_ATTEMPTS) attempts."; \
+			exit 1; \
+		fi; \
+		echo "[$(ARCH)] The compilation did not finish (attempt $$attempt/$(QUARTUS_ATTEMPTS)), repeating it."; \
+		attempt=$$((attempt+1)); \
+		sleep 10; \
+	done
 endef
 
 
@@ -199,31 +216,40 @@ flash: check-elf check-project mem $(MEM_CONFIG_VH)
 	@echo "[$(ARCH)] Flash complete: $(ELF)"
 
 
+# One synthesis replica.  The fitter seed is the replica index, so every
+# replica is an independent place-and-route of the same design.
+REPLICA ?= 1
+REPLICA_DIR = $(RESULTS_DIR)/replica_$(REPLICA)
+
+.PHONY: replica
+replica: check-project
+	@mkdir -p $(REPLICA_DIR)
+	@echo "[$(ARCH)] --- Replica $(REPLICA) (SEED=$(REPLICA)) ---"
+	@SECONDS=0; \
+	$(call quartus_compile,build.tcl,$(REPLICA)); \
+	cp $(STA_RPT) $(REPLICA_DIR)/timing.rpt 2>/dev/null || \
+		echo "Warning: timing report not found for replica $(REPLICA)"; \
+	cp $(FIT_SUMMARY) $(REPLICA_DIR)/fit.summary 2>/dev/null || \
+		echo "Warning: fitter summary not found for replica $(REPLICA)"; \
+	cp $(SOF_FILE) $(REPLICA_DIR)/$(PROJECT).sof 2>/dev/null || \
+		echo "Warning: SOF file not found for replica $(REPLICA)"; \
+	python3 scripts/extract_fmax.py $(REPLICA_DIR)/timing.rpt \
+		> $(REPLICA_DIR)/fmax.txt 2>/dev/null || \
+		echo "Warning: fmax extraction failed for replica $(REPLICA)"; \
+	echo "[$(ARCH)] Replica $(REPLICA) done ($$SECONDS seconds)"
+
+
 .PHONY: replicas
 replicas: check-project
 	@echo "[$(ARCH)] Running $(N_REPLICAS) synthesis replicas..."
 	@mkdir -p $(RESULTS_DIR)
-	@for i in $$(seq -w 1 $(N_REPLICAS)); do \
+	@for i in $$(seq 1 $(N_REPLICAS)); do \
 		replica_dir=$(RESULTS_DIR)/replica_$$i; \
 		if [ -d "$$replica_dir" ]; then \
 			echo "[$(ARCH)] Replica $$i already exists, skipping. Use make clean-replicas to reset."; \
 			continue; \
 		fi; \
-		echo "[$(ARCH)] --- Replica $$i / $(N_REPLICAS) (SEED=$$i) ---"; \
-		SECONDS=0; \
-		$(call quartus_compile,build.tcl,$$i); \
-		cd - > /dev/null; \
-		mkdir -p $$replica_dir; \
-		cp $(STA_RPT) $$replica_dir/timing.rpt 2>/dev/null || \
-			echo "Warning: timing report not found for replica $$i"; \
-		cp $(FIT_SUMMARY) $$replica_dir/fit.summary 2>/dev/null || \
-			echo "Warning: fitter summary not found for replica $$i"; \
-		cp $(SOF_FILE) $$replica_dir/$(PROJECT).sof 2>/dev/null || \
-			echo "Warning: SOF file not found for replica $$i"; \
-		python3 scripts/extract_fmax.py $$replica_dir/timing.rpt \
-			> $$replica_dir/fmax.txt 2>/dev/null || \
-			echo "Warning: fmax extraction failed for replica $$i"; \
-		echo "[$(ARCH)] Replica $$i done ($$SECONDS seconds)"; \
+		$(MAKE) replica ARCH=$(ARCH) REPLICA=$$i || exit 1; \
 	done
 	@echo "[$(ARCH)] All replicas complete. Results in $(RESULTS_DIR)/"
 

@@ -175,15 +175,17 @@ def stage_synthesis(args) -> int:
 
     for arch in ARCHES:
         replicas_dir = RESULTS / arch
-        stale = []
-        for replica_dir in sorted(replicas_dir.glob("replica_*")):
+        kept = set()
+        for index in range(1, args.replicas + 1):
+            replica_dir = replicas_dir / f"replica_{index}"
+            if not replica_dir.exists():
+                continue
             meta_path = replica_dir / "meta.json"
             meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
-            if meta.get("fingerprint") != fingerprint:
-                stale.append((replica_dir.name.replace("replica_", ""), replica_dir))
-
-        kept = set()
-        for index, replica_dir in stale:
+            if meta.get("fingerprint") == fingerprint:
+                print(f"  [{arch}] réplica {index}: vigente, se conserva")
+                kept.add(replica_dir)
+                continue
             if args.keep_stale:
                 print(f"  [{arch}] réplica {index}: obsoleta, se conserva "
                       f"({replica_dir})")
@@ -192,16 +194,16 @@ def stage_synthesis(args) -> int:
             print(f"  [{arch}] réplica {index}: obsoleta, se regenera")
             shutil.rmtree(replica_dir)
 
-        run(["make", "replicas", f"ARCH={arch}", f"N_REPLICAS={args.replicas}"])
-
-        # The Makefile names the directories with a zero-padded index when
-        # the replica count reaches ten, so the directories are collected
-        # with a glob instead of by name.
-        for replica_dir in sorted(replicas_dir.glob("replica_*")):
+        for index in range(1, args.replicas + 1):
+            replica_dir = replicas_dir / f"replica_{index}"
             if replica_dir in kept:
                 # A kept replica keeps its own metadata: it does not come
                 # from the current RTL.
                 continue
+            # One replica per call, so that a crash of the tool is retried
+            # by the Makefile and the metadata is written as soon as the
+            # replica exists.
+            run(["make", "replica", f"ARCH={arch}", f"REPLICA={index}"])
             fmax = None
             fmax_file = replica_dir / "fmax.txt"
             if fmax_file.exists():
@@ -209,12 +211,12 @@ def stage_synthesis(args) -> int:
             meta = {
                 "git_commit": commit,
                 "fingerprint": fingerprint,
-                "seed": replica_dir.name.replace("replica_", ""),
+                "seed": index,
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "fmax_mhz": fmax,
             }
             (replica_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
-            print(f"  [{arch}] {replica_dir.name}: Fmax {fmax} MHz")
+            print(f"  [{arch}] réplica {index}: Fmax {fmax} MHz")
     return 0
 
 
