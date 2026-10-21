@@ -45,8 +45,9 @@ module tb_vga_panel;
     // The panels the test expects, one per instruction it drives.  The
     // register numbers are the fields of the instruction word, so the
     // fields an instruction does not use show the bits of the immediate.
-    // The formats without rs2 show a placeholder instead: the bits of the
-    // instruction would be immediate bits, not a register number.
+    // The formats without rs2 (I, B, U and J) show a placeholder instead:
+    // the bits of the instruction would be immediate bits, not a register
+    // number.  The R format and the S format carry a real rs2.
 
     // addi x5, x1, 4: the encoding of the task brief.  It decodes to x5
     // and x1, not to the x1 and x2 the brief names.
@@ -135,6 +136,15 @@ module tb_vga_panel;
         "MNEM  JAL               ",
         "rd=01 rs1=00 rs2=--     ",
         "imm=00000010            "};
+
+    // sb x2, 8(x1): the S format carries an rs2, the source register of
+    // the stored word, but no rd, so the rd field shows the bits of the
+    // immediate.
+    localparam [PANEL_BITS-1:0] EXP_SB = {
+        "INSTR 00208423          ",
+        "MNEM  SB                ",
+        "rd=08 rs1=01 rs2=02     ",
+        "imm=00000008            "};
 
     logic clk = 1'b0;
     logic rst_n = 1'b0;
@@ -391,6 +401,7 @@ module tb_vga_panel;
         run_phase(32'h40208333, EXP_SUB);
         run_phase(32'h000042B7, EXP_LUI);
         run_phase(32'h010000EF, EXP_JAL);
+        run_phase(32'h00208423, EXP_SB);
 
         $display("sweeps of the panel: %0d pipeline, %0d single-cycle",
                  sweeps[DUT_PIPE], sweeps[DUT_SC]);

@@ -617,10 +617,11 @@ def panel_value_expression(kind: str, start: int, width: int) -> str:
     if kind == 'mnemonic':
         return f"8'((dec_mnemonic >> (8*({last} - col))) & 8'hFF)"
     if kind == 'rs2':
-        # The formats without rs2 show a placeholder: the bits of the
-        # instruction would be immediate bits, not a register number.
-        return (f"(dec_format == 3'd0 ? dec_digit(dec_rs2, col - {start}) "
-                f": 8'h2D)")
+        # The formats without rs2 (I, B, U and J) show a placeholder: the
+        # bits of the instruction would be immediate bits, not a register
+        # number.  The R format and the S format carry a real rs2.
+        return (f"((dec_format == 3'd0 || dec_format == 3'd2) "
+                f"? dec_digit(dec_rs2, col - {start}) : 8'h2D)")
     if kind in ('rd', 'rs1'):
         return f'dec_digit(dec_{kind}, col - {start})'
     raise ValueError(f"Unknown value of the panel: '{kind}'.")

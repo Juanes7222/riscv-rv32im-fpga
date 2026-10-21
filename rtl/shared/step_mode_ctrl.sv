@@ -21,8 +21,9 @@
 //             request is asserted,
 //   clock 3: the request is registered,
 //   clock 4: the processor advances - the single clock in which the
-//             freeze is released.  The freeze is engaged again from the
-//             next clock on.
+//             freeze is released.  step_run_q is cleared at edge 4, so
+//             step_hold goes high at edge 4 and the processor stays
+//             frozen from that edge on.
 module step_mode_ctrl (
     input  logic clk,        // processor clock
     input  logic rst_n,      // active-low synchronous reset

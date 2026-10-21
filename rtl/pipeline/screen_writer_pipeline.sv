@@ -676,7 +676,7 @@ module screen_writer_pipeline #(
                     else if (col < 17)
                         panel_char = 8'((PANEL_TXT_RS2 >> (8*(16 - col))) & 8'hFF);
                     else if (col < 19)
-                        panel_char = (dec_format == 3'd0 ? dec_digit(dec_rs2, col - 17) : 8'h2D);
+                        panel_char = ((dec_format == 3'd0 || dec_format == 3'd2) ? dec_digit(dec_rs2, col - 17) : 8'h2D);
                     else
                         panel_char = 8'h20;  // ' '
                 end
