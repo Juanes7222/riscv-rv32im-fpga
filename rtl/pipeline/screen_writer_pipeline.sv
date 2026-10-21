@@ -1497,8 +1497,9 @@ module screen_writer_pipeline #(
                 else
                     wr_data = hex_digit(tbl_prog_memory_word,
                                         7 - (tbl_prog_memory_col - TBL_PROG_MEMORY_DATACOL));
-                // The marked row carries a '>'.
-                if (tbl_prog_memory_col == TBL_PROG_MEMORY_ADDCOL && tbl_prog_memory_is_marked)
+                // The marked row carries a '>' in the gap between the
+                // address and the word, so the address stays readable.
+                if (tbl_prog_memory_col == TBL_PROG_MEMORY_DATACOL - 4'd1 && tbl_prog_memory_is_marked)
                     wr_data = 8'h3E;   // '>'
                 wr_attr = tbl_prog_memory_is_marked ? 8'h18 : 8'h09;
             end
@@ -1516,8 +1517,9 @@ module screen_writer_pipeline #(
                 else
                     wr_data = hex_digit(tbl_data_memory_word,
                                         7 - (tbl_data_memory_col - TBL_DATA_MEMORY_DATACOL));
-                // The marked row carries a '>'.
-                if (tbl_data_memory_col == TBL_DATA_MEMORY_ADDCOL && tbl_data_memory_is_marked)
+                // The marked row carries a '>' in the gap between the
+                // address and the word, so the address stays readable.
+                if (tbl_data_memory_col == TBL_DATA_MEMORY_DATACOL - 4'd1 && tbl_data_memory_is_marked)
                     wr_data = 8'h3E;   // '>'
                 wr_attr = tbl_data_memory_is_marked
                           ? (tbl_data_memory_marked_write ? 8'h38 : 8'h28) : 8'h09;

@@ -2,11 +2,12 @@
 //
 // The data memory table is a window over the data memory: it follows the
 // last load or store, so the address column shows the real addresses of
-// the 32 words on screen and the row of the access carries a '>'.
+// the 32 words on screen and the row of the access carries a '>' in the
+// gap between the address and the word.
 //
 // The program memory table is a window over the program memory: it follows
 // the PC of the instruction that executes, so the row of that instruction
-// carries a '>' and the window is centred on it.
+// carries a '>' in its gap and the window is centred on it.
 //
 // The test drives the memory window of the writer directly: the memory
 // inputs answer with the word address they are asked for, so the expected
@@ -30,6 +31,9 @@ module tb_vga_table;
     // The rows of the table and the characters of one row.
     localparam int ROWS = 32;
     localparam int ROW_BYTES = 14;
+    // The column of the gap between the address and the word: it carries
+    // the marker of the marked row.
+    localparam int GAP_COL = 5;
     // The width of the text screen: the rows of a table are screen rows.
     localparam int SCREEN_W = 160;
 
@@ -198,8 +202,8 @@ module tb_vga_table;
 
     // Check the whole table: the address column shows the byte address of
     // the window base plus the row offset, the data column shows the word
-    // and the row of the access is marked with '>'.  A marked word of -1
-    // means that no row is marked.
+    // and the row of the access carries a '>' in its gap.  A marked word of
+    // -1 means that no row is marked.
     task automatic check_window(input int dut, input int base, input int marked,
                                 input bit is_write);
         integer r;
@@ -220,13 +224,11 @@ module tb_vga_table;
                                                  & 4'hF);
                     else if (c == 4)
                         expected_char = 8'h3A;   // ':'
-                    else if (c == 5)
-                        expected_char = 8'h20;   // ' '
+                    else if (c == GAP_COL)
+                        expected_char = (word == marked) ? 8'h3E : 8'h20;
                     else
                         expected_char = hex_char((word >> ((13 - c) * 4))
                                                  & 4'hF);
-                    if (c == 0 && word == marked)
-                        expected_char = 8'h3E;   // '>'
                     expected_attr = (word == marked)
                                     ? (is_write ? 8'h38 : 8'h28) : 8'h09;
                     if (dut == DUT_PIPE) begin
@@ -284,8 +286,8 @@ module tb_vga_table;
 
     // Check the whole program table: the address column shows the byte
     // address of the window base plus the row offset, the data column
-    // shows the word and the row of the executing instruction is marked
-    // with '>'.
+    // shows the word and the row of the executing instruction carries a
+    // '>' in its gap.
     task automatic check_prog_window(input int dut, input int base,
                                      input int marked);
         integer r;
@@ -306,13 +308,11 @@ module tb_vga_table;
                                                  & 4'hF);
                     else if (c == 4)
                         expected_char = 8'h3A;   // ':'
-                    else if (c == 5)
-                        expected_char = 8'h20;   // ' '
+                    else if (c == GAP_COL)
+                        expected_char = (word == marked) ? 8'h3E : 8'h20;
                     else
                         expected_char = hex_char((word >> ((13 - c) * 4))
                                                  & 4'hF);
-                    if (c == 0 && word == marked)
-                        expected_char = 8'h3E;   // '>'
                     // The marked row wears the background of an active
                     // stage box: it is where the program is, not a memory
                     // access.
@@ -338,6 +338,42 @@ module tb_vga_table;
                             $display("FAIL: %0d program row %0d col %0d has the attribute %h, expected %h",
                                      dut, r, c, got_attr, expected_attr);
                         end
+                        errors = errors + 1;
+                    end
+                end
+            end
+        end
+    endtask
+
+    // The marker of a table lives in the gap between the address and the
+    // word, so the address of the marked row keeps every one of its digits.
+    task automatic check_marker(input int dut, input int row0,
+                                input int base, input int marked);
+        integer r;
+        integer c;
+        integer word;
+        integer addr;
+        logic [7:0] got_char;
+        begin
+            for (r = 0; r < ROWS; r = r + 1) begin
+                word = base + r;
+                if (word == marked) begin
+                    addr = row0 + r * SCREEN_W;
+                    for (c = 0; c < 4; c = c + 1) begin
+                        got_char = (dut == DUT_PIPE) ? pipe_char[addr + c]
+                                                    : sc_char[addr + c];
+                        if (got_char !== hex_char(((word * 4) >> ((3 - c) * 4))
+                                                  & 4'hF)) begin
+                            $display("FAIL: %0d row %0d shows %h at the address column %0d, expected the address digit",
+                                     dut, r, got_char, c);
+                            errors = errors + 1;
+                        end
+                    end
+                    got_char = (dut == DUT_PIPE) ? pipe_char[addr + GAP_COL]
+                                                : sc_char[addr + GAP_COL];
+                    if (got_char !== 8'h3E) begin
+                        $display("FAIL: %0d row %0d shows %h in the gap, expected the marker",
+                                 dut, r, got_char);
                         errors = errors + 1;
                     end
                 end
@@ -379,6 +415,8 @@ module tb_vga_table;
             wait_sweeps(3);
             check_window(DUT_PIPE, base, marked, is_write);
             check_window(DUT_SC, base, marked, is_write);
+            check_marker(DUT_PIPE, PIPE_ROW0, base, marked);
+            check_marker(DUT_SC, SC_ROW0, base, marked);
         end
     endtask
 
@@ -392,6 +430,8 @@ module tb_vga_table;
             wait_prog_sweeps(3);
             check_prog_window(DUT_PIPE, base, marked);
             check_prog_window(DUT_SC, base, marked);
+            check_marker(DUT_PIPE, PROG_PIPE_ROW0, base, marked);
+            check_marker(DUT_SC, PROG_SC_ROW0, base, marked);
         end
     endtask
 

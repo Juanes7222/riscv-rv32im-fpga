@@ -576,8 +576,9 @@ def table_blocks(t: dict) -> dict:
                 else
                     wr_data = hex_digit({lower}_word,
                                         {t['data_digits'] - 1} - ({lower}_col - {upper}_DATACOL));
-                // The marked row carries a '>'.
-                if ({lower}_col == {upper}_ADDCOL && {lower}_is_marked)
+                // The marked row carries a '>' in the gap between the
+                // address and the word, so the address stays readable.
+                if ({lower}_col == {upper}_DATACOL - 4'd1 && {lower}_is_marked)
                     wr_data = 8'h3E;   // '>'
 {attr}
             end"""
