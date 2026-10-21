@@ -664,13 +664,13 @@ module screen_writer_pipeline #(
                     if (col < 3)
                         panel_char = 8'((PANEL_TXT_RD >> (8*(2 - col))) & 8'hFF);
                     else if (col < 5)
-                        panel_char = dec_digit(dec_rd, col - 3);
+                        panel_char = ((dec_format == 3'd2 || dec_format == 3'd3) ? 8'h2D : dec_digit(dec_rd, col - 3));
                     else if (col < 6)
                         panel_char = 8'h20;
                     else if (col < 10)
                         panel_char = 8'((PANEL_TXT_RS1 >> (8*(9 - col))) & 8'hFF);
                     else if (col < 12)
-                        panel_char = dec_digit(dec_rs1, col - 10);
+                        panel_char = ((dec_format == 3'd4 || dec_format == 3'd5) ? 8'h2D : dec_digit(dec_rs1, col - 10));
                     else if (col < 13)
                         panel_char = 8'h20;
                     else if (col < 17)

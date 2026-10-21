@@ -47,7 +47,9 @@ module tb_vga_panel;
     // fields an instruction does not use show the bits of the immediate.
     // The formats without rs2 (I, B, U and J) show a placeholder instead:
     // the bits of the instruction would be immediate bits, not a register
-    // number.  The R format and the S format carry a real rs2.
+    // number.  The R format and the S format carry a real rs2.  The same
+    // holds for rd (the B and the S formats have none) and for rs1 (the U
+    // and the J formats have none).
 
     // addi x5, x1, 4: the encoding of the task brief.  It decodes to x5
     // and x1, not to the x1 and x2 the brief names.
@@ -78,11 +80,11 @@ module tb_vga_panel;
         "rd=01 rs1=01 rs2=--     ",
         "imm=00000000            "};
 
-    // beq x1, x2, 8
+    // beq x1, x2, 8: the B format has no rd.
     localparam [PANEL_BITS-1:0] EXP_BEQ = {
         "INSTR 00208463          ",
         "MNEM  BEQ               ",
-        "rd=08 rs1=01 rs2=--     ",
+        "rd=-- rs1=01 rs2=--     ",
         "imm=00000008            "};
 
     // mul x7, x3, x4: the M extension of this core is OP with
@@ -123,27 +125,26 @@ module tb_vga_panel;
         "rd=06 rs1=01 rs2=02     ",
         "imm=00000000            "};
 
-    // lui x5, 4: the U format has no rs2.
+    // lui x5, 4: the U format has no rs1.
     localparam [PANEL_BITS-1:0] EXP_LUI = {
         "INSTR 000042B7          ",
         "MNEM  LUI               ",
-        "rd=05 rs1=00 rs2=--     ",
+        "rd=05 rs1=-- rs2=--     ",
         "imm=00000004            "};
 
-    // jal x1, 16: the J format has no rs2.
+    // jal x1, 16: the J format has no rs1.
     localparam [PANEL_BITS-1:0] EXP_JAL = {
         "INSTR 010000EF          ",
         "MNEM  JAL               ",
-        "rd=01 rs1=00 rs2=--     ",
+        "rd=01 rs1=-- rs2=--     ",
         "imm=00000010            "};
 
     // sb x2, 8(x1): the S format carries an rs2, the source register of
-    // the stored word, but no rd, so the rd field shows the bits of the
-    // immediate.
+    // the stored word, but no rd.
     localparam [PANEL_BITS-1:0] EXP_SB = {
         "INSTR 00208423          ",
         "MNEM  SB                ",
-        "rd=08 rs1=01 rs2=02     ",
+        "rd=-- rs1=01 rs2=02     ",
         "imm=00000008            "};
 
     logic clk = 1'b0;

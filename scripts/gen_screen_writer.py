@@ -622,8 +622,16 @@ def panel_value_expression(kind: str, start: int, width: int) -> str:
         # number.  The R format and the S format carry a real rs2.
         return (f"((dec_format == 3'd0 || dec_format == 3'd2) "
                 f"? dec_digit(dec_rs2, col - {start}) : 8'h2D)")
-    if kind in ('rd', 'rs1'):
-        return f'dec_digit(dec_{kind}, col - {start})'
+    if kind == 'rd':
+        # The formats without rd (B and S) show a placeholder: the bits
+        # of the instruction are part of their immediate.
+        return (f"((dec_format == 3'd2 || dec_format == 3'd3) "
+                f"? 8'h2D : dec_digit(dec_rd, col - {start}))")
+    if kind == 'rs1':
+        # The formats without rs1 (U and J) show a placeholder: the bits
+        # of the instruction are part of their immediate.
+        return (f"((dec_format == 3'd4 || dec_format == 3'd5) "
+                f"? 8'h2D : dec_digit(dec_rs1, col - {start}))")
     raise ValueError(f"Unknown value of the panel: '{kind}'.")
 
 
