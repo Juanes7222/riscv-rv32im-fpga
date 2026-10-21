@@ -29,6 +29,12 @@ QUARTUS_STA = quartus_sta.exe
 
 SOF_FILE = $(SYNTH_DIR)/output_files/$(PROJECT).sof
 STA_RPT  = $(SYNTH_DIR)/output_files/$(PROJECT).sta.rpt
+FIT_SUMMARY = $(SYNTH_DIR)/output_files/$(PROJECT).fit.summary
+
+# The virtualenv holds cocotb and its tools (cocotb-config).  The simulation
+# makefiles need cocotb-config in the PATH, so the thesis targets prepend it.
+VENV_PY = .venv/bin/python3
+VENV_BIN = $(CURDIR)/.venv/bin
 
 # Screen console artifacts.  The .mif carries the memory dump of the program
 # that is loaded, so it is regenerated whenever the memory image changes.
@@ -75,7 +81,7 @@ FORCE:
 
 $(SCREEN_MIF): $(IMEM_MEM) $(DMEM_MEM) scripts/RiscVScreenV3.xlsx \
                scripts/gen_screen_mif.py scripts/gen_screen_writer.py
-	bash scripts/gen_screen_artifacts.sh
+	IMEM=$(IMEM_MEM) DMEM=$(DMEM_MEM) bash scripts/gen_screen_artifacts.sh
 
 $(SCREEN_WRITER): $(SCREEN_MIF)
 
@@ -180,20 +186,12 @@ cross-validate:
 	@echo "[$(ARCH)] Cross-validation complete. See $(CROSS_VAL_DIR)/cross_validation_$(ARCH).csv"
 
 
-# Full pipeline: ELF -> .bin -> .mem -> mem_config.vh -> synthesis -> program FPGA
+# Full pipeline: ELF -> .bin -> .mem -> mem_config.vh -> screen.mif ->
+# synthesis -> program FPGA.  The mem target carries the .mif generation, so
+# the VGA console shows the program that is being loaded.
 .PHONY: flash
-flash: check-elf check-project
+flash: check-elf check-project mem $(MEM_CONFIG_VH)
 	@echo "[$(ARCH)] Flashing program: $(ELF)"
-	@mkdir -p $(BUILD_DIR)
-	riscv-none-elf-objcopy -O binary $(ELF) $(BUILD_DIR)/program.bin
-	python3 scripts/elf_to_mem.py $(BUILD_DIR)/program.bin $(IMEM_DEPTH) $(IMEM_MEM)
-	python3 scripts/elf_to_mem.py $(BUILD_DIR)/program.bin $(DMEM_DEPTH) $(DMEM_MEM)
-	python3 scripts/gen_mem_config.py \
-		--imem $(abspath $(IMEM_MEM)) \
-		--dmem $(abspath $(DMEM_MEM)) \
-		--relative-to $(abspath $(SYNTH_DIR)) \
-		--validate-linux-path $(abspath $(IMEM_MEM)) \
-		--validate-linux-dmem $(abspath $(DMEM_MEM))
 	@SECONDS=0; \
 	$(call quartus_compile,build.tcl); \
 	echo "[$(ARCH)] Synthesis completed in $$SECONDS seconds"
@@ -218,6 +216,8 @@ replicas: check-project
 		mkdir -p $$replica_dir; \
 		cp $(STA_RPT) $$replica_dir/timing.rpt 2>/dev/null || \
 			echo "Warning: timing report not found for replica $$i"; \
+		cp $(FIT_SUMMARY) $$replica_dir/fit.summary 2>/dev/null || \
+			echo "Warning: fitter summary not found for replica $$i"; \
 		cp $(SOF_FILE) $$replica_dir/$(PROJECT).sof 2>/dev/null || \
 			echo "Warning: SOF file not found for replica $$i"; \
 		python3 scripts/extract_fmax.py $$replica_dir/timing.rpt \
@@ -385,7 +385,13 @@ rebuild: clean build
 
 
 .PHONY: mem
-mem: $(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem
+mem: $(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem $(SCREEN_MIF)
+
+# Regenerate the VGA console artifacts on their own: the video-memory images
+# (.mif), the field maps and the two screen writers.
+.PHONY: screen
+screen: $(IMEM_MEM) $(DMEM_MEM)
+	IMEM=$(IMEM_MEM) DMEM=$(DMEM_MEM) bash scripts/gen_screen_artifacts.sh
 
 # The binary is rebuilt whenever an ELF is given.  Timestamps alone are not
 # enough: two different programs can carry the same mtime, and the resulting
@@ -434,6 +440,26 @@ check-project:
 	fi
 
 
+.PHONY: thesis
+thesis:
+	@echo "[thesis] Experimental campaign: preflight, synthesis, verification, benchmarks, artifacts"
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py
+
+# Same campaign without the synthesis replicas: it reuses the replicas that
+# are already in results/ and refreshes everything else.
+.PHONY: thesis-quick
+thesis-quick:
+	@echo "[thesis] Experimental campaign without the synthesis replicas"
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py \
+		--stages preflight verify benchmarks artifacts
+
+# Programs the DE1-SoC with every benchmark and prints the values that the
+# console must show, for the photographs of the hardware evidence.
+.PHONY: thesis-hardware
+thesis-hardware:
+	@echo "[thesis] Hardware validation on the DE1-SoC"
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --stages hardware
+
 .PHONY: help
 help:
 	@echo ""
@@ -463,6 +489,7 @@ help:
 	@echo ""
 	@echo "Memory"
 	@echo "  mem ELF=<path>     Generate .mem files from ELF without synthesizing"
+	@echo "  screen             Regenerate the VGA console artifacts (.mif, writers)"
 	@echo ""
 	@echo "Verification"
 	@echo "  verify             Run architecture-specific cocotb tests"
@@ -484,4 +511,10 @@ help:
 	@echo "  clean-all          Remove synthesis artifacts for both archs"
 	@echo "  clean-replicas     Remove replica results for ARCH"
 	@echo "  clean-replicas-all Remove replica results for both archs"
+	@echo ""
+	@echo "Thesis"
+	@echo "  thesis             Full experimental campaign (synthesis, verification,"
+	@echo "                     benchmarks, tables, figures, protocol, chapter)"
+	@echo "  thesis-quick       Same campaign reusing the existing replicas"
+	@echo "  thesis-hardware    Program the DE1-SoC and print the photo checklist"
 	@echo ""
