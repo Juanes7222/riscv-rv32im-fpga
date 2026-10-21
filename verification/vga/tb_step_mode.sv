@@ -14,14 +14,15 @@ module tb_step_mode;
     logic clk = 0;
     logic rst_n = 0;
 
-    // Board inputs: KEY[1] (active high) and SW[9] (active high).
-    logic key_step  = 0;
+    // Board inputs: KEY[1] (raw pin, active low: 1 = released) and
+    // SW[9] (active high: 1 = frozen).
+    logic key_step  = 1;
     logic step_mode = 0;
 
     // The freeze request produced by the step logic under test.
     logic step_hold;
 
-    step_mode u_step (
+    step_mode_ctrl u_step (
         .clk       (clk),
         .rst_n     (rst_n),
         .key_step  (key_step),
@@ -148,9 +149,7 @@ module tb_step_mode;
         if (cycle_count !== cycles_frozen) $fatal(1, "the cycle counter advanced while frozen");
 
         // ── One KEY[1] press releases the processor for one cycle ───
-        key_step = 1;
-        repeat (3) tick();          // the button is held
-        key_step = 0;
+        key_step = 0;               // the press (the pin is active low)
 
         pc_advances = 0;
         pc_prev     = pc;
@@ -159,6 +158,7 @@ module tb_step_mode;
             if (pc != pc_prev) pc_advances++;
             pc_prev = pc;
         end
+        key_step = 1;               // the button is released again
         if (pc_advances != 1) $fatal(1, "the press advanced the PC %0d times instead of once",
                                      pc_advances);
         if (pc !== pc_frozen + 32'd4) $fatal(1, "the PC did not advance by one instruction");

@@ -38,11 +38,13 @@ def init_board_inputs(dut) -> None:
     Left undefined they make the clock enables of the design unknown, and
     the processor does not run at all.  The ports are set only when the
     design exposes them, so the helper also works on older revisions.
+
+    KEY[1] is the raw active-low pin: 1 means the button is released.
     """
     if hasattr(dut, "key_step"):
-        dut.key_step.value = 0
+        dut.key_step.value = 1      # KEY[1] is active low: 1 = released
     if hasattr(dut, "step_mode"):
-        dut.step_mode.value = 0
+        dut.step_mode.value = 0     # no freeze
 
 
 # ──────────────────────────────────────────────────────────────────────

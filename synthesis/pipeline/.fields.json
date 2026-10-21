@@ -14,7 +14,11 @@
       "display_min": 8,
       "start_address": 1532,
       "end_address": 1539,
-      "origin": "register table row 10"
+      "origin": "register table row 10",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x1",
@@ -27,7 +31,11 @@
       "display_min": 8,
       "start_address": 1692,
       "end_address": 1699,
-      "origin": "register table row 11"
+      "origin": "register table row 11",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x2",
@@ -40,7 +48,11 @@
       "display_min": 8,
       "start_address": 1852,
       "end_address": 1859,
-      "origin": "register table row 12"
+      "origin": "register table row 12",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x3",
@@ -53,7 +65,11 @@
       "display_min": 8,
       "start_address": 2012,
       "end_address": 2019,
-      "origin": "register table row 13"
+      "origin": "register table row 13",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x4",
@@ -66,7 +82,11 @@
       "display_min": 8,
       "start_address": 2172,
       "end_address": 2179,
-      "origin": "register table row 14"
+      "origin": "register table row 14",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x5",
@@ -79,7 +99,11 @@
       "display_min": 8,
       "start_address": 2332,
       "end_address": 2339,
-      "origin": "register table row 15"
+      "origin": "register table row 15",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x6",
@@ -92,7 +116,11 @@
       "display_min": 8,
       "start_address": 2492,
       "end_address": 2499,
-      "origin": "register table row 16"
+      "origin": "register table row 16",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x7",
@@ -105,7 +133,11 @@
       "display_min": 8,
       "start_address": 2652,
       "end_address": 2659,
-      "origin": "register table row 17"
+      "origin": "register table row 17",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x8",
@@ -118,7 +150,11 @@
       "display_min": 8,
       "start_address": 2812,
       "end_address": 2819,
-      "origin": "register table row 18"
+      "origin": "register table row 18",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x9",
@@ -131,7 +167,11 @@
       "display_min": 8,
       "start_address": 2972,
       "end_address": 2979,
-      "origin": "register table row 19"
+      "origin": "register table row 19",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x10",
@@ -144,7 +184,11 @@
       "display_min": 8,
       "start_address": 3132,
       "end_address": 3139,
-      "origin": "register table row 20"
+      "origin": "register table row 20",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x11",
@@ -157,7 +201,11 @@
       "display_min": 8,
       "start_address": 3292,
       "end_address": 3299,
-      "origin": "register table row 21"
+      "origin": "register table row 21",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x12",
@@ -170,7 +218,11 @@
       "display_min": 8,
       "start_address": 3452,
       "end_address": 3459,
-      "origin": "register table row 22"
+      "origin": "register table row 22",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x13",
@@ -183,7 +235,11 @@
       "display_min": 8,
       "start_address": 3612,
       "end_address": 3619,
-      "origin": "register table row 23"
+      "origin": "register table row 23",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x14",
@@ -196,7 +252,11 @@
       "display_min": 8,
       "start_address": 3772,
       "end_address": 3779,
-      "origin": "register table row 24"
+      "origin": "register table row 24",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x15",
@@ -209,7 +269,11 @@
       "display_min": 8,
       "start_address": 3932,
       "end_address": 3939,
-      "origin": "register table row 25"
+      "origin": "register table row 25",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x16",
@@ -222,7 +286,11 @@
       "display_min": 8,
       "start_address": 4092,
       "end_address": 4099,
-      "origin": "register table row 26"
+      "origin": "register table row 26",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x17",
@@ -235,7 +303,11 @@
       "display_min": 8,
       "start_address": 4252,
       "end_address": 4259,
-      "origin": "register table row 27"
+      "origin": "register table row 27",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x18",
@@ -248,7 +320,11 @@
       "display_min": 8,
       "start_address": 4412,
       "end_address": 4419,
-      "origin": "register table row 28"
+      "origin": "register table row 28",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x19",
@@ -261,7 +337,11 @@
       "display_min": 8,
       "start_address": 4572,
       "end_address": 4579,
-      "origin": "register table row 29"
+      "origin": "register table row 29",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x20",
@@ -274,7 +354,11 @@
       "display_min": 8,
       "start_address": 4732,
       "end_address": 4739,
-      "origin": "register table row 30"
+      "origin": "register table row 30",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x21",
@@ -287,7 +371,11 @@
       "display_min": 8,
       "start_address": 4892,
       "end_address": 4899,
-      "origin": "register table row 31"
+      "origin": "register table row 31",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x22",
@@ -300,7 +388,11 @@
       "display_min": 8,
       "start_address": 5052,
       "end_address": 5059,
-      "origin": "register table row 32"
+      "origin": "register table row 32",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x23",
@@ -313,7 +405,11 @@
       "display_min": 8,
       "start_address": 5212,
       "end_address": 5219,
-      "origin": "register table row 33"
+      "origin": "register table row 33",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x24",
@@ -326,7 +422,11 @@
       "display_min": 8,
       "start_address": 5372,
       "end_address": 5379,
-      "origin": "register table row 34"
+      "origin": "register table row 34",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x25",
@@ -339,7 +439,11 @@
       "display_min": 8,
       "start_address": 5532,
       "end_address": 5539,
-      "origin": "register table row 35"
+      "origin": "register table row 35",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x26",
@@ -352,7 +456,11 @@
       "display_min": 8,
       "start_address": 5692,
       "end_address": 5699,
-      "origin": "register table row 36"
+      "origin": "register table row 36",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x27",
@@ -365,7 +473,11 @@
       "display_min": 8,
       "start_address": 5852,
       "end_address": 5859,
-      "origin": "register table row 37"
+      "origin": "register table row 37",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x28",
@@ -378,7 +490,11 @@
       "display_min": 8,
       "start_address": 6012,
       "end_address": 6019,
-      "origin": "register table row 38"
+      "origin": "register table row 38",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x29",
@@ -391,7 +507,11 @@
       "display_min": 8,
       "start_address": 6172,
       "end_address": 6179,
-      "origin": "register table row 39"
+      "origin": "register table row 39",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x30",
@@ -404,7 +524,11 @@
       "display_min": 8,
       "start_address": 6332,
       "end_address": 6339,
-      "origin": "register table row 40"
+      "origin": "register table row 40",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "x31",
@@ -417,7 +541,11 @@
       "display_min": 8,
       "start_address": 6492,
       "end_address": 6499,
-      "origin": "register table row 41"
+      "origin": "register table row 41",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
     },
     {
       "name": "cycles_at_done",
@@ -430,7 +558,11 @@
       "display_min": 16,
       "start_address": 218,
       "end_address": 233,
-      "origin": "tagged after \"CyclesToPass\" on row 2"
+      "origin": "tagged after \"CyclesToPass\" on row 2",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "instr_at_done",
@@ -443,7 +575,11 @@
       "display_min": 16,
       "start_address": 377,
       "end_address": 392,
-      "origin": "tagged after \"InstrToPass\" on row 3"
+      "origin": "tagged after \"InstrToPass\" on row 3",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "ru_data_wr_src",
@@ -456,7 +592,11 @@
       "display_min": 1,
       "start_address": 1198,
       "end_address": 1198,
-      "origin": "tagged after \"RUDataWrSrc\" on row 8"
+      "origin": "tagged after \"RUDataWrSrc\" on row 8",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "pc",
@@ -469,7 +609,11 @@
       "display_min": 8,
       "start_address": 1292,
       "end_address": 1299,
-      "origin": "tagged after \"PC\" on row 9"
+      "origin": "tagged after \"PC\" on row 9",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "rs1_addr",
@@ -482,7 +626,11 @@
       "display_min": 2,
       "start_address": 1316,
       "end_address": 1317,
-      "origin": "tagged after \"rs1\" on row 9"
+      "origin": "tagged after \"rs1\" on row 9",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "rs2_addr",
@@ -495,7 +643,11 @@
       "display_min": 2,
       "start_address": 1324,
       "end_address": 1325,
-      "origin": "tagged after \"rs2\" on row 9"
+      "origin": "tagged after \"rs2\" on row 9",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "rd_addr",
@@ -508,7 +660,11 @@
       "display_min": 2,
       "start_address": 1331,
       "end_address": 1332,
-      "origin": "tagged after \"rd\" on row 9"
+      "origin": "tagged after \"rd\" on row 9",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "instruction",
@@ -521,7 +677,11 @@
       "display_min": 8,
       "start_address": 1452,
       "end_address": 1459,
-      "origin": "tagged after \"Instr\" on row 10"
+      "origin": "tagged after \"Instr\" on row 10",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "next_pc",
@@ -534,7 +694,11 @@
       "display_min": 8,
       "start_address": 1612,
       "end_address": 1619,
-      "origin": "tagged after \"NextPC\" on row 11"
+      "origin": "tagged after \"NextPC\" on row 11",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "data_wr",
@@ -547,7 +711,11 @@
       "display_min": 8,
       "start_address": 1639,
       "end_address": 1646,
-      "origin": "tagged after \"DataWr\" on row 11"
+      "origin": "tagged after \"DataWr\" on row 11",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "ru_wr",
@@ -560,7 +728,11 @@
       "display_min": 1,
       "start_address": 1655,
       "end_address": 1655,
-      "origin": "tagged after \"RUWr\" on row 11"
+      "origin": "tagged after \"RUWr\" on row 11",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "if_pc",
@@ -573,7 +745,11 @@
       "display_min": 8,
       "start_address": 1772,
       "end_address": 1779,
-      "origin": "tagged after \"IF_PC\" on row 12"
+      "origin": "tagged after \"IF_PC\" on row 12",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "if_instruction",
@@ -586,7 +762,11 @@
       "display_min": 8,
       "start_address": 1932,
       "end_address": 1939,
-      "origin": "tagged after \"IF_Instr\" on row 13"
+      "origin": "tagged after \"IF_Instr\" on row 13",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "branch",
@@ -599,7 +779,16 @@
       "display_min": 1,
       "start_address": 2092,
       "end_address": 2092,
-      "origin": "tagged after \"Branch\" on row 14"
+      "origin": "tagged after \"Branch\" on row 14",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "branch",
+        "fg": 12,
+        "bg": 0
+      }
     },
     {
       "name": "rs1_data",
@@ -612,7 +801,11 @@
       "display_min": 8,
       "start_address": 2120,
       "end_address": 2127,
-      "origin": "tagged after \"RU(rs1)\" on row 14"
+      "origin": "tagged after \"RU(rs1)\" on row 14",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "rs2_data",
@@ -625,7 +818,11 @@
       "display_min": 8,
       "start_address": 2280,
       "end_address": 2287,
-      "origin": "tagged after \"RU(rs2)\" on row 15"
+      "origin": "tagged after \"RU(rs2)\" on row 15",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "mem_alu_result",
@@ -638,7 +835,11 @@
       "display_min": 8,
       "start_address": 2314,
       "end_address": 2321,
-      "origin": "tagged after \"MEM_ALURes\" on row 15"
+      "origin": "tagged after \"MEM_ALURes\" on row 15",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "wb_instruction",
@@ -651,7 +852,11 @@
       "display_min": 8,
       "start_address": 2474,
       "end_address": 2481,
-      "origin": "tagged after \"WB_Instr\" on row 16"
+      "origin": "tagged after \"WB_Instr\" on row 16",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "imm_out",
@@ -664,7 +869,11 @@
       "display_min": 8,
       "start_address": 2596,
       "end_address": 2603,
-      "origin": "tagged after \"IMM\" on row 17"
+      "origin": "tagged after \"IMM\" on row 17",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "imm_src",
@@ -677,7 +886,11 @@
       "display_min": 1,
       "start_address": 2614,
       "end_address": 2614,
-      "origin": "tagged after \"IMMSrC\" on row 17"
+      "origin": "tagged after \"IMMSrC\" on row 17",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "wb_rd_addr",
@@ -690,7 +903,11 @@
       "display_min": 2,
       "start_address": 2634,
       "end_address": 2641,
-      "origin": "tagged after \"WB_rd\" on row 17"
+      "origin": "tagged after \"WB_rd\" on row 17",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "wb_rd_data",
@@ -703,7 +920,11 @@
       "display_min": 8,
       "start_address": 2794,
       "end_address": 2801,
-      "origin": "tagged after \"WB_rd_data\" on row 18"
+      "origin": "tagged after \"WB_rd_data\" on row 18",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "opcode",
@@ -716,7 +937,11 @@
       "display_min": 2,
       "start_address": 2920,
       "end_address": 2921,
-      "origin": "tagged after \"Opcode\" on row 19"
+      "origin": "tagged after \"Opcode\" on row 19",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "funct3",
@@ -729,7 +954,11 @@
       "display_min": 1,
       "start_address": 2933,
       "end_address": 2933,
-      "origin": "tagged after \"Funct3\" on row 19"
+      "origin": "tagged after \"Funct3\" on row 19",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "funct7",
@@ -742,7 +971,11 @@
       "display_min": 2,
       "start_address": 3080,
       "end_address": 3081,
-      "origin": "tagged after \"Funct7\" on row 20"
+      "origin": "tagged after \"Funct7\" on row 20",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "id_pc",
@@ -755,7 +988,11 @@
       "display_min": 8,
       "start_address": 3372,
       "end_address": 3379,
-      "origin": "tagged after \"ID_PC\" on row 22"
+      "origin": "tagged after \"ID_PC\" on row 22",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "id_instruction",
@@ -768,7 +1005,11 @@
       "display_min": 8,
       "start_address": 3532,
       "end_address": 3539,
-      "origin": "tagged after \"ID_Instr\" on row 23"
+      "origin": "tagged after \"ID_Instr\" on row 23",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "dm_addr",
@@ -781,7 +1022,11 @@
       "display_min": 8,
       "start_address": 4393,
       "end_address": 4400,
-      "origin": "tagged after \"Address\" on row 28"
+      "origin": "tagged after \"Address\" on row 28",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "ex_pc",
@@ -794,7 +1039,11 @@
       "display_min": 8,
       "start_address": 4526,
       "end_address": 4533,
-      "origin": "tagged after \"EX_PC\" on row 29"
+      "origin": "tagged after \"EX_PC\" on row 29",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "dm_wdata",
@@ -807,7 +1056,16 @@
       "display_min": 8,
       "start_address": 4553,
       "end_address": 4560,
-      "origin": "tagged after \"DataWrite\" on row 29"
+      "origin": "tagged after \"DataWrite\" on row 29",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "mem_write_access",
+        "fg": 8,
+        "bg": 3
+      }
     },
     {
       "name": "ex_instruction",
@@ -820,7 +1078,11 @@
       "display_min": 8,
       "start_address": 4686,
       "end_address": 4693,
-      "origin": "tagged after \"EX_Instr\" on row 30"
+      "origin": "tagged after \"EX_Instr\" on row 30",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "dm_rdata",
@@ -833,7 +1095,16 @@
       "display_min": 8,
       "start_address": 4713,
       "end_address": 4720,
-      "origin": "tagged after \"DataRead\" on row 30"
+      "origin": "tagged after \"DataRead\" on row 30",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "mem_read_access",
+        "fg": 8,
+        "bg": 2
+      }
     },
     {
       "name": "ex_rs1_data",
@@ -846,7 +1117,11 @@
       "display_min": 8,
       "start_address": 4846,
       "end_address": 4853,
-      "origin": "tagged after \"EX_rs1_data\" on row 31"
+      "origin": "tagged after \"EX_rs1_data\" on row 31",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "dm_ctrl",
@@ -859,7 +1134,11 @@
       "display_min": 1,
       "start_address": 4873,
       "end_address": 4873,
-      "origin": "tagged after \"DMCtrl\" on row 31"
+      "origin": "tagged after \"DMCtrl\" on row 31",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "stall",
@@ -872,7 +1151,16 @@
       "display_min": 1,
       "start_address": 4977,
       "end_address": 4977,
-      "origin": "tagged after \"Stall\" on row 32"
+      "origin": "tagged after \"Stall\" on row 32",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "stall",
+        "fg": 11,
+        "bg": 3
+      }
     },
     {
       "name": "ex_rs2_data",
@@ -885,7 +1173,11 @@
       "display_min": 8,
       "start_address": 5006,
       "end_address": 5013,
-      "origin": "tagged after \"EX_rs2_data\" on row 32"
+      "origin": "tagged after \"EX_rs2_data\" on row 32",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "dm_wr",
@@ -898,7 +1190,16 @@
       "display_min": 1,
       "start_address": 5033,
       "end_address": 5033,
-      "origin": "tagged after \"DMWr\" on row 32"
+      "origin": "tagged after \"DMWr\" on row 32",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "dm_wr",
+        "fg": 11,
+        "bg": 3
+      }
     },
     {
       "name": "load_use_hazard",
@@ -911,7 +1212,16 @@
       "display_min": 1,
       "start_address": 5137,
       "end_address": 5137,
-      "origin": "tagged after \"LoadUse\" on row 33"
+      "origin": "tagged after \"LoadUse\" on row 33",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "load_use_hazard",
+        "fg": 11,
+        "bg": 3
+      }
     },
     {
       "name": "ex_imm",
@@ -924,7 +1234,11 @@
       "display_min": 8,
       "start_address": 5166,
       "end_address": 5173,
-      "origin": "tagged after \"EX_imm\" on row 33"
+      "origin": "tagged after \"EX_imm\" on row 33",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "branch_flush",
@@ -937,7 +1251,16 @@
       "display_min": 1,
       "start_address": 5297,
       "end_address": 5297,
-      "origin": "tagged after \"BranchFlush\" on row 34"
+      "origin": "tagged after \"BranchFlush\" on row 34",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "branch_flush",
+        "fg": 11,
+        "bg": 3
+      }
     },
     {
       "name": "trap_flush",
@@ -950,7 +1273,16 @@
       "display_min": 1,
       "start_address": 5457,
       "end_address": 5457,
-      "origin": "tagged after \"TrapFlush\" on row 35"
+      "origin": "tagged after \"TrapFlush\" on row 35",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "trap_flush",
+        "fg": 11,
+        "bg": 3
+      }
     },
     {
       "name": "flush",
@@ -963,7 +1295,16 @@
       "display_min": 1,
       "start_address": 5617,
       "end_address": 5617,
-      "origin": "tagged after \"Flush\" on row 36"
+      "origin": "tagged after \"Flush\" on row 36",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "flush",
+        "fg": 11,
+        "bg": 3
+      }
     },
     {
       "name": "alu_a",
@@ -976,7 +1317,11 @@
       "display_min": 8,
       "start_address": 6280,
       "end_address": 6287,
-      "origin": "tagged after \"ALUA\" on row 40"
+      "origin": "tagged after \"ALUA\" on row 40",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "mem_rs1_data",
@@ -989,7 +1334,11 @@
       "display_min": 8,
       "start_address": 6315,
       "end_address": 6322,
-      "origin": "tagged after \"MEM_ALUA\" on row 40"
+      "origin": "tagged after \"MEM_ALUA\" on row 40",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "alu_b",
@@ -1002,7 +1351,11 @@
       "display_min": 8,
       "start_address": 6440,
       "end_address": 6447,
-      "origin": "tagged after \"ALUB\" on row 41"
+      "origin": "tagged after \"ALUB\" on row 41",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "mem_rs2_data",
@@ -1015,7 +1368,11 @@
       "display_min": 8,
       "start_address": 6475,
       "end_address": 6482,
-      "origin": "tagged after \"MEM_ALUB\" on row 41"
+      "origin": "tagged after \"MEM_ALUB\" on row 41",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "alu_res",
@@ -1028,7 +1385,11 @@
       "display_min": 8,
       "start_address": 6600,
       "end_address": 6607,
-      "origin": "tagged after \"ALURes\" on row 42"
+      "origin": "tagged after \"ALURes\" on row 42",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "ex_alu_result",
@@ -1041,7 +1402,11 @@
       "display_min": 8,
       "start_address": 6635,
       "end_address": 6642,
-      "origin": "tagged after \"EX_ALURes\" on row 42"
+      "origin": "tagged after \"EX_ALURes\" on row 42",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "alu_op",
@@ -1054,7 +1419,11 @@
       "display_min": 2,
       "start_address": 6759,
       "end_address": 6760,
-      "origin": "tagged after \"ALUOp\" on row 43"
+      "origin": "tagged after \"ALUOp\" on row 43",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "br_op",
@@ -1067,7 +1436,11 @@
       "display_min": 2,
       "start_address": 6769,
       "end_address": 6770,
-      "origin": "tagged after \"BROp\" on row 43"
+      "origin": "tagged after \"BROp\" on row 43",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "mem_instruction",
@@ -1080,7 +1453,11 @@
       "display_min": 8,
       "start_address": 6795,
       "end_address": 6802,
-      "origin": "tagged after \"MEM_Instr\" on row 43"
+      "origin": "tagged after \"MEM_Instr\" on row 43",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
     },
     {
       "name": "alua_src",
@@ -1093,7 +1470,11 @@
       "display_min": 1,
       "start_address": 6921,
       "end_address": 6921,
-      "origin": "tagged after \"ALUASrc\" on row 44"
+      "origin": "tagged after \"ALUASrc\" on row 44",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "alub_src",
@@ -1106,7 +1487,11 @@
       "display_min": 1,
       "start_address": 6932,
       "end_address": 6932,
-      "origin": "tagged after \"ALUBSrc\" on row 44"
+      "origin": "tagged after \"ALUBSrc\" on row 44",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
     },
     {
       "name": "ex_branch_taken",
@@ -1119,7 +1504,16 @@
       "display_min": 1,
       "start_address": 6955,
       "end_address": 6955,
-      "origin": "tagged after \"MEM_Branch\" on row 44"
+      "origin": "tagged after \"MEM_Branch\" on row 44",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "hot": {
+        "signal": "ex_branch_taken",
+        "fg": 12,
+        "bg": 0
+      }
     },
     {
       "name": "instr_retired",
@@ -1132,7 +1526,2494 @@
       "display_min": 16,
       "start_address": 7152,
       "end_address": 7167,
-      "origin": "tagged after \"InstrRetired\" on row 45"
+      "origin": "tagged after \"InstrRetired\" on row 45",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
+    },
+    {
+      "name": "stage_fetch_0",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 2,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 962,
+      "end_address": 962,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "F",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_1",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 3,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 963,
+      "end_address": 963,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_2",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 4,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 964,
+      "end_address": 964,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "T",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_3",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 5,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 965,
+      "end_address": 965,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_4",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 6,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 966,
+      "end_address": 966,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "H",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_5",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 7,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 967,
+      "end_address": 967,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": " ",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_6",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 8,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 968,
+      "end_address": 968,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "(",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_7",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 9,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 969,
+      "end_address": 969,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "I",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_8",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 10,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 970,
+      "end_address": 970,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "F",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_fetch_9",
+      "label": "FETCH (IF)",
+      "row": 6,
+      "col": 11,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 971,
+      "end_address": 971,
+      "origin": "stage header \"FETCH (IF)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": ")",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_if_id_0",
+      "label": "IF/ID",
+      "row": 19,
+      "col": 2,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3042,
+      "end_address": 3042,
+      "origin": "stage header \"IF/ID\" on row 20",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "I",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_if_id_1",
+      "label": "IF/ID",
+      "row": 19,
+      "col": 3,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3043,
+      "end_address": 3043,
+      "origin": "stage header \"IF/ID\" on row 20",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "F",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_if_id_2",
+      "label": "IF/ID",
+      "row": 19,
+      "col": 4,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3044,
+      "end_address": 3044,
+      "origin": "stage header \"IF/ID\" on row 20",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "/",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_if_id_3",
+      "label": "IF/ID",
+      "row": 19,
+      "col": 5,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3045,
+      "end_address": 3045,
+      "origin": "stage header \"IF/ID\" on row 20",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "I",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_if_id_4",
+      "label": "IF/ID",
+      "row": 19,
+      "col": 6,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3046,
+      "end_address": 3046,
+      "origin": "stage header \"IF/ID\" on row 20",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "D",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_0",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 31,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 991,
+      "end_address": 991,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "D",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_1",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 32,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 992,
+      "end_address": 992,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_2",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 33,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 993,
+      "end_address": 993,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_3",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 34,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 994,
+      "end_address": 994,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "O",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_4",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 35,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 995,
+      "end_address": 995,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "D",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_5",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 36,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 996,
+      "end_address": 996,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_6",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 37,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 997,
+      "end_address": 997,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": " ",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_7",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 38,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 998,
+      "end_address": 998,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "(",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_8",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 39,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 999,
+      "end_address": 999,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "I",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_9",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 40,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1000,
+      "end_address": 1000,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "D",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_decode_10",
+      "label": "DECODE (ID)",
+      "row": 6,
+      "col": 41,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1001,
+      "end_address": 1001,
+      "origin": "stage header \"DECODE (ID)\" on row 7",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": ")",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_id_ex_0",
+      "label": "ID/EX",
+      "row": 26,
+      "col": 32,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4192,
+      "end_address": 4192,
+      "origin": "stage header \"ID/EX\" on row 27",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "I",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_id_ex_1",
+      "label": "ID/EX",
+      "row": 26,
+      "col": 33,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4193,
+      "end_address": 4193,
+      "origin": "stage header \"ID/EX\" on row 27",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "D",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_id_ex_2",
+      "label": "ID/EX",
+      "row": 26,
+      "col": 34,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4194,
+      "end_address": 4194,
+      "origin": "stage header \"ID/EX\" on row 27",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "/",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_id_ex_3",
+      "label": "ID/EX",
+      "row": 26,
+      "col": 35,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4195,
+      "end_address": 4195,
+      "origin": "stage header \"ID/EX\" on row 27",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_id_ex_4",
+      "label": "ID/EX",
+      "row": 26,
+      "col": 36,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4196,
+      "end_address": 4196,
+      "origin": "stage header \"ID/EX\" on row 27",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "X",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_0",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 32,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6112,
+      "end_address": 6112,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_1",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 33,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6113,
+      "end_address": 6113,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "X",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_2",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 34,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6114,
+      "end_address": 6114,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_3",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 35,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6115,
+      "end_address": 6115,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_4",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 36,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6116,
+      "end_address": 6116,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "U",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_5",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 37,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6117,
+      "end_address": 6117,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "T",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_6",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 38,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6118,
+      "end_address": 6118,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_7",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 39,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6119,
+      "end_address": 6119,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": " ",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_8",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 40,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6120,
+      "end_address": 6120,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "(",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_9",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 41,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6121,
+      "end_address": 6121,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_10",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 42,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6122,
+      "end_address": 6122,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "X",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_execute_11",
+      "label": "EXECUTE (EX)",
+      "row": 38,
+      "col": 43,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6123,
+      "end_address": 6123,
+      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": ")",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_ex_mem_0",
+      "label": "EX/MEM",
+      "row": 38,
+      "col": 61,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6141,
+      "end_address": 6141,
+      "origin": "stage header \"EX/MEM\" on row 39",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_ex_mem_1",
+      "label": "EX/MEM",
+      "row": 38,
+      "col": 62,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6142,
+      "end_address": 6142,
+      "origin": "stage header \"EX/MEM\" on row 39",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "X",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_ex_mem_2",
+      "label": "EX/MEM",
+      "row": 38,
+      "col": 63,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6143,
+      "end_address": 6143,
+      "origin": "stage header \"EX/MEM\" on row 39",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "/",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_ex_mem_3",
+      "label": "EX/MEM",
+      "row": 38,
+      "col": 64,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6144,
+      "end_address": 6144,
+      "origin": "stage header \"EX/MEM\" on row 39",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_ex_mem_4",
+      "label": "EX/MEM",
+      "row": 38,
+      "col": 65,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6145,
+      "end_address": 6145,
+      "origin": "stage header \"EX/MEM\" on row 39",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_ex_mem_5",
+      "label": "EX/MEM",
+      "row": 38,
+      "col": 66,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6146,
+      "end_address": 6146,
+      "origin": "stage header \"EX/MEM\" on row 39",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_0",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 62,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4062,
+      "end_address": 4062,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_1",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 63,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4063,
+      "end_address": 4063,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_2",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 64,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4064,
+      "end_address": 4064,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_3",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 65,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4065,
+      "end_address": 4065,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "O",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_4",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 66,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4066,
+      "end_address": 4066,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "R",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_5",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 67,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4067,
+      "end_address": 4067,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "Y",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_6",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 68,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4068,
+      "end_address": 4068,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": " ",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_7",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 69,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4069,
+      "end_address": 4069,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "(",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_8",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 70,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4070,
+      "end_address": 4070,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_9",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 71,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4071,
+      "end_address": 4071,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_10",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 72,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4072,
+      "end_address": 4072,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_memory_11",
+      "label": "MEMORY (MEM)",
+      "row": 25,
+      "col": 73,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4073,
+      "end_address": 4073,
+      "origin": "stage header \"MEMORY (MEM)\" on row 26",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": ")",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_mem_wb_0",
+      "label": "MEM/WB",
+      "row": 12,
+      "col": 61,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1981,
+      "end_address": 1981,
+      "origin": "stage header \"MEM/WB\" on row 13",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_mem_wb_1",
+      "label": "MEM/WB",
+      "row": 12,
+      "col": 62,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1982,
+      "end_address": 1982,
+      "origin": "stage header \"MEM/WB\" on row 13",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_mem_wb_2",
+      "label": "MEM/WB",
+      "row": 12,
+      "col": 63,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1983,
+      "end_address": 1983,
+      "origin": "stage header \"MEM/WB\" on row 13",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "M",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_mem_wb_3",
+      "label": "MEM/WB",
+      "row": 12,
+      "col": 64,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1984,
+      "end_address": 1984,
+      "origin": "stage header \"MEM/WB\" on row 13",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "/",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_mem_wb_4",
+      "label": "MEM/WB",
+      "row": 12,
+      "col": 65,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1985,
+      "end_address": 1985,
+      "origin": "stage header \"MEM/WB\" on row 13",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "W",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_mem_wb_5",
+      "label": "MEM/WB",
+      "row": 12,
+      "col": 66,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1986,
+      "end_address": 1986,
+      "origin": "stage header \"MEM/WB\" on row 13",
+      "attr": {
+        "fg": 10,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "B",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 10,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_0",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 65,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 865,
+      "end_address": 865,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "W",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_1",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 66,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 866,
+      "end_address": 866,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "R",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_2",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 67,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 867,
+      "end_address": 867,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "I",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_3",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 68,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 868,
+      "end_address": 868,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "T",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_4",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 69,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 869,
+      "end_address": 869,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "E",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_5",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 70,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 870,
+      "end_address": 870,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "B",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_6",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 71,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 871,
+      "end_address": 871,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "A",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_7",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 72,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 872,
+      "end_address": 872,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "C",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_8",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 73,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 873,
+      "end_address": 873,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "K",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_9",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 74,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 874,
+      "end_address": 874,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": " ",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_10",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 75,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 875,
+      "end_address": 875,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "(",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_11",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 76,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 876,
+      "end_address": 876,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "W",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_12",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 77,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 877,
+      "end_address": 877,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "R",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "stage_writeback_13",
+      "label": "WRITEBACK (WR)",
+      "row": 5,
+      "col": 78,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 878,
+      "end_address": 878,
+      "origin": "stage header \"WRITEBACK (WR)\" on row 6",
+      "attr": {
+        "fg": 11,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": ")",
+      "hot": {
+        "signal": "stage_wb_active",
+        "fg": 11,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_9_24",
+      "label": "-",
+      "row": 9,
+      "col": 24,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1464,
+      "end_address": 1464,
+      "origin": "flow arrow on row 10, col 25",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_9_25",
+      "label": "-",
+      "row": 9,
+      "col": 25,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1465,
+      "end_address": 1465,
+      "origin": "flow arrow on row 10, col 26",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_9_26",
+      "label": "-",
+      "row": 9,
+      "col": 26,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1466,
+      "end_address": 1466,
+      "origin": "flow arrow on row 10, col 27",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_9_27",
+      "label": "-",
+      "row": 9,
+      "col": 27,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1467,
+      "end_address": 1467,
+      "origin": "flow arrow on row 10, col 28",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_9_28",
+      "label": "-",
+      "row": 9,
+      "col": 28,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1468,
+      "end_address": 1468,
+      "origin": "flow arrow on row 10, col 29",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_9_29",
+      "label": ">",
+      "row": 9,
+      "col": 29,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1469,
+      "end_address": 1469,
+      "origin": "flow arrow on row 10, col 30",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": ">",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_9_72",
+      "label": "^",
+      "row": 9,
+      "col": 72,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 1512,
+      "end_address": 1512,
+      "origin": "flow arrow on row 10, col 73",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_17_11",
+      "label": "V",
+      "row": 17,
+      "col": 11,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2731,
+      "end_address": 2731,
+      "origin": "flow arrow on row 18, col 12",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "V",
+      "hot": {
+        "signal": "stage_if_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_18_72",
+      "label": "^",
+      "row": 18,
+      "col": 72,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 2952,
+      "end_address": 2952,
+      "origin": "flow arrow on row 19, col 73",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_19_72",
+      "label": "^",
+      "row": 19,
+      "col": 72,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3112,
+      "end_address": 3112,
+      "origin": "flow arrow on row 20, col 73",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_24_43",
+      "label": "v",
+      "row": 24,
+      "col": 43,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 3883,
+      "end_address": 3883,
+      "origin": "flow arrow on row 25, col 44",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "v",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_25_12",
+      "label": "^",
+      "row": 25,
+      "col": 12,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 4012,
+      "end_address": 4012,
+      "origin": "flow arrow on row 26, col 13",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "stage_id_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_33_43",
+      "label": "^",
+      "row": 33,
+      "col": 43,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5323,
+      "end_address": 5323,
+      "origin": "flow arrow on row 34, col 44",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_33_72",
+      "label": "^",
+      "row": 33,
+      "col": 72,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5352,
+      "end_address": 5352,
+      "origin": "flow arrow on row 34, col 73",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_36_43",
+      "label": "v",
+      "row": 36,
+      "col": 43,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 5803,
+      "end_address": 5803,
+      "origin": "flow arrow on row 37, col 44",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "v",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_41_55",
+      "label": "-",
+      "row": 41,
+      "col": 55,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6615,
+      "end_address": 6615,
+      "origin": "flow arrow on row 42, col 56",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_41_56",
+      "label": "-",
+      "row": 41,
+      "col": 56,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6616,
+      "end_address": 6616,
+      "origin": "flow arrow on row 42, col 57",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_41_57",
+      "label": "-",
+      "row": 41,
+      "col": 57,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6617,
+      "end_address": 6617,
+      "origin": "flow arrow on row 42, col 58",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_41_58",
+      "label": "-",
+      "row": 41,
+      "col": 58,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6618,
+      "end_address": 6618,
+      "origin": "flow arrow on row 42, col 59",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "-",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_41_59",
+      "label": ">",
+      "row": 41,
+      "col": 59,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 6619,
+      "end_address": 6619,
+      "origin": "flow arrow on row 42, col 60",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": ">",
+      "hot": {
+        "signal": "stage_ex_active",
+        "fg": 9,
+        "bg": 1
+      }
+    },
+    {
+      "name": "arrow_44_72",
+      "label": "^",
+      "row": 44,
+      "col": 72,
+      "width": 1,
+      "fmt": "text",
+      "signal_bits": 8,
+      "display_min": 1,
+      "start_address": 7112,
+      "end_address": 7112,
+      "origin": "flow arrow on row 45, col 73",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      },
+      "kind": "text",
+      "text": "^",
+      "hot": {
+        "signal": "stage_mem_active",
+        "fg": 9,
+        "bg": 1
+      }
     }
-  ]
+  ],
+  "tables": [
+    {
+      "name": "prog_memory",
+      "row": 9,
+      "col": 102,
+      "addr_col": 102,
+      "data_col": 108,
+      "rows": 32,
+      "row_bytes": 14,
+      "shadow": "imem",
+      "follow_signal": "snap_ex_pc",
+      "only_on_access": false,
+      "depth_param": "IMEM_DEPTH"
+    },
+    {
+      "name": "data_memory",
+      "row": 9,
+      "col": 118,
+      "addr_col": 118,
+      "data_col": 124,
+      "rows": 32,
+      "row_bytes": 14,
+      "shadow": "dmem",
+      "follow_signal": "dm_addr",
+      "only_on_access": true,
+      "depth_param": "DMEM_DEPTH"
+    }
+  ],
+  "panel": {
+    "row": 37,
+    "col": 0,
+    "width": 31,
+    "lines": 4,
+    "instruction_signal": "ex_instruction"
+  }
 }

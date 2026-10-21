@@ -9,7 +9,11 @@ module data_memory #(
     input  logic [31:0] wr_data,
     input  logic        dm_wr,
     input  logic [2:0]  dm_ctrl,
-    output logic [31:0] rd_data
+    output logic [31:0] rd_data,
+    // Byte enables and per-lane write data of the pending write, exported
+    // for the VGA console shadow so it mirrors this memory exactly.
+    output logic [3:0]  dbg_wr_be,
+    output logic [31:0] dbg_wr_data
 );
 
     (* ramstyle = "M10K" *) logic [31:0] mem [0:DMEM_DEPTH-1];
@@ -82,6 +86,11 @@ module data_memory #(
     assign wr_rep_b1 = wr_data_rep[15:8];
     assign wr_rep_b2 = wr_data_rep[23:16];
     assign wr_rep_b3 = wr_data_rep[31:24];
+
+    // The console shadow writes what this memory writes, so it takes the
+    // enables and the lane data from here instead of recomputing them.
+    assign dbg_wr_be   = be;
+    assign dbg_wr_data = wr_data_rep;
 
     // Synchronous write
     always_ff @(posedge clk) begin

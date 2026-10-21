@@ -41,7 +41,7 @@ SHARED_SRCS = \
     $(RTL_ROOT)/shared/branch_unit.sv \
     $(RTL_ROOT)/shared/imm_gen.sv \
     $(RTL_ROOT)/shared/perf_counter.sv \
-    $(RTL_ROOT)/shared/step_mode.sv \
+    $(RTL_ROOT)/shared/step_mode_ctrl.sv \
     $(RTL_ROOT)/shared/seven_segment.sv \
     $(RTL_ROOT)/shared/csr_file.sv
 
@@ -50,7 +50,9 @@ SHARED_VGA_SRCS = \
     $(RTL_ROOT)/shared/vga_text_mode.sv \
     $(RTL_ROOT)/shared/vga_controller.sv \
     $(RTL_ROOT)/shared/vga_font_rom.sv \
-    $(RTL_ROOT)/shared/video_memory.sv
+    $(RTL_ROOT)/shared/video_memory.sv \
+    $(RTL_ROOT)/shared/vga_mem_shadow.sv \
+    $(RTL_ROOT)/shared/vga_rom_shadow.sv
 
 export REPO_ROOT
 export SCRIPTS_ROOT

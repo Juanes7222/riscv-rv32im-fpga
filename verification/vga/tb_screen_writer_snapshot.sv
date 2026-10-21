@@ -9,6 +9,11 @@
 // It also checks that the register table is written from the packed register
 // file bus: every register holds the same pattern, so each row of the table
 // must show it.
+//
+// The last check covers the attribute byte: a field that changes meaning
+// changes its colour.  The dm_wr field is the probe: the write enable is
+// driven to the opposite of the value the field shows, so the test tells a
+// writer that reads the snapshot from one that reads the live signal.
 
 module tb_screen_writer_snapshot;
 
@@ -55,12 +60,21 @@ module tb_screen_writer_snapshot;
     localparam int FIELD_WIDTH = 8;
     localparam logic [31:0] REG_PATTERN = 32'hA5A5A5A5;
 
+    // Address of the dm_wr field, taken from synthesis/single_cycle/fields.json.
+    localparam logic [12:0] ADDR_DM_WR = 13'd4574;
+    // Attribute of the dm_wr field: body colour, and the hot colour of a
+    // write in progress (foreground 11 on background 3).
+    localparam logic [7:0] ATTR_BASE = 8'h09;
+    localparam logic [7:0] ATTR_HOT  = 8'h3B;
+
     logic [7:0]  field_char [0:FIELD_WIDTH-1];
     logic [31:0] field_snap [0:FIELD_WIDTH-1];
     logic [7:0]  reg_char   [0:FIELD_WIDTH-1];
     integer      field_pos = 0;
     integer      reg_pos = 0;
     integer      groups = 0;
+    integer      attr_low = 0;    // dm_wr written with the snapshot low
+    integer      attr_high = 0;   // dm_wr written with the snapshot high
     integer      errors = 0;
     integer      i;
 
@@ -167,9 +181,13 @@ module tb_screen_writer_snapshot;
             dm_wdata <= dm_wdata + 1'b1;
         end
     end
+    // The write enable is the probe of the attribute test.  It is driven to
+    // the opposite of the snapshot the writer shows, so the live value and
+    // the snapshot never agree: a writer that reads the live signal instead
+    // of the snapshot paints the field with the wrong colour every time.
     always_ff @(posedge clk) begin
         if (rst_n) begin
-            dm_wr <= dm_wr + 1'b1;
+            dm_wr <= ~u_dut.snap_dm_wr;
         end
     end
     always_ff @(posedge clk) begin
@@ -275,6 +293,21 @@ module tb_screen_writer_snapshot;
                 reg_char[reg_pos] = vmem_wr_data[7:0];
                 reg_pos = reg_pos + 1;
             end
+            // The attribute of the dm_wr field must follow the value the
+            // field shows, which is the snapshot of the write enable.  The
+            // live write enable is the opposite of that snapshot, so a
+            // writer that reads the live signal fails here.
+            if (vmem_wr_addr == ADDR_DM_WR) begin
+                if (u_dut.snap_dm_wr) begin
+                    attr_high = attr_high + 1;
+                end else begin
+                    attr_low = attr_low + 1;
+                end
+                if (vmem_wr_data[15:8] !=
+                    (u_dut.snap_dm_wr ? ATTR_HOT : ATTR_BASE)) begin
+                    errors = errors + 1;
+                end
+            end
         end
     end
 
@@ -328,12 +361,16 @@ module tb_screen_writer_snapshot;
 
         repeat (4) @(posedge clk);
         rst_n = 1'b1;
-        // Let several full sweeps run.
+        // Let several full sweeps run.  The snapshot of the write enable
+        // alternates from one sweep to the next, so the field is written in
+        // both of its colours.
         repeat (u_dut.N_CHARS * 6) @(posedge clk);
 
         $display("PC field address : %0d", u_dut.ADDR_PC);
         $display("x0 field address  : %0d", u_dut.ADDR_X0);
+        $display("dm_wr address     : %0d", ADDR_DM_WR);
         $display("sweeps captured   : %0d", groups);
+        $display("attribute samples : %0d low, %0d high", attr_low, attr_high);
         $write("PC digits         : ");
         for (i = 0; i < FIELD_WIDTH; i = i + 1) begin
             $write("%s ", field_char[i]);
@@ -370,8 +407,15 @@ module tb_screen_writer_snapshot;
             end
         end
 
+        // The attribute must have been seen in both states, otherwise the
+        // test did not exercise the hot colour at all.
+        if (attr_low == 0 || attr_high == 0) begin
+            $display("FAIL: the attribute of the dm_wr field was not seen in both states");
+            errors = errors + 1;
+        end
+
         if (errors == 0) begin
-            $display("PASS: fields are coherent and the register table is filled");
+            $display("PASS: fields are coherent, the register table is filled and the attribute follows the meaning");
         end else begin
             $display("FAIL: %0d mismatches", errors);
         end

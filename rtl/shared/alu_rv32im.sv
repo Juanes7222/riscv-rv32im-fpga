@@ -1,6 +1,10 @@
 module alu_rv32im (
     input  logic        clk,
     input  logic        rst_n,
+    // hold: 1 freezes the divider state (step mode).  A division in
+    // flight is suspended instead of restarted, and the div_done
+    // indication is kept until the processor is released.
+    input  logic        hold,
     input  logic [31:0] a,
     input  logic [31:0] b,
     input  logic [4:0]  alu_op,
@@ -121,7 +125,7 @@ module alu_rv32im (
             div_op_r      <= 5'b0;
             div_done_r    <= 1'b0;
             div_processed <= 1'b0;
-        end else begin
+        end else if (!hold) begin
             // div_processed is the one-cycle pulse that masks is_div_op on
             // the cycle immediately after the writeback, allowing the PC to
             // finally advance.
@@ -217,6 +221,9 @@ module alu_rv32im (
 
             endcase
         end
+        // hold: the divider state is frozen.  A division in flight is
+        // suspended instead of restarted, and div_done is kept, so the
+        // result is written to the register file on the release cycle.
     end
 
 

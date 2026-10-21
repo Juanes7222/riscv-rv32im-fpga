@@ -9,7 +9,7 @@ module top_pipeline #(
 )(
     input  logic        clk,        // 50 MHz - DE1-SoC PIN_AF14
     input  logic        rst_n,      // Active-low synchronous reset - KEY[0]
-    input  logic        key_step,   // KEY[1], active high: releases the frozen processor for one cycle
+    input  logic        key_step,   // KEY[1] raw pin, active low: 0 while pressed
     input  logic        step_mode,  // SW[9], active high: freezes the processor
     output logic [9:0]  ledr,       // if_pc[9:0] - same convention as single-cycle
     output logic [6:0]  seven_seg_display0,
@@ -196,7 +196,7 @@ module top_pipeline #(
     // registers, never into the clock itself.
     logic step_hold;
 
-    step_mode u_step_mode (
+    step_mode_ctrl u_step_mode (
         .clk       (clk),
         .rst_n     (rst_n),
         .key_step  (key_step),
@@ -321,7 +321,7 @@ module top_pipeline #(
     // IMEM address: during a flush, feed the redirect target directly
     // so the synchronous IMEM captures the correct instruction at posedge.
     // IMEM address: during a flush, feed the redirect target directly.
-    assign imem_addr = flush ? pc_redirect_target : if_pc;
+    assign imem_addr = flush_eff ? pc_redirect_target : if_pc;
 
     instruction_memory_pipe #(
         .IMEM_DEPTH (IMEM_DEPTH)
@@ -536,6 +536,7 @@ module top_pipeline #(
     alu_rv32im u_alu (
         .clk     (clk),
         .rst_n   (rst_n),          // alu_rv32im uses active-low rst_n directly
+        .hold    (1'b0),           // the divider is not part of the freeze
         .a       (ex_alu_a),
         .b       (ex_alu_b),
         .alu_op  (ex_alu_op),
@@ -604,15 +605,20 @@ module top_pipeline #(
     // MEM stage                                                            //
     // DMEM synchronous read: rd_data is registered (captured at posedge),
     // naturally aligned with MEM/WB control outputs in the WB stage.
+    logic [3:0]  dmem_dbg_wr_be;
+    logic [31:0] dmem_dbg_wr_data;
+
     data_memory_pipe #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
-        .clk     (clk),
-        .addr    (mem_alu_result),
-        .wr_data (mem_rs2_data),
-        .dm_wr   (mem_dm_wr),
-        .dm_ctrl (mem_dm_ctrl),
-        .rd_data (dmem_rd_data)
+        .clk        (clk),
+        .addr       (mem_alu_result),
+        .wr_data    (mem_rs2_data),
+        .dm_wr      (mem_dm_wr),
+        .dm_ctrl    (mem_dm_ctrl),
+        .rd_data    (dmem_rd_data),
+        .dbg_wr_be  (dmem_dbg_wr_be),
+        .dbg_wr_data(dmem_dbg_wr_data)
     );
 
     // MEM/WB register                                                      //
@@ -779,6 +785,7 @@ module top_pipeline #(
 
     vga_text_mode u_text_mode (
         .clk        (vga_pixel_clk),
+        .reset      (vga_rst),
         .hcount     (vga_hcount),
         .vcount     (vga_vcount),
         .video_on   (vga_video_on),
@@ -788,7 +795,10 @@ module top_pipeline #(
         .vga_b      (vga_b)
     );
 
-    screen_writer_pipeline u_writer (
+    screen_writer_pipeline #(
+        .DMEM_DEPTH (DMEM_DEPTH),
+        .IMEM_DEPTH (IMEM_DEPTH)
+    ) u_writer (
         .clk              (vga_pixel_clk),
         .rst_n            (~vga_rst),
 
@@ -863,6 +873,12 @@ module top_pipeline #(
         // Register file (whole file, for the register table)
         .reg_values       (rf_dbg_regs),
 
+        // Live memory windows (VGA clock domain)
+        .imem_rd_addr     (imem_shadow_rd_addr),
+        .imem_rd_data     (imem_shadow_rd_data),
+        .dmem_rd_addr     (dmem_shadow_rd_addr),
+        .dmem_rd_data     (dmem_shadow_rd_data),
+
         // Hazard / control
         .stall            (stall),
         .load_use_hazard  (load_use_hazard),
@@ -874,6 +890,36 @@ module top_pipeline #(
         .vmem_wr_en       (vmem_wr_en),
         .vmem_wr_addr     (vmem_wr_addr),
         .vmem_wr_data     (vmem_wr_data)
+    );
+
+    // -----------------------------------------------------------------
+    // Console shadows: copies of the program and data memories that the
+    // VGA console reads.  The write port of the data shadow lives in the
+    // processor clock domain and is driven by the very same signals as the
+    // CPU's data memory, so the mirror holds exactly what the CPU's memory
+    // holds.  The read ports live in the VGA clock domain.
+    // -----------------------------------------------------------------
+    logic [31:0] dmem_shadow_rd_data;
+    logic [31:0] imem_shadow_rd_data;
+    // The screen writer walks the memories; it drives the read addresses.
+    logic [31:0] dmem_shadow_rd_addr;
+    logic [31:0] imem_shadow_rd_addr;
+
+    vga_mem_shadow #(.DEPTH(DMEM_DEPTH)) u_dmem_shadow (
+        .wr_clk (clk),
+        .wr_en  (mem_dm_wr),
+        .wr_addr(mem_alu_result),
+        .wr_data(dmem_dbg_wr_data),
+        .wr_be  (dmem_dbg_wr_be),
+        .rd_clk (vga_pixel_clk),
+        .rd_addr(dmem_shadow_rd_addr),
+        .rd_data(dmem_shadow_rd_data)
+    );
+
+    vga_rom_shadow #(.DEPTH(IMEM_DEPTH)) u_imem_shadow (
+        .rd_clk (vga_pixel_clk),
+        .rd_addr(imem_shadow_rd_addr),
+        .rd_data(imem_shadow_rd_data)
     );
 
 endmodule

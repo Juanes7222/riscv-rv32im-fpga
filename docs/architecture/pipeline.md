@@ -22,14 +22,25 @@ comparison between the two microarchitectures.
 
 ```systemverilog
 module top_pipeline (
-    input  logic clk,    // 50 MHz oscillator from DE1-SoC (PIN_AF14)
-    input  logic rst_n   // Active-low synchronous reset - connected to KEY[0]
+    input  logic clk,       // 50 MHz oscillator from DE1-SoC (PIN_AF14)
+    input  logic rst_n,     // Active-low synchronous reset - connected to KEY[0]
+    input  logic key_step,  // KEY[1] raw pin, active low: 0 while pressed
+    input  logic step_mode  // SW[9], active high: freezes the processor
 );
 ```
 
 Reset vector: `32'h0000_0000` (see [ADR 012](../decisions/012_reset_vector.md)).
 Internal active-high `rst` is generated as `rst = ~rst_n` for use by pipeline
 registers and the register file.
+
+The step mode (`step_mode` and `key_step`, see
+[ADR 044](../decisions/044_step_mode_processor_freeze.md)) freezes the
+pipeline so the console can be read: `step_mode` requests the freeze and one
+press of KEY[1] releases the pipeline for exactly one clock, so the
+instruction advances by one stage. The freeze is OR-ed into the clock
+enable of the pipeline registers and of the PC unit - the clock is never
+gated - and the flushes are suppressed while the pipeline is frozen, so a
+pending branch is applied on the release cycle instead of being lost.
 
 ---
 

@@ -5,7 +5,7 @@ module top_single_cycle #(
 )(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
-    input logic key_step, // KEY[1], active high: releases the frozen processor for one cycle
+    input logic key_step, // KEY[1] raw pin, active low: 0 while pressed
     input logic step_mode,// SW[9], active high: freezes the processor
     output logic [9:0] ledr,       // pc[9:0]
     output logic [6:0] seven_seg_display0, // Connect to your 7-segment display output
@@ -202,10 +202,13 @@ module top_single_cycle #(
 
     // Step mode: SW[9] freezes the processor, KEY[1] releases it for one
     // cycle.  The freeze is applied to the write enables and to the PC,
-    // never to the clock itself.
+    // never to the clock itself.  The data-memory write is left alone on
+    // purpose: a re-executed store writes the same value to the same
+    // address, so it is idempotent.  The console shadow shares that
+    // write, and gating it alone would break the mirror.
     logic step_hold;
 
-    step_mode u_step_mode (
+    step_mode_ctrl u_step_mode (
         .clk       (clk),
         .rst_n     (rst_n),
         .key_step  (key_step),
@@ -304,6 +307,7 @@ module top_single_cycle #(
     alu_rv32im u_alu (
         .clk      (clk),
         .rst_n    (rst_n),
+        .hold     (step_hold),   // the divider is frozen with the processor
         .a        (alu_a),
         .b        (alu_b),
         .alu_op   (alu_op),
@@ -312,15 +316,20 @@ module top_single_cycle #(
         .div_done (div_done)
     );
 
+    logic [3:0]  dmem_dbg_wr_be;
+    logic [31:0] dmem_dbg_wr_data;
+
     data_memory #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
-        .clk     (clk),
-        .addr    (alu_res),
-        .wr_data (rs2_data),
-        .dm_wr   (dm_wr),
-        .dm_ctrl (dm_ctrl),
-        .rd_data (dm_rd_data)
+        .clk        (clk),
+        .addr       (alu_res),
+        .wr_data    (rs2_data),
+        .dm_wr      (dm_wr),
+        .dm_ctrl    (dm_ctrl),
+        .rd_data    (dm_rd_data),
+        .dbg_wr_be  (dmem_dbg_wr_be),
+        .dbg_wr_data(dmem_dbg_wr_data)
     );
 
     // ADR 027: CSR register file with trap logic
@@ -446,6 +455,7 @@ module top_single_cycle #(
     // -----------------------------------------------------------------
     vga_text_mode u_text_mode (
         .clk        (vga_pixel_clk),
+        .reset      (vga_rst),
         .hcount     (vga_hcount),
         .vcount     (vga_vcount),
         .video_on   (vga_video_on),
@@ -455,9 +465,13 @@ module top_single_cycle #(
         .vga_b      (vga_b)
     );
 
-    // Round-robin screen writer: updates one character per pixel clock cycle.
-    // Full refresh = 111 cycles (2.22 µs) - far faster than VGA frame rate.
-    screen_writer_single_cycle u_writer (
+    // Round-robin screen writer: one character per pixel clock cycle, one
+    // group per cycle.  A cell is rewritten once per full rotation of the
+    // groups - far faster than the VGA frame rate.
+    screen_writer_single_cycle #(
+        .DMEM_DEPTH (DMEM_DEPTH),
+        .IMEM_DEPTH (IMEM_DEPTH)
+    ) u_writer (
         .clk          (vga_pixel_clk),
         .rst_n        (~vga_rst),
         .pc           (pc),
@@ -494,9 +508,43 @@ module top_single_cycle #(
         .instr_at_done  (instr_at_done),
         .halted       (program_done),
         .reg_values   (rf_dbg_regs),
+        .imem_rd_addr (imem_shadow_rd_addr),
+        .imem_rd_data (imem_shadow_rd_data),
+        .dmem_rd_addr (dmem_shadow_rd_addr),
+        .dmem_rd_data (dmem_shadow_rd_data),
         .vmem_wr_en   (vmem_wr_en),
         .vmem_wr_addr (vmem_wr_addr),
         .vmem_wr_data (vmem_wr_data)
+    );
+
+    // -----------------------------------------------------------------
+    // Console shadows: copies of the program and data memories that the
+    // VGA console reads.  The write port of the data shadow lives in the
+    // processor clock domain and is driven by the very same signals as the
+    // CPU's data memory, so the mirror holds exactly what the CPU's memory
+    // holds.  The read ports live in the VGA clock domain.
+    // -----------------------------------------------------------------
+    logic [31:0] dmem_shadow_rd_data;
+    logic [31:0] imem_shadow_rd_data;
+    // The screen writer walks the memories; it drives the read addresses.
+    logic [31:0] dmem_shadow_rd_addr;
+    logic [31:0] imem_shadow_rd_addr;
+
+    vga_mem_shadow #(.DEPTH(DMEM_DEPTH)) u_dmem_shadow (
+        .wr_clk (clk),
+        .wr_en  (dm_wr),
+        .wr_addr(alu_res),
+        .wr_data(dmem_dbg_wr_data),
+        .wr_be  (dmem_dbg_wr_be),
+        .rd_clk (vga_pixel_clk),
+        .rd_addr(dmem_shadow_rd_addr),
+        .rd_data(dmem_shadow_rd_data)
+    );
+
+    vga_rom_shadow #(.DEPTH(IMEM_DEPTH)) u_imem_shadow (
+        .rd_clk (vga_pixel_clk),
+        .rd_addr(imem_shadow_rd_addr),
+        .rd_data(imem_shadow_rd_data)
     );
 
 endmodule

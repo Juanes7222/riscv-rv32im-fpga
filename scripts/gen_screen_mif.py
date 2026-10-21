@@ -21,6 +21,10 @@ kinds of slots:
                      and width.
   * Tabular slots  - repetitive blocks (Registers, Prog. Memory, Data Memory)
                      parsed by row-pattern, not by coordinate.
+  * Rewrite slots  - the characters of the stage-box headers and of the flow
+                     arrows between the boxes.  They hold a constant
+                     character and a dynamic attribute: the background tells
+                     whether the stage they belong to holds an instruction.
 
 Placeholder conventions
 -----------------------
@@ -39,6 +43,7 @@ import argparse
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -52,9 +57,156 @@ CELLS = SCREEN_W * SCREEN_H           # 7 200
 ADDR_BITS = 13                        # 2**13 = 8192 > 7200
 
 # Video word: {attribute[15:8], char[7:0]}
-ATTR_STATIC = 0x07   # white on black
-ATTR_DYNAMIC = 0x0F  # bright white on black (placeholder for runtime)
+# The attribute byte is {background[7:4], foreground[3:0]}: the foreground
+# colour index lives in the LOW nibble.
+IN_FLIGHT_FG_INDEX = 8   # the instruction in flight: white on black
 
+# Template colour -> palette index.  A colour that is not listed here falls
+# back to the body colour; the coverage check refuses to generate the
+# artifacts when the template uses one.
+COLOR_TO_INDEX = {
+    '000000': 9,   # box borders and rules (theme 1 and explicit black)
+    '555555': 9,   # default body text
+    '46BDC6': 9,   # column ruler labels (theme 9)
+    '6D9EEB': 10,  # MEM/WB and IF/ID headers
+    'EA4335': 11,  # WRITEBACK header (theme 5)
+    'FF5555': 11,  # stage box headers
+    '00AA00': 12,  # HELP
+    '5555FF': 13,  # register table
+    '00AAAA': 14,  # title
+    'FFD966': 15,  # HAZARDS SIGNALS
+}
+BODY_INDEX = 9
+
+# Semantic colours of the dynamic fields.  'hot' switches to a different
+# attribute while the named signal is asserted.
+FIELD_SEMANTICS = {
+    'stall':           {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'stall', 'fg': 11, 'bg': 3}},
+    'load_use_hazard': {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'load_use_hazard', 'fg': 11, 'bg': 3}},
+    'branch_flush':    {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'branch_flush', 'fg': 11, 'bg': 3}},
+    'trap_flush':      {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'trap_flush', 'fg': 11, 'bg': 3}},
+    'flush':           {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'flush', 'fg': 11, 'bg': 3}},
+    'dm_wr':           {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'dm_wr', 'fg': 11, 'bg': 3}},
+    'dm_rdata':        {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'mem_read_access', 'fg': 8, 'bg': 2}},
+    'dm_wdata':        {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'mem_write_access', 'fg': 8, 'bg': 3}},
+    'branch':          {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'branch', 'fg': 12, 'bg': 0}},
+    'ex_branch_taken': {'attr': {'fg': 9, 'bg': 0}, 'hot': {'signal': 'ex_branch_taken', 'fg': 12, 'bg': 0}},
+}
+# The instruction in flight is always the brightest thing on the screen.
+IN_FLIGHT_FIELDS = (
+    'pc', 'instruction', 'if_pc', 'if_instruction', 'id_pc', 'id_instruction',
+    'ex_pc', 'ex_instruction', 'mem_instruction', 'wb_instruction',
+)
+# The values of the register table keep the blue of their labels.
+REGISTER_FG_INDEX = 13
+
+# The PC of the instruction that executes, per sheet: the pipeline has it
+# in the EX stage, the single-cycle design has only one stage.  The live
+# program table follows the snapshot of that PC, so the window changes
+# once per sweep.
+EXECUTING_PC: Dict[str, str] = {
+    'Pipeline': 'snap_ex_pc',
+    'Single-cycle': 'snap_pc',
+}
+
+# The decoding panel of the console: the rectangle of the screen the
+# instruction in flight is decoded in.  The template leaves the rectangle
+# empty, so the writer can paint it without touching a box border.
+PANEL_GEOMETRY: Dict[str, Dict[str, int]] = {
+    'Pipeline': {'row': 37, 'col': 0, 'width': 31, 'lines': 4},
+    'Single-cycle': {'row': 36, 'col': 83, 'width': 24, 'lines': 4},
+}
+
+# The instruction the panel decodes, per sheet: the one that executes.  The
+# pipeline has it in the EX stage, the single-cycle design has only one
+# stage.
+PANEL_INSTRUCTION: Dict[str, str] = {
+    'Pipeline': 'ex_instruction',
+    'Single-cycle': 'instruction',
+}
+
+# The stage boxes of each sheet and the signal that lights them up.  The two
+# designs derive different signals, so the map is per sheet: a stage is
+# active when its instruction register holds neither zero nor the canonical
+# bubble.
+STAGE_HEADERS: Dict[str, Dict[str, str]] = {
+    'Pipeline': {
+        'FETCH':     'stage_if_active',
+        'IF/ID':     'stage_id_active',
+        'DECODE':    'stage_id_active',
+        'ID/EX':     'stage_ex_active',
+        'EXECUTE':   'stage_ex_active',
+        'EX/MEM':    'stage_mem_active',
+        'MEMORY':    'stage_mem_active',
+        'MEM/WB':    'stage_mem_active',
+        'WRITEBACK': 'stage_wb_active',
+    },
+    'Single-cycle': {
+        'FETCH':     'stage_active',
+        'DECODE':    'stage_active',
+        'EXECUTE':   'stage_active',
+        'MEMORY':    'mem_access',
+        'WRITEBACK': 'mem_write_access',
+    },
+}
+
+# The cells that draw the flow between the stage boxes and the signal that
+# lights them up.  An arrow belongs to the stage whose box it leaves, so the
+# highlight walks along the flow as the instruction advances.  The table is
+# explicit: the template geometry is fixed, and a template edit that moves
+# an arrow has to be reflected here.
+FLOW_ARROWS: Dict[str, Dict[Tuple[int, int], str]] = {
+    'Pipeline': {
+        # The --> that leaves the FETCH box and enters the DECODE box.
+        (9, 24): 'stage_if_active',
+        (9, 25): 'stage_if_active',
+        (9, 26): 'stage_if_active',
+        (9, 27): 'stage_if_active',
+        (9, 28): 'stage_if_active',
+        (9, 29): 'stage_if_active',
+        # The V that leaves the FETCH box and enters the IF/ID box.
+        (17, 11): 'stage_if_active',
+        # The v that leaves the DECODE box and enters the ID/EX box.
+        (24, 43): 'stage_id_active',
+        # The ^ in the bottom border of the IF/ID box.
+        (25, 12): 'stage_id_active',
+        # The ^ in the bottom border of the ID/EX box and the v that leaves it.
+        (33, 43): 'stage_ex_active',
+        (36, 43): 'stage_ex_active',
+        # The --> that leaves the EXECUTE box and enters the EX/MEM box.
+        (41, 55): 'stage_ex_active',
+        (41, 56): 'stage_ex_active',
+        (41, 57): 'stage_ex_active',
+        (41, 58): 'stage_ex_active',
+        (41, 59): 'stage_ex_active',
+        # The ^ that carries the flow from the MEM/WB box to the WRITEBACK box.
+        (9, 72): 'stage_mem_active',
+        # The ^ in the bottom border of the MEM/WB box and the ^ above it:
+        # both carry the flow from the MEMORY box to the MEM/WB box.
+        (18, 72): 'stage_mem_active',
+        (19, 72): 'stage_mem_active',
+        # The ^ that carries the flow from the EX/MEM box to the MEMORY box
+        # and the ^ in the bottom border of the EX/MEM box.
+        (33, 72): 'stage_mem_active',
+        (44, 72): 'stage_mem_active',
+    },
+    'Single-cycle': {
+        # The V that leaves the FETCH box and enters the DECODE box.
+        (11, 58): 'stage_active',
+        # The V that leaves the DECODE box and enters the EXECUTE box.
+        (29, 60): 'stage_active',
+        # The ^ that leaves the MEMORY box and enters the WRITEBACK box.
+        (17, 89): 'mem_access',
+        (30, 89): 'mem_access',
+    },
+}
+
+# The glyphs the template uses to draw the flow between the boxes.
+FLOW_GLYPHS = frozenset('->^vV')
+VERTICAL_GLYPHS = frozenset('^vV')
+
+# The background of an active stage box and of the arrow that leaves it.
+ACTIVE_BG_INDEX = 1
 
 # Signal catalog
 # Each entry:  rtl_name --> (fmt, signal_bits, display_min_chars)
@@ -239,11 +391,16 @@ class Slot:
     row: int            # 0-based row in viewport
     col: int            # 0-based start column
     width: int          # visible width in characters
-    fmt: str            # 'hex' | 'bin'
+    fmt: str            # 'hex' | 'bin' | 'text'
     signal_bits: int    # actual RTL bit width
     display_min: int    # minimum chars needed
     label: str          # visual label as written in the sheet
     origin: str         # human-readable provenance (for debugging)
+    fg: int = BODY_INDEX  # foreground palette index of the field
+    bg: int = 0           # background palette index of the field
+    hot: Optional[dict] = None  # attribute while the named signal is high
+    kind: str = 'value'  # 'value' | 'text'
+    text: Optional[str] = None  # the character of a 'text' slot
 
     @property
     def start_address(self) -> int:
@@ -254,7 +411,7 @@ class Slot:
         return self.start_address + self.width - 1
 
     def to_dict(self) -> dict:
-        return {
+        payload = {
             'name': self.name,
             'label': self.label,
             'row': self.row,
@@ -266,7 +423,14 @@ class Slot:
             'start_address': self.start_address,
             'end_address': self.end_address,
             'origin': self.origin,
+            'attr': {'fg': self.fg, 'bg': self.bg},
         }
+        if self.kind == 'text':
+            payload['kind'] = self.kind
+            payload['text'] = self.text
+        if self.hot is not None:
+            payload['hot'] = dict(self.hot)
+        return payload
 
 
 @dataclass
@@ -276,22 +440,129 @@ class Block:
     row_start: int      # header row (0-based)
     col_start: int      # left column of the block (0-based)
     col_end: int        # right column (exclusive)
+    name_start: int = 0  # first column of the header name (0-based)
+    name_end: int = 0    # column behind the header name (exclusive)
+
+
+def slot_attributes(name: str) -> Tuple[int, int, Optional[dict]]:
+    """Foreground index, background index and hot attribute of a field.
+
+    The semantic table decides the colour of the fields that change meaning;
+    the fields that show an instruction in flight are always white; the
+    values of the register table keep the blue of their labels; every other
+    field keeps the body colour."""
+    semantics = FIELD_SEMANTICS.get(name)
+    if semantics is not None:
+        attr = semantics['attr']
+        return attr['fg'], attr['bg'], semantics.get('hot')
+    if name in IN_FLIGHT_FIELDS:
+        return IN_FLIGHT_FG_INDEX, 0, None
+    if re.fullmatch(r'x\d+', name):
+        return REGISTER_FG_INDEX, 0, None
+    return BODY_INDEX, 0, None
+
+
+# Excel addresses the theme colours by index, not by the order of the
+# elements in the theme XML: the XML lists dk1 before lt1.
+THEME_COLOR_ORDER = (
+    'lt1', 'dk1', 'lt2', 'dk2',
+    'accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6',
+    'hlink', 'folHlink',
+)
+
+
+def read_theme_colors(wb) -> Dict[int, str]:
+    """Map a theme colour index to its RGB string.
+
+    The theme order follows the OOXML clrScheme: lt1, dk1, lt2, dk2,
+    accent1..accent6, hlink, folHlink."""
+    theme = getattr(wb, 'loaded_theme', None)
+    if not theme:
+        return {}
+    ns = {'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'}
+    root = ET.fromstring(theme)
+    scheme = root.find('.//a:clrScheme', ns)
+    if scheme is None:
+        return {}
+    by_name: Dict[str, str] = {}
+    for child in scheme:
+        name = child.tag.rsplit('}', 1)[-1]
+        srgb = child.find('a:srgbClr', ns)
+        sysc = child.find('a:sysClr', ns)
+        if srgb is not None:
+            by_name[name] = srgb.get('val', '').upper()
+        elif sysc is not None:
+            by_name[name] = sysc.get('lastClr', '000000').upper()
+    return {index: by_name[name]
+            for index, name in enumerate(THEME_COLOR_ORDER)
+            if name in by_name}
+
+
+def cell_rgb(cell, theme_colors: Dict[int, str]) -> str:
+    """RGB of a cell's font colour.
+
+    Returns '' when the cell carries no colour of its own, and 'theme:<index>'
+    when the colour is a theme colour the theme map does not resolve."""
+    color = cell.font.color
+    if color is None:
+        return ''
+    if color.type == 'rgb' and color.rgb:
+        # openpyxl stores the colour as ARGB; only the RGB part is a colour.
+        return str(color.rgb)[-6:].upper()
+    if color.type == 'theme' and color.theme is not None:
+        index = int(color.theme)
+        # shortcut: the theme tint is ignored, every theme colour of the
+        # template has tint 0.
+        return theme_colors.get(index, f'theme:{index}')
+    return ''
+
+
+def template_colors(ws, theme_colors: Dict[int, str]) -> Set[str]:
+    """The distinct font colours of the template inside the viewport."""
+    colors: Set[str] = set()
+    for row in ws.iter_rows(min_row=1, max_row=SCREEN_H,
+                            min_col=1, max_col=SCREEN_W):
+        for cell in row:
+            if cell.value is None:
+                continue
+            rgb = cell_rgb(cell, theme_colors)
+            if rgb:
+                colors.add(rgb)
+    return colors
+
+
+def check_palette_coverage(used_colors: Set[str]) -> None:
+    """Fail when the template uses a colour the palette map does not cover.
+
+    An unmapped colour would silently fall back to the body colour and the
+    console would lose the colour language of the template."""
+    unmapped = sorted(color for color in used_colors if color not in COLOR_TO_INDEX)
+    if unmapped:
+        raise ValueError(
+            f'Template colours without a palette index: {", ".join(unmapped)}. '
+            'Add them to COLOR_TO_INDEX.'
+        )
 
 
 # Step 1 - Read worksheet into a normalised character grid
-def read_grid(ws) -> List[List[str]]:
+def read_grid(ws, theme_colors: Dict[int, str]) -> Tuple[List[List[str]], List[List[int]]]:
     """Build a SCREEN_H x SCREEN_W grid from the worksheet.
+
+    Returns the character grid and the parallel grid of palette indices.
 
     Fails when the template holds content outside the viewport: a silent
     truncation would drop real fields from the generated framebuffer."""
     grid: List[List[str]] = [[' ' for _ in range(SCREEN_W)] for _ in range(SCREEN_H)]
+    colors: List[List[int]] = [[BODY_INDEX for _ in range(SCREEN_W)]
+                                for _ in range(SCREEN_H)]
 
     max_row = min(ws.max_row, SCREEN_H + 128)
     max_col = min(ws.max_column, SCREEN_W + 128)
 
     for r in range(1, max_row + 1):
         for c in range(1, max_col + 1):
-            v = ws.cell(row=r, column=c).value
+            cell = ws.cell(row=r, column=c)
+            v = cell.value
             if v is None:
                 continue
             s = str(v)
@@ -304,7 +575,10 @@ def read_grid(ws) -> List[List[str]]:
                     f'720p60 text screen exactly; trim it or the content is lost.'
                 )
             grid[r - 1][c - 1] = s[0]
-    return grid
+            rgb = cell_rgb(cell, theme_colors)
+            if rgb:
+                colors[r - 1][c - 1] = COLOR_TO_INDEX.get(rgb, BODY_INDEX)
+    return grid, colors
 
 
 # Step 2 - Detect block headers and delimit their horizontal bounds
@@ -315,7 +589,8 @@ def find_blocks(grid: List[List[str]]) -> Dict[str, Block]:
     header_names = [
         'Registers', 'Prog. Memory', 'Data Memory',
         'FETCH', 'DECODE', 'EXECUTE', 'MEMORY', 'WRITEBACK',
-        'HALTED', 'HELP', 'Logo', 'FSM', 'TPU', "Counters", "Pipeline", "Control", "Performance"
+        'HALTED', 'HELP', 'Logo', 'FSM', 'TPU', "Counters", "Pipeline", "Control", "Performance",
+        'IF/ID', 'ID/EX', 'EX/MEM', 'MEM/WB',
     ]
     header_names.sort(key=len, reverse=True)
     header_re = re.compile('|'.join(re.escape(h) for h in header_names))
@@ -344,7 +619,8 @@ def find_blocks(grid: List[List[str]]) -> Dict[str, Block]:
                 right += 1     # include the '|' as the boundary
 
             blocks[name] = Block(name=name, row_start=r,
-                                 col_start=left, col_end=right)
+                                 col_start=left, col_end=right,
+                                 name_start=c0, name_end=c1)
 
     return blocks
 
@@ -445,6 +721,7 @@ def detect_tagged_slots(grid: List[List[str]],
             elif placeholder_type == 'hex':
                 fmt = 'hex'
 
+            fg, bg, hot = slot_attributes(rtl_name)
             slots.append(Slot(
                 name=rtl_name,
                 row=r,
@@ -455,6 +732,9 @@ def detect_tagged_slots(grid: List[List[str]],
                 display_min=display_min,
                 label=label,
                 origin=f'tagged after "{label}" on row {r + 1}',
+                fg=fg,
+                bg=bg,
+                hot=hot,
             ))
 
     return slots
@@ -491,6 +771,7 @@ def parse_registers(grid: List[List[str]],
         for c in range(start_col, start_col + width):
             occupied.add((r, c))
 
+        fg, bg, hot = slot_attributes(f'x{reg_idx}')
         slots.append(Slot(
             name=f'x{reg_idx}',
             row=r,
@@ -501,6 +782,9 @@ def parse_registers(grid: List[List[str]],
             display_min=8,
             label=f'X{reg_idx}',
             origin=f'register table row {r + 1}',
+            fg=fg,
+            bg=bg,
+            hot=hot,
         ))
 
     if len(slots) != 32:
@@ -553,7 +837,37 @@ def parse_memory_table(grid: List[List[str]],
 
         locations.append((r, addr_start, data_start, data_width))
 
+    check_memory_table(locations, header_name)
     return locations
+
+
+def check_memory_table(locations: List[Tuple[int, int, int, int]],
+                       header_name: str) -> None:
+    """Fail when the rows of a memory table are not a regular block.
+
+    The live table paints the rows of the block, so a row that the
+    detection skipped would shift the table and paint it over the wrong
+    cells.  The rows have to be consecutive and share the same columns.
+    """
+    if not locations:
+        raise ValueError(f'The block "{header_name}" holds no table row.')
+
+    first_row, first_addr, first_data, first_width = locations[0]
+    for index, (row, addr_col, data_col, data_width) in enumerate(locations):
+        if row != first_row + index:
+            raise ValueError(
+                f'The rows of the block "{header_name}" are not consecutive: '
+                f'row {index} of the table is on screen row {row}, expected '
+                f'{first_row + index}.'
+            )
+        if (addr_col, data_col, data_width) != (first_addr, first_data,
+                                                 first_width):
+            raise ValueError(
+                f'The rows of the block "{header_name}" do not share the same '
+                f'columns: row {index} has the address column {addr_col} and '
+                f'the data column {data_col}, expected {first_addr} and '
+                f'{first_data}.'
+            )
 
 
 def fill_memory_table(grid: List[List[str]],
@@ -583,7 +897,274 @@ def read_mem_words(path: str) -> List[int]:
     return words
 
 
-# Step 6 - Validation
+def data_memory_table(locations: List[Tuple[int, int, int, int]]) -> dict:
+    """The geometry of the live data memory table.
+
+    The table is a window over the data memory: the writer follows the
+    address of the last access and draws the words around it.  The
+    geometry comes from the block detection: the first row of the table
+    gives the screen row and the columns of the table.
+
+    The table samples the live signals at its sweep boundary, so the
+    address of an access and the fact that it happened come from the
+    same instant.
+    """
+    row, addr_col, data_col, data_width = locations[0]
+    return {
+        'name': 'data_memory',
+        'row': row,
+        'col': addr_col,
+        'addr_col': addr_col,
+        'data_col': data_col,
+        'rows': len(locations),
+        'row_bytes': data_col + data_width - addr_col,
+        'shadow': 'dmem',
+        'follow_signal': 'dm_addr',
+        'only_on_access': True,
+        'depth_param': 'DMEM_DEPTH',
+    }
+
+
+def prog_memory_table(locations: List[Tuple[int, int, int, int]],
+                      follow_signal: str) -> dict:
+    """The geometry of the live program memory table.
+
+    The table is a window over the program memory: it follows the PC of
+    the instruction that executes and draws the words around it.  The PC
+    always advances, so the window follows the program and is not sticky.
+    """
+    row, addr_col, data_col, data_width = locations[0]
+    return {
+        'name': 'prog_memory',
+        'row': row,
+        'col': addr_col,
+        'addr_col': addr_col,
+        'data_col': data_col,
+        'rows': len(locations),
+        'row_bytes': data_col + data_width - addr_col,
+        'shadow': 'imem',
+        'follow_signal': follow_signal,
+        'only_on_access': False,
+        'depth_param': 'IMEM_DEPTH',
+    }
+
+
+def check_tables_do_not_overlap(tables: List[dict]) -> None:
+    """Fail when two live tables paint the same cells.
+
+    The writer paints one table over the other, so the console would show
+    a mixture of two windows.
+    """
+    for index, first in enumerate(tables):
+        for second in tables[index + 1:]:
+            rows_overlap = (first['row'] < second['row'] + second['rows'] and
+                            second['row'] < first['row'] + first['rows'])
+            cols_overlap = (first['col'] < second['col'] + second['row_bytes']
+                            and second['col'] < first['col']
+                            + first['row_bytes'])
+            if rows_overlap and cols_overlap:
+                raise ValueError(
+                    f'The tables "{first["name"]}" and "{second["name"]}" '
+                    'paint the same cells.'
+                )
+
+
+# The decoding panel of the console
+def panel_geometry(sheet: str) -> dict:
+    """The geometry of the decoding panel of a sheet.
+
+    The panel is a rectangle of the screen and the instruction it decodes.
+    The writer paints the rectangle, so the contract has to name both."""
+    geometry = dict(PANEL_GEOMETRY[sheet])
+    geometry['instruction_signal'] = PANEL_INSTRUCTION[sheet]
+    return geometry
+
+
+def check_panel_is_free(grid: List[List[str]], panel: dict,
+                        slots: List[Slot], tables: List[dict]) -> None:
+    """Fail when the decoding panel would paint over something else.
+
+    The panel is drawn in a rectangle the template leaves empty: a field,
+    a live table or a character of the template inside it would be
+    destroyed by the writer."""
+    row = panel['row']
+    col = panel['col']
+    rows = panel['lines']
+    width = panel['width']
+
+    if row + rows > SCREEN_H or col + width > SCREEN_W:
+        raise ValueError(
+            f'The decoding panel (row {row + 1}, col {col + 1}, '
+            f'{rows} lines of {width} characters) does not fit on the '
+            f'{SCREEN_W}x{SCREEN_H} screen.'
+        )
+
+    for s in slots:
+        if (row <= s.row < row + rows and
+                s.col < col + width and col < s.col + s.width):
+            raise ValueError(
+                f'The decoding panel collides with the field "{s.label}" '
+                f'on row {s.row + 1}.'
+            )
+
+    for t in tables:
+        rows_overlap = (row < t['row'] + t['rows'] and
+                        t['row'] < row + rows)
+        cols_overlap = (col < t['col'] + t['row_bytes'] and
+                        t['col'] < col + width)
+        if rows_overlap and cols_overlap:
+            raise ValueError(
+                f'The decoding panel collides with the table '
+                f'"{t["name"]}".'
+            )
+
+    for r in range(row, row + rows):
+        for c in range(col, col + width):
+            if grid[r][c] != ' ':
+                raise ValueError(
+                    f'The decoding panel covers the character '
+                    f'"{grid[r][c]}" on row {r + 1}, col {c + 1}.'
+                )
+
+
+# Step 6 - Stage headers and flow arrows
+def identifier(text: str) -> str:
+    """A name that can be used as an identifier in the generated RTL."""
+    return re.sub(r'[^0-9A-Za-z]+', '_', text).strip('_').lower()
+
+
+def header_run(grid: List[List[str]], block: Block) -> Tuple[int, int]:
+    """The columns of the title of a block.
+
+    The title is the header name and the parenthesised suffix the template
+    adds to it ('FETCH (IF)'); the border of the box is not part of it."""
+    row = grid[block.row_start]
+    end = block.name_end
+    while end < SCREEN_W and row[end] != ' ':
+        end += 1
+    probe = end
+    while probe < SCREEN_W and row[probe] == ' ':
+        probe += 1
+    if probe < SCREEN_W and row[probe] == '(':
+        close = probe
+        while close < SCREEN_W and row[close] != ')':
+            close += 1
+        if close < SCREEN_W:
+            end = close + 1
+    return block.name_start, end
+
+
+def is_vertical_arrow(row: List[str], col: int) -> bool:
+    """Tell whether a vertical glyph draws the flow.
+
+    It does when it stands alone between spaces, or when it pierces the
+    horizontal border of a box."""
+    left = row[col - 1] if col > 0 else ' '
+    right = row[col + 1] if col + 1 < SCREEN_W else ' '
+    return (left == ' ' and right == ' ') or (left == '-' and right == '-')
+
+
+def find_flow_arrows(grid: List[List[str]]) -> Set[Tuple[int, int]]:
+    """The cells of the template that draw the flow between the boxes.
+
+    A run of flow glyphs is a flow arrow when it ends in an arrow head; a
+    plain run of dashes is the border of a box."""
+    cells: Set[Tuple[int, int]] = set()
+    for r in range(SCREEN_H):
+        row = grid[r]
+        col = 0
+        while col < SCREEN_W:
+            if row[col] not in FLOW_GLYPHS:
+                col += 1
+                continue
+            start = col
+            while col < SCREEN_W and row[col] in FLOW_GLYPHS:
+                col += 1
+            run = row[start:col]
+            if '>' in run or '<' in run:
+                cells.update((r, c) for c in range(start, col))
+            else:
+                cells.update((r, c) for c in range(start, col)
+                             if row[c] in VERTICAL_GLYPHS
+                             and is_vertical_arrow(row, c))
+    return cells
+
+
+def text_slot(name: str, text: str, row: int, col: int, fg: int,
+              signal: str, label: str, origin: str) -> Slot:
+    """A rewrite field: a static character with a dynamic attribute.
+
+    The character and its foreground are the ones of the template; only the
+    background changes, to tell that the stage holds an instruction."""
+    return Slot(
+        name=name,
+        row=row,
+        col=col,
+        width=1,
+        fmt='text',
+        signal_bits=8,
+        display_min=1,
+        label=label,
+        origin=origin,
+        fg=fg,
+        bg=0,
+        hot={'signal': signal, 'fg': fg, 'bg': ACTIVE_BG_INDEX},
+        kind='text',
+        text=text,
+    )
+
+
+def stage_header_slots(grid: List[List[str]], colors: List[List[int]],
+                       blocks: Dict[str, Block], sheet: str) -> List[Slot]:
+    """One rewrite field per character of every stage-box header."""
+    slots: List[Slot] = []
+    for name, signal in STAGE_HEADERS[sheet].items():
+        block = blocks.get(name)
+        if block is None:
+            print(f'Warning: stage box "{name}" not found in the template.',
+                  file=sys.stderr)
+            continue
+        start, end = header_run(grid, block)
+        title = ''.join(grid[block.row_start][start:end])
+        for index, col in enumerate(range(start, end)):
+            slots.append(text_slot(
+                name=f'stage_{identifier(name)}_{index}',
+                text=grid[block.row_start][col],
+                row=block.row_start,
+                col=col,
+                fg=colors[block.row_start][col],
+                signal=signal,
+                label=title,
+                origin=f'stage header "{title}" on row {block.row_start + 1}',
+            ))
+    return slots
+
+
+def flow_arrow_slots(grid: List[List[str]], colors: List[List[int]],
+                     sheet: str) -> List[Slot]:
+    """One rewrite field per cell of every flow arrow of the sheet."""
+    arrows = FLOW_ARROWS[sheet]
+    detected = find_flow_arrows(grid)
+    slots: List[Slot] = []
+    for (row, col), signal in sorted(arrows.items()):
+        if (row, col) not in detected:
+            print(f'Warning: flow arrow at row {row} col {col} not found '
+                  'in the template.', file=sys.stderr)
+            continue
+        slots.append(text_slot(
+            name=f'arrow_{row}_{col}',
+            text=grid[row][col],
+            row=row,
+            col=col,
+            fg=colors[row][col],
+            signal=signal,
+            label=grid[row][col],
+            origin=f'flow arrow on row {row + 1}, col {col + 1}',
+        ))
+    return slots
+
+
+# Step 7 - Validation
 def validate_slots(slots: List[Slot]) -> None:
     """Fail hard on overlaps or width violations."""
     occupied: Dict[Tuple[int, int], Slot] = {}
@@ -619,23 +1200,35 @@ def validate_slots(slots: List[Slot]) -> None:
             )
 
 
-# Step 7 - Build artifacts
-def build_mif(grid: List[List[str]], slots: List[Slot], out_path: Path) -> None:
-    """Write a Quartus-compatible .mif file."""
-    buf = [(ATTR_STATIC << 8) | 0x20 for _ in range(CELLS)]
+# Step 8 - Build artifacts
+def cell_word(fg: int, bg: int, ch: str) -> int:
+    """Compose a video-memory word: {attribute[15:8], character[7:0]}.
 
-    # Static text
+    The attribute byte is {background[7:4], foreground[3:0]}."""
+    return ((bg << 4 | fg) << 8) | ord(ch)
+
+
+def build_mif(grid: List[List[str]], colors: List[List[int]],
+              slots: List[Slot], out_path: Path) -> None:
+    """Write a Quartus-compatible .mif file."""
+    buf = [cell_word(0, 0, ' ') for _ in range(CELLS)]
+
+    # Static text: the colour of the template becomes the foreground index of
+    # the attribute byte, the background stays black.
     for r in range(SCREEN_H):
         for c in range(SCREEN_W):
             ch = grid[r][c]
             if ch != ' ':
-                buf[r * SCREEN_W + c] = (ATTR_STATIC << 8) | ord(ch)
+                buf[r * SCREEN_W + c] = cell_word(colors[r][c], 0, ch)
 
-    # Dynamic placeholders
+    # Dynamic placeholders: the base attribute of their field, so the first
+    # sweep of the writer does not repaint the console.
     for s in slots:
+        if s.kind == 'text':
+            continue      # static text with a dynamic attribute
         for i in range(s.width):
             a = s.start_address + i
-            buf[a] = (ATTR_DYNAMIC << 8) | ord('0')
+            buf[a] = cell_word(s.fg, s.bg, '0')
 
     with open(out_path, 'w') as fp:
         fp.write(
@@ -650,13 +1243,16 @@ def build_mif(grid: List[List[str]], slots: List[Slot], out_path: Path) -> None:
         fp.write('END;\n')
 
 
-def write_field_map(slots: List[Slot], out_path: Path) -> None:
+def write_field_map(slots: List[Slot], tables: List[dict], panel: dict,
+                    out_path: Path) -> None:
     """Write the formal contract as JSON."""
     payload = {
         'screen_width': SCREEN_W,
         'screen_height': SCREEN_H,
         'cell_count': CELLS,
         'fields': [s.to_dict() for s in slots],
+        'tables': tables,
+        'panel': panel,
     }
     with open(out_path, 'w') as fp:
         json.dump(payload, fp, indent=2)
@@ -687,7 +1283,15 @@ def main() -> int:
     ws = wb[args.sheet]
 
     # Normalise viewport
-    grid = read_grid(ws)
+    theme_colors = read_theme_colors(wb)
+    grid, colors = read_grid(ws, theme_colors)
+
+    # Every colour of the template must have a palette index
+    try:
+        check_palette_coverage(template_colors(ws, theme_colors))
+    except ValueError as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        return 1
 
     # Detect blocks with horizontal bounds
     blocks = find_blocks(grid)
@@ -695,16 +1299,28 @@ def main() -> int:
 
     occupied: Set[Tuple[int, int]] = set()
     slots: List[Slot] = []
+    tables: List[dict] = []
 
     # Parse tabular blocks first (they have priority)
     if 'Registers' in blocks:
         slots += parse_registers(grid, blocks['Registers'], occupied)
-    if 'Prog. Memory' in blocks:
-        loc = parse_memory_table(grid, blocks['Prog. Memory'], occupied, 'Prog. Memory')
-        fill_memory_table(grid, loc, read_mem_words(args.imem))
-    if 'Data Memory' in blocks:
-        loc = parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
-        fill_memory_table(grid, loc, read_mem_words(args.dmem))
+    try:
+        if 'Prog. Memory' in blocks:
+            loc = parse_memory_table(grid, blocks['Prog. Memory'], occupied, 'Prog. Memory')
+            fill_memory_table(grid, loc, read_mem_words(args.imem))
+            # The program table is live: the writer follows the PC of the
+            # instruction that executes.
+            tables.append(prog_memory_table(loc, EXECUTING_PC[args.sheet]))
+        if 'Data Memory' in blocks:
+            loc = parse_memory_table(grid, blocks['Data Memory'], occupied, 'Data Memory')
+            fill_memory_table(grid, loc, read_mem_words(args.dmem))
+            # The data memory table is live: the writer follows the last
+            # access.
+            tables.append(data_memory_table(loc))
+        check_tables_do_not_overlap(tables)
+    except ValueError as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        return 1
 
     # Parse tagged signals in the remaining free areas
     try:
@@ -714,6 +1330,12 @@ def main() -> int:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 
+    # Stage headers and flow arrows: static cells whose background follows
+    # the stage they belong to.
+    header_slots = stage_header_slots(grid, colors, blocks, args.sheet)
+    arrow_slots = flow_arrow_slots(grid, colors, args.sheet)
+    slots += header_slots + arrow_slots
+
     # Validate
     try:
         validate_slots(slots)
@@ -721,10 +1343,23 @@ def main() -> int:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 
-    # Generate artifacts
-    build_mif(grid, slots, Path(args.out_mif))
-    write_field_map(slots, Path(args.out_fields))
+    # The decoding panel: the rectangle the writer paints.
+    panel = panel_geometry(args.sheet)
+    try:
+        check_panel_is_free(grid, panel, slots, tables)
+    except ValueError as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        return 1
 
+    # Generate artifacts
+    build_mif(grid, colors, slots, Path(args.out_mif))
+    write_field_map(slots, tables, panel, Path(args.out_fields))
+
+    print(f'Rewrite fields: {len(header_slots)} stage header characters, '
+          f'{len(arrow_slots)} flow arrow characters')
+    print(f'Live tables: {[t["name"] for t in tables]}')
+    print(f'Decoding panel: row {panel["row"] + 1}, col {panel["col"] + 1}, '
+          f'{panel["lines"]} lines of {panel["width"]} characters')
     print(f'OK: {len(slots)} slots --> {args.out_mif} + {args.out_fields}')
     return 0
 

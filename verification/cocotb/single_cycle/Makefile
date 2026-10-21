@@ -1,9 +1,12 @@
-# Single-cycle-specific cocotb tests (currently: test_cpi_one, the architectural
-# invariant that cycle_count == instr_retired for every instruction except
-# DIV/DIVU/REM/REMU).
+# Single-cycle-specific cocotb tests:
+#   - test_cpi_one: the architectural invariant that cycle_count ==
+#     instr_retired for every instruction except DIV/DIVU/REM/REMU.
+#   - test_step_mode: the step mode (SW[9] freezes, KEY[1] releases for one
+#     clock cycle) on the real top, including a division that runs while
+#     the processor is frozen.
 
 TOPLEVEL             = top_single_cycle
-COCOTB_TEST_MODULES  = test_cpi_one
+COCOTB_TEST_MODULES  = test_cpi_one,test_step_mode
 
 VERILOG_SOURCES = \
     $(SHARED_SRCS) \

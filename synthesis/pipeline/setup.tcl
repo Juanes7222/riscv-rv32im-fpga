@@ -43,6 +43,14 @@ foreach sv_file [glob -nocomplain "$rtl_arch/*.sv"] {
 # Timing constraints
 set_global_assignment -name SDC_FILE $constraints_sdc
 
+# Memory depths: small values for fast Quartus compilation.
+# They must match the image generation depths in the Makefile
+# (IMEM_DEPTH / DMEM_DEPTH).  The console's shadow copies of the program
+# and data memories are sized from these parameters, so the resource budget
+# of the whole design depends on them.
+set_parameter -name IMEM_DEPTH 2048
+set_parameter -name DMEM_DEPTH 512
+
 # Video memory initialisation and font ROM hex
 set_global_assignment -name MIF_FILE screen.mif
 set_global_assignment -name HEX_FILE ../../rtl/shared/vga_font_rom.hex

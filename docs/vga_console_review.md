@@ -175,6 +175,11 @@ options, with their measured cost on the single-cycle design:
 The static dump was chosen because it is the only option that costs nothing
 and because the data memory starts as a copy of the program image.
 
+Both tables are live in the console as it is now: the program table follows
+the PC of the instruction that executes and the data table the last
+data-memory access, and both read shadow copies of the two memories. The
+static dump above was the intermediate solution — see **Results**.
+
 ---
 
 ## Implementation
@@ -390,9 +395,130 @@ all of them from the same `reg_value` register.
 | Domain `clk` slack @85 °C | −13,980 ns (single-cycle), −8,357 ns (pipeline) |
 | Domain VGA slack @85 °C | **+0,493 ns** (single-cycle), **+0,273 ns** (pipeline) — positive in the four corners |
 
+The figures of this table are the state before the console rework; the rework
+and what it costs are recorded in **Results**.
+
 The Fmax isolation of `docs/vga_fmax_isolation.md` is preserved: the sampled
 signals still reach the VGA domain only through the false-pathed crossing, and
 the snapshot registers actually shorten the VGA-domain encoder path.
+
+---
+
+## Results
+
+The sections above describe the console as it was found: the reported
+symptoms, the defects behind them and the fixes for them. This section
+records the console as it is now — what it shows, what it costs and what it
+still cannot do.
+
+### What the console shows now
+
+**The colour system.** The video-memory cell was already 16 bits wide — an
+attribute byte and a character byte — and the writer threw the attribute
+away. The attribute is now the palette index of the cell: four bits of
+foreground and four of background, so 16 foreground and 16 background
+colours, shared by the whole screen (`rtl/shared/vga_text_mode.sv`). The
+colours of the template survive the compilation: `gen_screen_mif.py` maps
+every colour of the workbook to a palette index — including the colours the
+workbook takes from its OOXML theme (`read_theme_colors()`) — and writes the
+result into the attribute byte of the cell.
+
+**The semantic colours.** A field whose meaning depends on a signal lights
+up while the signal is asserted: a stall, a load-use hazard, a flush, a
+data-memory write or a taken branch changes the attribute of its field
+(`FIELD_SEMANTICS` in `gen_screen_mif.py`). The instruction in flight is the
+brightest thing on the screen (white on black).
+
+**The stage boxes and the flow arrows.** Every character of a stage-box
+header and of a flow arrow is a rewrite field whose background follows the
+stage it belongs to, so the boxes and the arrows show where the instruction
+is (`tb_stage_highlight.sv`).
+
+**The two live memory tables.** The program table follows the PC of the
+instruction that executes, the data table the address of the last
+data-memory access; each draws a window of 32 rows around it, and the marked
+row is prefixed with a `>`. Both read the shadow copies of the two memories,
+so they show what the processor sees and not the image that was loaded in
+the bitstream.
+
+**The decoding panel.** A rectangle of the screen decodes the instruction in
+flight: the word, the mnemonic, the register numbers and the immediate. The
+fields that a format does not have show a placeholder (`--`) instead of the
+immediate bits that occupy the field in the encoding (`tb_vga_panel.sv`).
+
+### The measured cost
+
+Quartus 25.1, at the build depths the versioned `synthesis/*/setup.tcl` sets
+(IMEM 2048 / DMEM 512):
+
+| | before | after |
+|---|---|---|
+| pipeline Fmax (clk) | 52.97 MHz | 52.82 MHz (-0.28 %) |
+| pipeline ALM | 4 146 / 32 070 (13 %) | 4 588 / 32 070 (14 %) |
+| pipeline M10K | 16 / 397 (4 %) | 35 / 397 (9 %) |
+| pipeline VGA domain | 145.56 MHz | 124.56 MHz |
+| single-cycle Fmax (clk) | 36.13 MHz | 37.86 MHz (+4.8 %) |
+| single-cycle ALM | 13 878 / 32 070 (43 %) | 13 880 / 32 070 (43 %) |
+| single-cycle M10K | 12 / 397 (3 %) | 31 / 397 (8 %) |
+| single-cycle VGA domain | 161.34 MHz | 132.91 MHz |
+
+Two figures of this table must not be read at face value:
+
+- **The VGA domain must reach 74.25 MHz**, and it does with room to spare:
+  the achievable period of the pixel clock is 8.03 ns in the pipeline and
+  7.52 ns in the single-cycle, against the 13.47 ns the 720p60 mode needs
+  (+5.4 ns and +5.9 ns of margin). The negative setup slack the Timing
+  Analyzer prints for that clock is an artefact of the SDC, which models the
+  derived pixel clock at half its real period (6.734 ns, i.e. 148.5 MHz,
+  instead of 13.47 ns; the derived clock inherits the deliberately
+  aggressive target the SDC sets on `clk`). The same artefact is in the
+  "before" figures.
+- **The M10K blocks are the shadow copies.** The +19 blocks of the
+  single-cycle and the +8 of the pipeline are the data shadow (four byte
+  lanes) and the program shadow (the ROM), plus the video memory, which now
+  needs its full 16-bit width because the attribute byte is read; it used to
+  be pruned to 8 bits.
+
+The "before" column is the main tree's own build of the same sources
+without the console rework, the "after" column the build of the rework
+(measured at the revisions `15dd7d0` and `50abe69`; the two commits that
+follow them change only the index expression of the data shadow, a NOP
+multiplexer in the ROM shadow and the formatting of the panel fields, so the
+resource figures are not expected to move).
+
+### The step mode
+
+`SW[9]` freezes the processor and `KEY[1]` releases it for exactly one
+clock. The freeze is built on the clock-enable mechanism each design already
+has — the hazard unit's `stall` in the pipeline, the qualified write enables
+and the held PC in the single-cycle — and never gates the clock: gating it
+would put the enable logic in the global clock network and cost Fmax in both
+designs.
+
+One press of `KEY[1]` therefore advances the pipeline by one stage, and the
+single-cycle design by one instruction. In the single-cycle design the
+divider is suspended while the processor is frozen, so a division is resumed
+instead of restarted: it costs one press per clock cycle of the divider's
+state machine.
+
+### Residual limitations
+
+- The panel decodes the raw instruction fields, so the immediates are zero
+  extended and a negative branch offset appears as a large positive value.
+  The fields that a format does not have show a placeholder.
+- The console is a snapshot view: the whole screen is rendered from one
+  captured instant, but in free-running mode the values change far faster
+  than a human can read them. The step mode is what makes the console
+  readable.
+- The data shadow mirrors the CPU's memory by taking the CPU's own index
+  slice, so an access beyond the configured depth is dropped by both in
+  simulation and truncated by both in synthesis.
+
+### Pin assignments
+
+The step mode needs two board pins: `KEY[1]` (`key_step`) and `SW[9]`
+(`step_mode`). They are assigned in the versioned
+`synthesis/de1soc_pins.tcl`.
 
 ---
 

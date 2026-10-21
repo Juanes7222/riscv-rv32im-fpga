@@ -48,3 +48,4 @@ the original, and both remain in the index.
 | [040](040_pipeline_forwarding_hazards.md) | Pipeline Forwarding Hazard Detection (MEM-RAW and WB-RAW) | Accepted | extends hazard detection for non-load RAW hazards; fixes forwarding race for 2-cycle-old producers; 5/65 riscv tests pass |
 | [036](037_canonical_pipeline_bubble_instruction.md) | Canonical Bubble Instruction for Pipeline Flush and Stall Insertion | Accepted | |
 | [036](038_branch_resolution_ex_predict_not-taken.md) | Branch Resolution in EX with Predict-Not-Taken Policy | Accepted | |
+| [044](044_step_mode_processor_freeze.md) | Step Mode: Freezing the Processor for the VGA Console | Accepted | adds the `key_step`/`step_mode` inputs, the `step_mode_ctrl` module, `alu_rv32im.hold` and `pc.step_hold` |
