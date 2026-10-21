@@ -20,11 +20,11 @@
 | riscv_gcc | riscv-none-elf-gcc (xPack GNU RISC-V Embedded GCC x86_64) 14.2.0 |
 | python | Python 3.12.3 |
 | cocotb | 2.0.1 |
-| git | 6d6793572c49cc78a59a49b7d3322538b1009f5d |
+| git | 4ac57985a4f78b74859699bdd30627e657ae41e5 |
 
 ## Estado del repositorio
 
-- Commit: `6d6793572c49cc78a59a49b7d3322538b1009f5d`
+- Commit: `4ac57985a4f78b74859699bdd30627e657ae41e5`
 - Huella del RTL y de la configuración de síntesis: `2a6a24f02cafecfad8323680a3f4a8784d2a77648d1cafd659fb7d8156a511cc`
 
 ## Requisitos
