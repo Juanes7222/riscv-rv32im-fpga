@@ -501,6 +501,12 @@ def table_blocks(t: dict) -> dict:
                                     ? ({lower}_hit_word - {upper}_MIDDLE) : {w}'d0;
     wire [{w-1}:0] {lower}_clamped = ({lower}_new_base > {upper}_MAX_BASE)
                                   ? {upper}_MAX_BASE : {lower}_new_base;
+    // The window is stable while the followed word stays inside it, and it
+    // re-centres on the word when it leaves the visible range.
+    wire {lower}_in_window = ({lower}_access_word >= {lower}_base)
+                          && ({lower}_access_word < {lower}_base + {upper}_ROWS);
+    wire [{w-1}:0] {lower}_next_base = {lower}_in_window ? {lower}_base
+                                                          : {lower}_access_base;
     // The marked row of the table.
     wire {lower}_is_marked = {lower}_marked_valid
                              && ({lower}_addr == {lower}_marked);"""
@@ -529,15 +535,15 @@ def table_blocks(t: dict) -> dict:
     fsm = f"""                GRP_{upper}: begin
                     ctr_{lower} <= (ctr_{lower} == N_{upper} - 1) ? '0 : ctr_{lower} + 1'b1;
                     if (ctr_{lower} == N_{upper} - 1) begin
-                        // A new sweep: the window follows {keeps}.
+                        // A new sweep: the window keeps {keeps} in view.
                         {lower}_row <= 6'd0;
                         {lower}_col <= 4'd0;
-                        {lower}_base <= {lower}_access_base;
-                        {lower}_addr <= {lower}_access_base;
+                        {lower}_base <= {lower}_next_base;
+                        {lower}_addr <= {lower}_next_base;
                         {lower}_marked <= {lower}_access_word;
                         {lower}_marked_write <= {lower}_access_write;
                         {lower}_marked_valid <= {lower}_access_valid;
-                        {shadow}_rd_addr <= {lower}_access_base * 4;
+                        {shadow}_rd_addr <= {lower}_next_base * 4;
                     end else if ({lower}_col == 4'd{t['row_bytes'] - 1}) begin
                         {lower}_col <= 4'd0;
                         {lower}_row <= {lower}_row + 6'd1;

@@ -389,6 +389,12 @@ module screen_writer_pipeline #(
                                     ? (tbl_prog_memory_hit_word - TBL_PROG_MEMORY_MIDDLE) : 14'd0;
     wire [13:0] tbl_prog_memory_clamped = (tbl_prog_memory_new_base > TBL_PROG_MEMORY_MAX_BASE)
                                   ? TBL_PROG_MEMORY_MAX_BASE : tbl_prog_memory_new_base;
+    // The window is stable while the followed word stays inside it, and it
+    // re-centres on the word when it leaves the visible range.
+    wire tbl_prog_memory_in_window = (tbl_prog_memory_access_word >= tbl_prog_memory_base)
+                          && (tbl_prog_memory_access_word < tbl_prog_memory_base + TBL_PROG_MEMORY_ROWS);
+    wire [13:0] tbl_prog_memory_next_base = tbl_prog_memory_in_window ? tbl_prog_memory_base
+                                                          : tbl_prog_memory_access_base;
     // The marked row of the table.
     wire tbl_prog_memory_is_marked = tbl_prog_memory_marked_valid
                              && (tbl_prog_memory_addr == tbl_prog_memory_marked);
@@ -402,6 +408,12 @@ module screen_writer_pipeline #(
                                     ? (tbl_data_memory_hit_word - TBL_DATA_MEMORY_MIDDLE) : 14'd0;
     wire [13:0] tbl_data_memory_clamped = (tbl_data_memory_new_base > TBL_DATA_MEMORY_MAX_BASE)
                                   ? TBL_DATA_MEMORY_MAX_BASE : tbl_data_memory_new_base;
+    // The window is stable while the followed word stays inside it, and it
+    // re-centres on the word when it leaves the visible range.
+    wire tbl_data_memory_in_window = (tbl_data_memory_access_word >= tbl_data_memory_base)
+                          && (tbl_data_memory_access_word < tbl_data_memory_base + TBL_DATA_MEMORY_ROWS);
+    wire [13:0] tbl_data_memory_next_base = tbl_data_memory_in_window ? tbl_data_memory_base
+                                                          : tbl_data_memory_access_base;
     // The marked row of the table.
     wire tbl_data_memory_is_marked = tbl_data_memory_marked_valid
                              && (tbl_data_memory_addr == tbl_data_memory_marked);
@@ -960,15 +972,15 @@ module screen_writer_pipeline #(
                 GRP_TBL_PROG_MEMORY: begin
                     ctr_tbl_prog_memory <= (ctr_tbl_prog_memory == N_TBL_PROG_MEMORY - 1) ? '0 : ctr_tbl_prog_memory + 1'b1;
                     if (ctr_tbl_prog_memory == N_TBL_PROG_MEMORY - 1) begin
-                        // A new sweep: the window follows the running value.
+                        // A new sweep: the window keeps the running value in view.
                         tbl_prog_memory_row <= 6'd0;
                         tbl_prog_memory_col <= 4'd0;
-                        tbl_prog_memory_base <= tbl_prog_memory_access_base;
-                        tbl_prog_memory_addr <= tbl_prog_memory_access_base;
+                        tbl_prog_memory_base <= tbl_prog_memory_next_base;
+                        tbl_prog_memory_addr <= tbl_prog_memory_next_base;
                         tbl_prog_memory_marked <= tbl_prog_memory_access_word;
                         tbl_prog_memory_marked_write <= tbl_prog_memory_access_write;
                         tbl_prog_memory_marked_valid <= tbl_prog_memory_access_valid;
-                        imem_rd_addr <= tbl_prog_memory_access_base * 4;
+                        imem_rd_addr <= tbl_prog_memory_next_base * 4;
                     end else if (tbl_prog_memory_col == 4'd13) begin
                         tbl_prog_memory_col <= 4'd0;
                         tbl_prog_memory_row <= tbl_prog_memory_row + 6'd1;
@@ -981,15 +993,15 @@ module screen_writer_pipeline #(
                 GRP_TBL_DATA_MEMORY: begin
                     ctr_tbl_data_memory <= (ctr_tbl_data_memory == N_TBL_DATA_MEMORY - 1) ? '0 : ctr_tbl_data_memory + 1'b1;
                     if (ctr_tbl_data_memory == N_TBL_DATA_MEMORY - 1) begin
-                        // A new sweep: the window follows the last access.
+                        // A new sweep: the window keeps the last access in view.
                         tbl_data_memory_row <= 6'd0;
                         tbl_data_memory_col <= 4'd0;
-                        tbl_data_memory_base <= tbl_data_memory_access_base;
-                        tbl_data_memory_addr <= tbl_data_memory_access_base;
+                        tbl_data_memory_base <= tbl_data_memory_next_base;
+                        tbl_data_memory_addr <= tbl_data_memory_next_base;
                         tbl_data_memory_marked <= tbl_data_memory_access_word;
                         tbl_data_memory_marked_write <= tbl_data_memory_access_write;
                         tbl_data_memory_marked_valid <= tbl_data_memory_access_valid;
-                        dmem_rd_addr <= tbl_data_memory_access_base * 4;
+                        dmem_rd_addr <= tbl_data_memory_next_base * 4;
                     end else if (tbl_data_memory_col == 4'd13) begin
                         tbl_data_memory_col <= 4'd0;
                         tbl_data_memory_row <= tbl_data_memory_row + 6'd1;

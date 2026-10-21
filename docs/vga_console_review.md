@@ -436,10 +436,12 @@ is (`tb_stage_highlight.sv`).
 
 **The two live memory tables.** The program table follows the PC of the
 instruction that executes, the data table the address of the last
-data-memory access; each draws a window of 32 rows around it, and the marked
-row is prefixed with a `>`. Both read the shadow copies of the two memories,
-so they show what the processor sees and not the image that was loaded in
-the bitstream.
+data-memory access; each draws a window of 32 rows, and the marked row is
+prefixed with a `>`. The window stays where it is while the followed word
+remains inside it and re-centres on that word when it leaves the range, so
+the listing does not drift under the reader. Both read the shadow copies of
+the two memories, so they show what the processor sees and not the image
+that was loaded in the bitstream.
 
 **The decoding panel.** A rectangle of the screen decodes the instruction in
 flight: the word, the mnemonic, the register numbers and the immediate. The

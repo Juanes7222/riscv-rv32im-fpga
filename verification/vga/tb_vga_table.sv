@@ -511,6 +511,19 @@ module tb_vga_table;
         instr = INSTR_LOAD;
         run_phase(4, 20, 1'b0);
 
+        // A load inside the window: the window does not move, so the row
+        // addresses on screen stay the same and only the marker moves to
+        // the accessed word.
+        dm_addr = 32'd120;         // word 30, inside the window [4, 36)
+        instr = INSTR_LOAD;
+        run_phase(4, 30, 1'b0);
+
+        // A load outside the window: the window re-centres on the accessed
+        // word, so the word lands on the middle row of the table.
+        dm_addr = 32'd800;         // word 200, outside the window
+        instr = INSTR_LOAD;
+        run_phase(200 - ROWS / 2, 200, 1'b0);
+
         // The program table follows the PC of the executing instruction.
 
         // The first instruction: the window clamps at the bottom of the
@@ -532,6 +545,15 @@ module tb_vga_table;
         // An instruction beyond the memory: the memory masks the index to
         // its depth, so the table marks the word the hardware really used.
         run_prog_phase(32'h0000_2000, 0, 0);
+
+        // An instruction inside the window: the window does not move, so
+        // the row addresses on screen stay the same and only the marker
+        // moves to the row of the instruction.
+        run_prog_phase(32'h0000_0050, 0, 20);
+
+        // An instruction outside the window: the window re-centres on the
+        // instruction, so it lands on the middle row of the table.
+        run_prog_phase(32'h0000_0320, 200 - ROWS / 2, 200);
 
         $display("sweeps of the table: %0d pipeline, %0d single-cycle",
                  boundary_count[DUT_PIPE], boundary_count[DUT_SC]);
