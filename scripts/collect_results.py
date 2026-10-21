@@ -324,7 +324,9 @@ def parse_replica_fmax(arch: str) -> ReplicaStats:
         stats.minimum = min(vals)
         stats.maximum = max(vals)
         if stats.count > 1:
-            variance = sum((x - stats.mean) ** 2 for x in vals) / stats.count
+            # Sample standard deviation (n-1): the replicas are a sample of
+            # the synthesis process, not the whole population.
+            variance = sum((x - stats.mean) ** 2 for x in vals) / (stats.count - 1)
             stats.stddev = variance ** 0.5
 
     return stats
@@ -416,22 +418,16 @@ def run_all_tests(timeout_per_suite: int = 600) -> bool:
         print("  FAILED: single-cycle arch-specific tests")
         all_ok = False
 
-    # Pipeline arch-specific tests (includes common via its own Makefile)
+    # Pipeline arch-specific tests.  The common suite is not run with the
+    # pipeline top level: it would overwrite common/results.xml with
+    # pipeline data, and the single-cycle verification table is built from
+    # that file.  The pipeline has its own copies of the ISA suites.
     print(f"\n{'─' * 60}")
     print("Phase 3: Pipeline tests")
     print(f"{'─' * 60}")
     ok = run_make_target("verify", "pipeline")
     if not ok:
         print("  FAILED: pipeline tests")
-        all_ok = False
-
-    # Pipeline common tests
-    print(f"\n{'─' * 60}")
-    print("Phase 4: Pipeline common tests")
-    print(f"{'─' * 60}")
-    ok = run_make_target("verify-common", "pipeline")
-    if not ok:
-        print("  FAILED: pipeline common tests")
         all_ok = False
 
     print(f"\n{'─' * 60}")
@@ -608,7 +604,9 @@ def generate_latex_synthesis_table(
     lines.append(r"% Date: " + datetime.now().strftime("%Y-%m-%d %H:%M"))
     lines.append(r"\begin{table}[htbp]")
     lines.append(r"\centering")
-    lines.append(r"\caption{Synthesis Results Comparison}")
+    lines.append(r"\caption{Synthesis Results Comparison. The mean and the standard "
+                  r"deviation come from the $n$ synthesis replicas; the remaining rows "
+                  r"come from the reference build.}")
     lines.append(r"\label{tab:synthesis}")
     lines.append(r"\begin{tabular}{lrr}")
     lines.append(r"\toprule")
