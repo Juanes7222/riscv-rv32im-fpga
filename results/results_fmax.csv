@@ -1,0 +1,3 @@
+arch,fmax_mean_mhz,fmax_std_mhz,fmax_cv_pct,fmax_min_mhz,fmax_max_mhz,replicas
+single_cycle,36.91,0.26,0.69,36.68,37.26,5
+pipeline,56.61,2.10,3.71,53.00,58.06,5

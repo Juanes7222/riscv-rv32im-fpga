@@ -1,0 +1,24 @@
+% Generado por scripts/thesis_artifacts.py - no editar a mano.
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.95\textwidth,
+  height=7cm,
+  ybar,
+  bar width=8pt,
+  ylabel={Cantidad de recursos},
+  xtick={1,2,3,4},
+  xticklabels={{ALMs}, {Registros}, {RAM}, {DSP}},
+  xmin=0.5,
+  enlarge x limits=0.1,
+  legend style={at={(0.5,-0.25)},anchor=north,legend columns=2},
+]
+  \addplot coordinates {(1,0.000), (2,0.000), (3,0.000), (4,0.000)};
+  \addplot coordinates {(1,0.000), (2,0.000), (3,0.000), (4,0.000)};
+  \legend{Monociclo,Pipeline}
+\end{axis}
+\end{tikzpicture}
+\caption{Utilización de recursos de la FPGA por microarquitectura.}
+\label{fig:resources}
+\end{figure}

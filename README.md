@@ -28,8 +28,9 @@ nothing else.
 
 <!-- TODO: insert the synthesis and CPI comparison tables here, once the final
      measurement campaign is closed. Sources:
-       results/results_synthesis.csv   (Fmax, ALMs, registers, DSP per replica)
-       results/synthetic_benchmarks.csv (CPI per benchmark and architecture)
+       results/results_replicas.csv    (Fmax and resources per replica)
+       results/results_benchmarks.csv   (CPI per benchmark and architecture)
+       thesis/tables/                  (the tables, ready for \input)
        docs/cpi_analysis.md            (per-hazard cost breakdown)
 -->
 
@@ -48,6 +49,7 @@ synthesis/      one Quartus project per architecture, plus the .tcl flow scripts
 programs/       bare-metal programs: coremark/, synthetic/ (hazard stress), validate/
 scripts/        Python helpers: Fmax extraction, ELF→.mem, screen artifacts, reports
 results/        raw measurement data and the generated reports
+thesis/         thesis-ready artifacts: tables, figures and the results chapter
 docs/           architecture reference, ADRs, analysis write-ups, setup guide
 ```
 
@@ -74,6 +76,39 @@ make flash ARCH=pipeline ELF=build/riscv-tests/rv32ui/add.elf   # synthesize and
 `make help` lists every target. The full workflow, and each configuration knob that has
 to agree between the RTL, the linker scripts and the Quartus project, are documented in
 [`docs/getting_started.md`](docs/getting_started.md).
+
+## Thesis campaign
+
+One command runs the whole experimental campaign and leaves every artifact of the
+thesis ready for review:
+
+```bash
+make thesis
+```
+
+It checks the toolchain, synthesizes the five replicas of each architecture (Fmax and
+resource usage per replica), runs the cocotb suites, measures the effective CPI of
+every benchmark, and writes the statistics, the LaTeX tables, the pgfplots figures, the
+protocol documents and the results chapter. A synthesis replica whose fingerprint does
+not match the current RTL is regenerated, so the campaign is safe to re-run.
+
+| Target | What it does |
+|---|---|
+| `make thesis` | Full campaign: synthesis replicas, verification, benchmarks, artifacts |
+| `make thesis-quick` | Same, reusing the replicas already in `results/` |
+| `make thesis-hardware` | Programs the DE1-SoC with each benchmark and prints the values the console must show, for the hardware evidence |
+
+The artifacts land in:
+
+| Path | Contents |
+|---|---|
+| `results/results_replicas.csv` | Fmax and resource usage of every replica |
+| `results/results_statistics.csv` | Mean, standard deviation, CV, minimum and maximum |
+| `results/results_benchmarks_summary.csv` | CPI, IPC, throughput and speedup per program |
+| `thesis/tables/*.tex` | `booktabs` tables, ready for `\input` |
+| `thesis/figures/diagrams/*.tex` | `pgfplots` figures |
+| `thesis/chapters/07_resultados.{tex,md}` | Draft of the results chapter with the measured numbers |
+| `docs/reproduction/*.md` | Measurement, synthesis and environment protocols |
 
 ## Documentation
 

@@ -1,0 +1,13 @@
+program,architecture,result,cycle_count,instr_retired,cpi,ipc,fmax_mean_mhz,throughput_mean_mips,throughput_std_mips,latency_ms,speedup_mean,speedup_std,verdict
+branch_stress,single_cycle,pass,4004,4004,1.0000,1.0000,36.91,36.914,0.256,0.1085,0.7670,0.0305,H0
+branch_stress,pipeline,pass,8005,4003,1.9998,0.5001,56.61,28.310,1.051,0.1414,0.7670,0.0305,H0
+coremark_iter1,single_cycle,pass,327888,327854,1.0001,0.9999,36.91,36.910,0.256,8.8825,1.0970,0.0436,H1
+coremark_iter1,pipeline,pass,457786,327372,1.3984,0.7151,56.61,40.485,1.503,8.0861,1.0970,0.0436,H1
+coremark_iter10,single_cycle,pass,3152076,3152042,1.0000,1.0000,36.91,36.914,0.256,85.3897,1.0943,0.0435,H1
+coremark_iter10,pipeline,pass,4417297,3151560,1.4016,0.7135,56.61,40.392,1.499,78.0248,1.0943,0.0435,H1
+load_use_stress,single_cycle,pass,1125,1125,1.0000,1.0000,36.91,36.914,0.256,0.0305,0.7710,0.0306,H0
+load_use_stress,pipeline,pass,2236,1124,1.9893,0.5027,56.61,28.459,1.056,0.0395,0.7710,0.0306,H0
+m_ext_stress,single_cycle,pass,1175,155,7.5806,0.1319,36.91,4.870,0.034,0.0318,1.4487,0.0576,H1
+m_ext_stress,pipeline,pass,1236,154,8.0260,0.1246,56.61,7.054,0.262,0.0218,1.4487,0.0576,H1
+raw_stress,single_cycle,pass,1148,1148,1.0000,1.0000,36.91,36.914,0.256,0.0311,1.2260,0.0487,H1
+raw_stress,pipeline,pass,1435,1147,1.2511,0.7993,56.61,45.251,1.680,0.0253,1.2260,0.0487,H1

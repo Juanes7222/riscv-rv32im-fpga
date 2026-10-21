@@ -1,0 +1,23 @@
+% Generado por scripts/thesis_artifacts.py - no editar a mano.
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.65\textwidth,
+  height=7cm,
+  ybar,
+  bar width=25pt,
+  ylabel={Fmax (MHz)},
+  xtick={1,2},
+  xticklabels={Monociclo,Pipeline},
+  nodes near coords,
+  nodes near coords align={vertical},
+  ymin=0,
+  error bars/.cd, y dir=both, y explicit,
+]
+  \addplot coordinates {(1,36.91) +- (0,0.26), (2,56.61) +- (0,2.10)};
+\end{axis}
+\end{tikzpicture}
+\caption{Frecuencia máxima de cada microarquitectura, media $\pm$ desviación estándar de las cinco réplicas de síntesis.}
+\label{fig:fmax}
+\end{figure}

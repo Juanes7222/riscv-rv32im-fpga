@@ -1,0 +1,58 @@
+% Generado por scripts/thesis_artifacts.py - no editar a mano.
+\chapter{Resultados}
+
+\section{Resumen}
+
+\begin{quote}
+\textbf{Aviso.} Las réplicas de síntesis guardadas no corresponden a la versión vigente del RTL. Repita \texttt{make thesis} antes de consignar estos números.
+\end{quote}
+Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El pipeline alcanzó una Fmax de 56.61 MHz ($\pm$ 2.10 MHz, $n = 5$) frente a los 36.91 MHz ($\pm$ 0.26 MHz, $n = 5$) del monociclo, una mejora de frecuencia del 53.4 \%.
+
+\section{Verificación funcional}
+
+La corrección funcional de ambas implementaciones se verificó contra el modelo de referencia de Python y contra la suite \texttt{riscv-tests} antes de medir el rendimiento. Los resultados se resumen en la tabla \ref{tab:verification_results}.
+
+\input{tables/verification_results.tex}
+
+\section{Frecuencia máxima y recursos}
+
+\input{tables/fmax_replicas.tex}
+
+\input{tables/resources.tex}
+
+\input{figures/diagrams/fmax_comparison.tex}
+
+\section{CPI, IPC y throughput}
+
+\input{tables/benchmarks.tex}
+
+El monociclo presenta CPI = 1 en los programas sin división: cada ciclo retira una instrucción. La excepción es el programa de la extensión M, donde el divisor de 34 ciclos mantiene el datapath ocupado y el CPI del monociclo sube a 7.58. El pipeline retira una instrucción por ciclo en el mejor caso y pierde ciclos por hazard de datos, por vaciado de rama y por la latencia de la división.
+
+\input{figures/diagrams/throughput_comparison.tex}
+
+\input{figures/diagrams/cpi_comparison.tex}
+
+\section{Análisis estadístico}
+
+Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.26 MHz en el monociclo (CV 0.69 \%) y de 2.10 MHz en el pipeline (CV 3.71 \%).
+
+\input{tables/statistics.tex}
+
+\section{Eficiencia relativa}
+
+\input{tables/efficiency.tex}
+
+\input{figures/diagrams/resources_comparison.tex}
+
+\section{Evaluación de la hipótesis}
+
+\input{tables/speedup.tex}
+
+\section{Limitaciones}
+
+\begin{itemize}
+\item El tamaño muestral ($n = 5$) limita el análisis a la estadística descriptiva.
+\item El CPI se mide en simulación; la única fuente de dispersión considerada es la variabilidad de la Fmax entre réplicas.
+\item CoreMark se mide con diez iteraciones; la mezcla de instrucciones, y por tanto el CPI, es la de la corrida completa.
+\item CoreMark no cabe en la memoria de instrucciones de la FPGA, por lo que no se midió en hardware.
+\end{itemize}

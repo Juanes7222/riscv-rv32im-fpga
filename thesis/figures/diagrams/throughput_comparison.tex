@@ -1,0 +1,24 @@
+% Generado por scripts/thesis_artifacts.py - no editar a mano.
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.95\textwidth,
+  height=7cm,
+  ybar,
+  bar width=8pt,
+  ylabel={Throughput (MIPS)},
+  xtick={1,2,3,4,5,6},
+  xticklabels={{branch\_stress}, {coremark\_iter1}, {coremark\_iter10}, {load\_use\_stress}, {m\_ext\_stress}, {raw\_stress}},
+  xmin=0.5,
+  enlarge x limits=0.1,
+  legend style={at={(0.5,-0.25)},anchor=north,legend columns=2},
+]
+  \addplot coordinates {(1,36.914), (2,36.910), (3,36.914), (4,36.914), (5,4.870), (6,36.914)};
+  \addplot coordinates {(1,28.310), (2,40.485), (3,40.392), (4,28.459), (5,7.054), (6,45.251)};
+  \legend{Monociclo,Pipeline}
+\end{axis}
+\end{tikzpicture}
+\caption{Throughput efectivo por programa y microarquitectura ($F_{\max}/\mathrm{CPI}$).}
+\label{fig:throughput}
+\end{figure}

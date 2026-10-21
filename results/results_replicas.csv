@@ -1,0 +1,11 @@
+arch,replica,fmax_mhz,alms,registers,ram_blocks,dsp_blocks,memory_bits,pins,seed,date,git_commit
+single_cycle,1,36.73,,,,,,,,,
+single_cycle,2,37.11,,,,,,,,,
+single_cycle,3,37.26,,,,,,,,,
+single_cycle,4,36.68,,,,,,,,,
+single_cycle,5,36.79,,,,,,,,,
+pipeline,1,56.6,,,,,,,,,
+pipeline,2,53.0,,,,,,,,,
+pipeline,3,57.96,,,,,,,,,
+pipeline,4,58.06,,,,,,,,,
+pipeline,5,57.45,,,,,,,,,
