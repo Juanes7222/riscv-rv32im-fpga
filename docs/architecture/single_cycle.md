@@ -50,7 +50,7 @@ gated.
 ```
 top_single_cycle
 │
-├── pc_unit              (rtl/single_cycle/pc_unit.sv)
+├── pc                  (rtl/single_cycle/pc.sv)
 ├── instruction_memory   (rtl/shared/instruction_memory.sv)
 ├── control_unit         (rtl/single_cycle/control_unit.sv)
 ├── register_file        (rtl/shared/register_file.sv)

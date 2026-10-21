@@ -11,9 +11,10 @@ inhibit during division), ADR 031 (division FSM correction), ADR 042
 ## Context
 
 The VGA console shows the state of the processor while it runs. The
-processor runs at 36.7 MHz (single-cycle) or 56.6 MHz (pipeline) and the
-screen refreshes at 60 Hz, so every value on the console changes about a
-thousand times per second: the console cannot be read.
+console build of this branch (Quartus 25.1, the build depths IMEM 2048 /
+DMEM 512) runs the pipeline at 52.8 MHz and the screen refreshes at
+60 Hz, so every value on the console changes about a thousand times per
+second: the console cannot be read.
 
 The console needs a way to stop the processor while the values on the
 screen are inspected, and to advance it one instruction at a time.
@@ -21,9 +22,12 @@ screen are inspected, and to advance it one instruction at a time.
 The obvious implementation is to gate the clock with the freeze request.
 That is rejected: a gated clock inserts the enable logic into the global
 clock network, adds insertion delay to every flip-flop in the design and
-costs Fmax. The Fmax of both designs is a measured result of this project
-(36.73 MHz single-cycle, 56.60 MHz pipeline) and must not regress by more
-than 1 %.
+costs Fmax. The Fmax is a measured result of this project and must not
+regress by more than 1 %: in the configuration of this branch the
+pipeline measures 52.97 MHz before the console and 52.82 MHz after it
+(-0.28 %). The full-depth results of the main tree (IMEM 16384 /
+DMEM 8192, `results/results_report.md`) belong to another configuration
+and are therefore not the reference of this decision.
 
 Each design already has a clock-enable mechanism that does not touch the
 clock path:
@@ -80,7 +84,9 @@ register file, the CSRs and the performance counters:
 * the divider FSM is held, so a division in flight is suspended instead
   of restarted,
 * the data-memory write is left alone: a re-executed store writes the
-  same value to the same address, so it is idempotent.
+  same value to the same address, so it is idempotent. The console
+  shadow shares that write and is not gated either, so the mirror of the
+  data memory stays exact.
 
 **Pipeline.** The freeze is OR-ed into the clock enable of every pipeline
 register and of the PC unit:

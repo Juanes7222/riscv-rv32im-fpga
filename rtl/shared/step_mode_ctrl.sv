@@ -21,8 +21,8 @@
 //             request is asserted,
 //   clock 3: the request is registered,
 //   clock 4: the processor advances - the single clock in which the
-//             freeze is released,
-//   clock 5: the processor is frozen again.
+//             freeze is released.  The freeze is engaged again from the
+//             next clock on.
 module step_mode_ctrl (
     input  logic clk,        // processor clock
     input  logic rst_n,      // active-low synchronous reset

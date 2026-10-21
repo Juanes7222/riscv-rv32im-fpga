@@ -1,5 +1,6 @@
 // Shadow memory: the write port must mirror the byte enables exactly, and
-// an address beyond DEPTH must land where the CPU's memory puts it.
+// an address beyond DEPTH must be handled like the CPU's memory handles
+// it.
 module tb_vga_shadow;
     logic wr_clk = 0, rd_clk = 0;
     always #5  wr_clk = ~wr_clk;
@@ -43,10 +44,13 @@ module tb_vga_shadow;
         // A half write must touch two lanes.
         write(32'd4, 32'h00001234, 4'b0011);
         expect_word(32'd4, 32'h00001234);
-        // An address beyond DEPTH must land where the CPU's memory puts it:
-        // the index is truncated to the array depth, so 1024 -> word 0.
+        // An address beyond the depth of the array is dropped, exactly like
+        // the CPU's memory drops it: the shadow takes the 13-bit word
+        // index of the CPU, so the write lands outside the array.  In
+        // synthesis the M10K truncates the address to the depth of the
+        // array, like the CPU's array does.
         write(32'd1024, 32'hDEADBEEF, 4'b1111);
-        expect_word(32'd0,   32'hDEADBEEF);
+        expect_word(32'd0,   32'hAABBCC11);
         expect_word(32'd60,  32'h00000000);
         $display("PASS");
         $finish;

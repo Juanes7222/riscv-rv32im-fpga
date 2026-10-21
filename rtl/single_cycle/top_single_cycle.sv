@@ -202,7 +202,10 @@ module top_single_cycle #(
 
     // Step mode: SW[9] freezes the processor, KEY[1] releases it for one
     // cycle.  The freeze is applied to the write enables and to the PC,
-    // never to the clock itself.
+    // never to the clock itself.  The data-memory write is left alone on
+    // purpose: a re-executed store writes the same value to the same
+    // address, so it is idempotent.  The console shadow shares that
+    // write, and gating it alone would break the mirror.
     logic step_hold;
 
     step_mode_ctrl u_step_mode (
@@ -462,8 +465,9 @@ module top_single_cycle #(
         .vga_b      (vga_b)
     );
 
-    // Round-robin screen writer: updates one character per pixel clock cycle.
-    // Full refresh = 111 cycles (2.22 µs) - far faster than VGA frame rate.
+    // Round-robin screen writer: one character per pixel clock cycle, one
+    // group per cycle.  A cell is rewritten once per full rotation of the
+    // groups - far faster than the VGA frame rate.
     screen_writer_single_cycle #(
         .DMEM_DEPTH (DMEM_DEPTH),
         .IMEM_DEPTH (IMEM_DEPTH)

@@ -45,13 +45,15 @@ module tb_vga_panel;
     // The panels the test expects, one per instruction it drives.  The
     // register numbers are the fields of the instruction word, so the
     // fields an instruction does not use show the bits of the immediate.
+    // The formats without rs2 show a placeholder instead: the bits of the
+    // instruction would be immediate bits, not a register number.
 
     // addi x5, x1, 4: the encoding of the task brief.  It decodes to x5
     // and x1, not to the x1 and x2 the brief names.
     localparam [PANEL_BITS-1:0] EXP_ADDI_X1 = {
         "INSTR 00408293          ",
         "MNEM  ADDI              ",
-        "rd=05 rs1=01 rs2=04     ",
+        "rd=05 rs1=01 rs2=--     ",
         "imm=00000004            "};
 
     // add x6, x1, x2
@@ -65,21 +67,21 @@ module tb_vga_panel;
     localparam [PANEL_BITS-1:0] EXP_ADDI_X2 = {
         "INSTR 00410093          ",
         "MNEM  ADDI              ",
-        "rd=01 rs1=02 rs2=04     ",
+        "rd=01 rs1=02 rs2=--     ",
         "imm=00000004            "};
 
     // lw x1, 0(x1)
     localparam [PANEL_BITS-1:0] EXP_LW = {
         "INSTR 0000A083          ",
         "MNEM  LW                ",
-        "rd=01 rs1=01 rs2=00     ",
+        "rd=01 rs1=01 rs2=--     ",
         "imm=00000000            "};
 
     // beq x1, x2, 8
     localparam [PANEL_BITS-1:0] EXP_BEQ = {
         "INSTR 00208463          ",
         "MNEM  BEQ               ",
-        "rd=08 rs1=01 rs2=02     ",
+        "rd=08 rs1=01 rs2=--     ",
         "imm=00000008            "};
 
     // mul x7, x3, x4: the M extension of this core is OP with
@@ -106,12 +108,12 @@ module tb_vga_panel;
         "imm=00000000            "};
 
     // srai x10, x3, 4: the immediate field of a shift immediate holds
-    // the funct7 of the instruction, so the panel shows it whole.
+    // the funct7 of the instruction, so the panel shows the shamt alone.
     localparam [PANEL_BITS-1:0] EXP_SRAI = {
         "INSTR 4041D513          ",
         "MNEM  SRAI              ",
-        "rd=10 rs1=03 rs2=04     ",
-        "imm=00000404            "};
+        "rd=10 rs1=03 rs2=--     ",
+        "imm=00000004            "};
 
     // sub x6, x1, x2: the subtraction is the operation with funct7[5] set.
     localparam [PANEL_BITS-1:0] EXP_SUB = {
@@ -119,6 +121,20 @@ module tb_vga_panel;
         "MNEM  SUB               ",
         "rd=06 rs1=01 rs2=02     ",
         "imm=00000000            "};
+
+    // lui x5, 4: the U format has no rs2.
+    localparam [PANEL_BITS-1:0] EXP_LUI = {
+        "INSTR 000042B7          ",
+        "MNEM  LUI               ",
+        "rd=05 rs1=00 rs2=--     ",
+        "imm=00000004            "};
+
+    // jal x1, 16: the J format has no rs2.
+    localparam [PANEL_BITS-1:0] EXP_JAL = {
+        "INSTR 010000EF          ",
+        "MNEM  JAL               ",
+        "rd=01 rs1=00 rs2=--     ",
+        "imm=00000010            "};
 
     logic clk = 1'b0;
     logic rst_n = 1'b0;
@@ -373,6 +389,8 @@ module tb_vga_panel;
         run_phase(32'h4083D4B3, EXP_SRA);
         run_phase(32'h4041D513, EXP_SRAI);
         run_phase(32'h40208333, EXP_SUB);
+        run_phase(32'h000042B7, EXP_LUI);
+        run_phase(32'h010000EF, EXP_JAL);
 
         $display("sweeps of the panel: %0d pipeline, %0d single-cycle",
                  sweeps[DUT_PIPE], sweeps[DUT_SC]);

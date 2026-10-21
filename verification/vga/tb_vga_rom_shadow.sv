@@ -24,8 +24,11 @@ module tb_vga_rom_shadow;
         expect_word(32'd4,  32'h11223344);
         expect_word(32'd8,  32'h55667788);
         expect_word(32'd12, 32'h99AABBCC);
-        // The index is truncated to the array depth, so 16 lands on word 0.
-        expect_word(32'd16, 32'hAABBCCDD);
+        // An address beyond the program fetches a NOP, exactly like the
+        // processor's instruction memory, so the console never shows a
+        // word where the processor would execute a NOP.
+        expect_word(32'd16, 32'h00000013);
+        expect_word(32'hFFFFFFF0, 32'h00000013);
         $display("PASS");
         $finish;
     end

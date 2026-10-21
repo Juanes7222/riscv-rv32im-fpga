@@ -22,8 +22,6 @@ module vga_mem_shadow #(
     input  logic [31:0] rd_addr,
     output logic [31:0] rd_data
 );
-    localparam int ADDR_BITS = $clog2(DEPTH);
-
     // Four byte lanes: a byte write updates one lane only, exactly like the
     // CPU's data memory.
     (* ramstyle = "M10K" *) logic [7:0] lane0 [0:DEPTH-1];
@@ -54,13 +52,14 @@ module vga_mem_shadow #(
         `endif
     end
 
-    // The CPU indexes addr[14:2] regardless of DEPTH, so the hardware
-    // truncates the index to the array depth.  The shadow does the same, so
-    // the mirror shows exactly what the CPU's memory holds.
-    logic [ADDR_BITS-1:0] wr_word;
-    logic [ADDR_BITS-1:0] rd_word;
-    assign wr_word = wr_addr[ADDR_BITS+1:2];
-    assign rd_word = rd_addr[ADDR_BITS+1:2];
+    // The CPU's data memory indexes addr[14:2], whatever the depth of its
+    // array is, so the shadow takes the same 13-bit word index: an access
+    // beyond the array is dropped by both in simulation, and in synthesis
+    // the M10K truncates the address to the depth of the array in both.
+    logic [12:0] wr_word;
+    logic [12:0] rd_word;
+    assign wr_word = wr_addr[14:2];
+    assign rd_word = rd_addr[14:2];
 
     always_ff @(posedge wr_clk) begin
         if (wr_en) begin

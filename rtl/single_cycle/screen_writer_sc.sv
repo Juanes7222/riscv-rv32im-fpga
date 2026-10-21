@@ -264,9 +264,9 @@ module screen_writer_single_cycle #(
     // "imm="
     localparam logic [31:0] PANEL_TXT_IMM = "imm=";
 
-    // The word the followed signal points at.  The memory masks the
-    // index to its depth, so an address beyond the memory lands in a
-    // lower word: the table has to mark the word the hardware used.
+    // The word the followed signal points at.  The mask is the width of
+    // the index of the program memory, so the marked word is a word the
+    // program memory holds.
     wire [13:0] tbl_prog_memory_hit_word = (snap_pc >> 2) & TBL_PROG_MEMORY_WORD_MASK;
     // The window base: the word sits in the middle of the table.
     wire [13:0] tbl_prog_memory_new_base = (tbl_prog_memory_hit_word > TBL_PROG_MEMORY_MIDDLE)
@@ -276,9 +276,10 @@ module screen_writer_single_cycle #(
     // The marked row of the table.
     wire tbl_prog_memory_is_marked = tbl_prog_memory_marked_valid
                              && (tbl_prog_memory_addr == tbl_prog_memory_marked);
-    // The word the access touches.  The memory masks the index to its
-    // depth, so an access beyond the memory lands in a lower word: the
-    // table has to mark the word the hardware really used.
+    // The word the access touches.  The mask is what the memory does in
+    // hardware: the index is truncated to the depth of the array, so an
+    // access beyond the memory lands in a lower word and the table marks
+    // the word the hardware really used.
     wire [13:0] tbl_data_memory_hit_word = (dm_addr >> 2) & TBL_DATA_MEMORY_WORD_MASK;
     // The window base: the word sits in the middle of the table.
     wire [13:0] tbl_data_memory_new_base = (tbl_data_memory_hit_word > TBL_DATA_MEMORY_MIDDLE)
@@ -459,8 +460,17 @@ module screen_writer_single_cycle #(
         endcase
     end
 
+    // The shift-immediate carries the shamt in bits [24:20] and the
+    // funct7 of the operation in bits [31:25]: the immediate it really
+    // has is the shamt alone.
+    wire dec_is_shift_imm = (dec_opcode == 7'b0010011) &&
+                            ((dec_funct3 == 3'b001) || (dec_funct3 == 3'b101));
+    wire [4:0] dec_shamt = panel_instruction[24:20];
+
     // The immediate of the decoded format, zero extended.
-    wire [31:0] dec_imm = (dec_format == 3'd1) ? {20'd0, dec_imm_i} :
+    wire [31:0] dec_imm = (dec_format == 3'd1) ? (dec_is_shift_imm
+                                                 ? {27'd0, dec_shamt}
+                                                 : {20'd0, dec_imm_i}) :
                           (dec_format == 3'd2) ? {20'd0, dec_imm_s} :
                           (dec_format == 3'd3) ? {19'd0, dec_imm_b} :
                           (dec_format == 3'd4) ? {12'd0, dec_imm_u} :
@@ -520,7 +530,7 @@ module screen_writer_single_cycle #(
                     else if (col < 17)
                         panel_char = 8'((PANEL_TXT_RS2 >> (8*(16 - col))) & 8'hFF);
                     else if (col < 19)
-                        panel_char = dec_digit(dec_rs2, col - 17);
+                        panel_char = (dec_format == 3'd0 ? dec_digit(dec_rs2, col - 17) : 8'h2D);
                     else
                         panel_char = 8'h20;  // ' '
                 end

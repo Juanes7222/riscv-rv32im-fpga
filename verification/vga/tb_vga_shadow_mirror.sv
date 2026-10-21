@@ -1,6 +1,8 @@
 // The shadow must mirror the CPU's data memory exactly: the same store
 // signals drive both, so whatever the CPU's memory holds, the shadow holds
-// too - byte lanes included.
+// too - byte lanes included.  An access whose word index is beyond the
+// depth of the array is dropped by the CPU's memory, and the shadow has to
+// drop it too instead of wrapping it into a word of the array.
 module tb_vga_shadow_mirror;
     logic clk = 0;
     always #5 clk = ~clk;
@@ -55,6 +57,31 @@ module tb_vga_shadow_mirror;
         end
     endtask
 
+    // A store whose word index is beyond the depth of the array.  The
+    // CPU's memory drops the write and its read returns X, so the shadow
+    // has to drop it too: a shadow that wrapped the write into a word of
+    // the array would show a word the processor never wrote.
+    task store_out_of_range_and_check(input logic [31:0] a,
+                                       input logic [31:0] d);
+        begin
+            @(posedge clk);
+            addr <= a; wr_data <= d; dm_ctrl <= CTRL_WORD; dm_wr <= 1'b1;
+            @(posedge clk);        // both memories write here
+            dm_wr <= 1'b0;
+            @(posedge clk); #1;    // the shadow's read port catches up
+            if (shadow_rd_data !== cpu_rd_data)
+                $fatal(1, "addr %08x: cpu %08x shadow %08x",
+                       a, cpu_rd_data, shadow_rd_data);
+            // The write was dropped: the first word of the array still
+            // holds what the CPU's memory holds.
+            addr <= 32'd0;
+            @(posedge clk); #1;
+            if (shadow_rd_data !== u_cpu_mem.mem[32'd0])
+                $fatal(1, "addr 00000000: cpu %08x shadow %08x",
+                       u_cpu_mem.mem[32'd0], shadow_rd_data);
+        end
+    endtask
+
     initial begin
         // A word store fills every lane.
         store_and_check(32'd0, 32'hAABBCCDD, CTRL_WORD);
@@ -70,6 +97,9 @@ module tb_vga_shadow_mirror;
         // A byte store on a fresh word still leaves the other lanes alone.
         store_and_check(32'd8, 32'h00000000, CTRL_WORD);
         store_and_check(32'd8, 32'h000000FF, CTRL_BYTE);
+        // A store beyond the depth of the array: word 16 of a memory of
+        // 16 words.  Neither memory may keep it.
+        store_out_of_range_and_check(32'd64, 32'hDEADBEEF);
         $display("PASS");
         $finish;
     end

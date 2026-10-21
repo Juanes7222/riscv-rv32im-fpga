@@ -4,9 +4,9 @@ gen_screen_writer.py - Auto-generates screen_writer SystemVerilog from
 fields.json produced by gen_screen_mif.py.
 
 The generated module uses character-level round-robin writes:
-each clock cycle updates exactly ONE character cell.  Total refresh
-= sum(widths) cycles.  At 50 MHz, even 200 chars x 20 ns = 4 us,
-which is ~4000x faster than a VGA frame (16.7 ms).
+each clock cycle updates exactly ONE character cell, one group per cycle.
+A cell is rewritten once per full rotation of the groups, which is far
+faster than a VGA frame (16.7 ms).
 
 Every displayed value is first captured into a snapshot register bank.
 The bank is loaded once per sweep, so all characters of a sweep -- and
@@ -450,16 +450,17 @@ def table_blocks(t: dict) -> dict:
         access = 'mem_access_live'
         write = 'mem_store_live'
         keeps = 'the last access'
-        hit_comment = """    // The word the access touches.  The memory masks the index to its
-    // depth, so an access beyond the memory lands in a lower word: the
-    // table has to mark the word the hardware really used."""
+        hit_comment = """    // The word the access touches.  The mask is what the memory does in
+    // hardware: the index is truncated to the depth of the array, so an
+    // access beyond the memory lands in a lower word and the table marks
+    // the word the hardware really used."""
     else:
         access = "1'b1"
         write = "1'b0"
         keeps = 'the running value'
-        hit_comment = """    // The word the followed signal points at.  The memory masks the
-    // index to its depth, so an address beyond the memory lands in a
-    // lower word: the table has to mark the word the hardware used."""
+        hit_comment = """    // The word the followed signal points at.  The mask is the width of
+    // the index of the program memory, so the marked word is a word the
+    // program memory holds."""
 
     decls = f"""    // Live memory table: {shadow}
     localparam int {upper}_ROWS = {t['rows']};
@@ -615,7 +616,12 @@ def panel_value_expression(kind: str, start: int, width: int) -> str:
         return f'hex_digit(dec_imm, {last} - col)'
     if kind == 'mnemonic':
         return f"8'((dec_mnemonic >> (8*({last} - col))) & 8'hFF)"
-    if kind in ('rd', 'rs1', 'rs2'):
+    if kind == 'rs2':
+        # The formats without rs2 show a placeholder: the bits of the
+        # instruction would be immediate bits, not a register number.
+        return (f"(dec_format == 3'd0 ? dec_digit(dec_rs2, col - {start}) "
+                f": 8'h2D)")
+    if kind in ('rd', 'rs1'):
         return f'dec_digit(dec_{kind}, col - {start})'
     raise ValueError(f"Unknown value of the panel: '{kind}'.")
 
@@ -864,8 +870,17 @@ def panel_blocks(group: dict, screen_width: int, snapshot: str) -> dict:
         endcase
     end
 
+    // The shift-immediate carries the shamt in bits [24:20] and the
+    // funct7 of the operation in bits [31:25]: the immediate it really
+    // has is the shamt alone.
+    wire dec_is_shift_imm = (dec_opcode == 7'b0010011) &&
+                            ((dec_funct3 == 3'b001) || (dec_funct3 == 3'b101));
+    wire [4:0] dec_shamt = panel_instruction[24:20];
+
     // The immediate of the decoded format, zero extended.
-    wire [31:0] dec_imm = (dec_format == 3'd1) ? {{20'd0, dec_imm_i}} :
+    wire [31:0] dec_imm = (dec_format == 3'd1) ? (dec_is_shift_imm
+                                                 ? {{27'd0, dec_shamt}}
+                                                 : {{20'd0, dec_imm_i}}) :
                           (dec_format == 3'd2) ? {{20'd0, dec_imm_s}} :
                           (dec_format == 3'd3) ? {{19'd0, dec_imm_b}} :
                           (dec_format == 3'd4) ? {{12'd0, dec_imm_u}} :
@@ -923,13 +938,9 @@ def generate_rtl(data: dict, mode: str) -> str:
     fields = data['fields']
     screen_width = data.get('screen_width', 160)
 
-    # The memory tables are static content of the framebuffer.
-    def is_table_field(f: dict) -> bool:
-        return (f['name'].startswith('data_memory_') or
-                f['name'].startswith('prog._memory_'))
-
-    proc_fields = [f for f in fields
-                   if not is_reg_field(f['name']) and not is_table_field(f)]
+    # The memory tables are static content of the framebuffer: they live in
+    # the contract, not in the field list.
+    proc_fields = [f for f in fields if not is_reg_field(f['name'])]
     reg_fields = [f for f in fields if is_reg_field(f['name'])]
 
     # Input port list: the union of the groups.  A rewrite field carries no

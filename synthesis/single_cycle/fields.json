@@ -2044,9 +2044,7 @@
       "rows": 32,
       "row_bytes": 14,
       "shadow": "imem",
-      "follow": "snap_pc",
       "follow_signal": "snap_pc",
-      "marker_signal": "snap_pc",
       "only_on_access": false,
       "depth_param": "IMEM_DEPTH"
     },
@@ -2059,9 +2057,7 @@
       "rows": 32,
       "row_bytes": 14,
       "shadow": "dmem",
-      "follow": "dm_addr",
       "follow_signal": "dm_addr",
-      "marker_signal": "dm_addr",
       "only_on_access": true,
       "depth_param": "DMEM_DEPTH"
     }
