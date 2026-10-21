@@ -1,22 +1,27 @@
+# Prints the worst setup paths of the processor clock.
+#
+# The script works on the project of the directory it is run from, so the
+# same file serves both architectures:
+#   cd synthesis/pipeline && quartus_sta -t report_paths.tcl
+#
+# Quartus 25.1 needs the timing netlist to be created before the SDC file
+# is read, and get_timing_paths does not accept a clock filter any more:
+# the paths are selected with -to [get_clocks clk] instead.
+
 load_package report
 
-project_open rv32im_pipeline -current_revision
+set qpf [lindex [glob -nocomplain *.qpf] 0]
+if {$qpf eq ""} {
+    puts "Error: no .qpf file found in the current directory."
+    exit 1
+}
+set project [file rootname $qpf]
+project_open $project -current_revision
 
+create_timing_netlist
 read_sdc
 update_timing_netlist
 
-set paths [get_timing_paths -clock_filter {clk} -npaths 10 -setup]
-
-puts "=== Top 10 Worst Paths on clk ==="
-set i 1
-foreach path $paths {
-    set slack [get_path_info $path -slack]
-    set src [get_path_info $path -from]
-    set dst [get_path_info $path -to]
-    puts "Path $i: slack=${slack}ns"
-    puts "  From: $src"
-    puts "  To:   $dst"
-    incr i
-}
+report_timing -setup -npaths 10 -detail summary
 
 project_close
