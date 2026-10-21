@@ -51,7 +51,8 @@ asked for, instead of a stale image left in `build/` by an earlier run.
 ### 1.2 The console shows the same program
 
 `screen.mif` is regenerated from `build/imem.mem` by
-`scripts/gen_screen_artifacts.sh`, so the "Prog. Memory" table of the console
+`scripts/gen_screen_artifacts.sh` (invoked by `make mem`, `make flash` and
+`make build`), so the "Prog. Memory" table of the console
 shows the same words that the instruction memory holds.  The first words of
 `rv32ui/add.elf` are visible in the console as:
 

@@ -201,7 +201,9 @@ That produces the video-memory images (`synthesis/*/screen.mif`), the field maps
 (`synthesis/*/fields.json`) and the two screen writers
 (`rtl/*/screen_writer_*.sv`). The memory images depend on the program that is loaded,
 so the artifacts are regenerated whenever the program image changes — which is why
-`make build` depends on them.
+`make build` depends on them. The same regeneration happens in `make mem` and
+`make flash`, so the console always shows the program that is being loaded.
+`make screen` regenerates the artifacts on their own.
 
 ## 10. Where things are
 
