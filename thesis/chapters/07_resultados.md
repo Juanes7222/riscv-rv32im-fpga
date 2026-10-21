@@ -2,11 +2,9 @@
 
 <!-- Generado por scripts/thesis_artifacts.py. Revisar y completar la interpretación antes de la entrega. -->
 
-> **Aviso:** las réplicas de síntesis guardadas no corresponden a la versión vigente del RTL (huella `59eb2d651661`). Ejecute `make thesis` para repetirlas antes de consignar estos números.
-
 ## 7.1 Resumen
 
-Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en `docs/reproduction/`. El pipeline alcanzó una Fmax de 56.61 MHz ($\pm$ 2.10 MHz, n = 5) frente a los 36.91 MHz ($\pm$ 0.26 MHz, n = 5) del monociclo, es decir, una mejora de frecuencia de 53.4 %.
+Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en `docs/reproduction/`. El pipeline alcanzó una Fmax de 54.45 MHz ($\pm$ 0.78 MHz, n = 5) frente a los 52.92 MHz ($\pm$ 0.73 MHz, n = 5) del monociclo, es decir, una mejora de frecuencia de 2.9 %.
 
 La mejora en frecuencia no se traslada sin más al rendimiento: el CPI del pipeline es mayor que uno en todos los programas medidos, porque cada burbuja de hazard y cada vaciado por rama tomada son ciclos perdidos. El resultado neto depende del balance entre la ganancia de reloj y la penalización por hazards.
 
@@ -24,7 +22,7 @@ La tabla `\ref{tab:benchmarks}` muestra el CPI efectivo, el IPC y el throughput 
 
 ## 7.5 Análisis estadístico
 
-Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.26 MHz en el monociclo (CV 0.69 %) y de 2.10 MHz en el pipeline (CV 3.71 %). La tabla `\ref{tab:statistics}` recoge la estadística completa.
+Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.73 MHz en el monociclo (CV 1.38 %) y de 0.78 MHz en el pipeline (CV 1.43 %). La tabla `\ref{tab:statistics}` recoge la estadística completa.
 
 ## 7.6 Eficiencia relativa
 
@@ -32,11 +30,11 @@ La tabla `\ref{tab:efficiency}` contrasta el throughput con el costo en recursos
 
 ## 7.7 Evaluación de la hipótesis
 
-La hipótesis de trabajo $H_1$ se sostiene en los programas `coremark_iter1`, `coremark_iter10`, `m_ext_stress`, `raw_stress` y no se descarta en los programas `branch_stress`, `load_use_stress`. La tabla `\ref{tab:speedup}` muestra el speedup del pipeline respecto al monociclo y el extremo inferior de su dispersión.
+La hipótesis de trabajo $H_1$ se sostiene en los programas ninguno y no se descarta en los programas `branch_stress`, `coremark_iter1`, `coremark_iter10`, `load_use_stress`, `m_ext_stress`, `raw_stress`. La tabla `\ref{tab:speedup}` muestra el speedup del pipeline respecto al monociclo y el extremo inferior de su dispersión.
 
 ## 7.8 Discusión
 
-El resultado no es uniforme: el pipeline supera al monociclo en los programas `coremark_iter1`, `coremark_iter10`, `m_ext_stress`, `raw_stress` y no lo hace en `branch_stress`, `load_use_stress`. La ganancia de reloj se compensa con la penalización por hazards de datos, por el vaciado de las ramas tomadas y por la latencia de la división, de modo que la hipótesis de trabajo, enunciada de forma general, queda confirmada solo bajo la condición de carga del programa medido: es un resultado condicional, no una propiedad de la microarquitectura.
+El pipeline no supera al monociclo en ninguno de los programas medidos. En este conjunto de cargas la penalización por hazards supera siempre a la ganancia de frecuencia, de modo que la hipótesis de trabajo no queda sostenida: el mayor Fmax del pipeline no se traduce en mayor throughput.
 
 ## 7.9 Limitaciones
 

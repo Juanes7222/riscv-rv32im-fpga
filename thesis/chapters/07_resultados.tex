@@ -3,10 +3,7 @@
 
 \section{Resumen}
 
-\begin{quote}
-\textbf{Aviso.} Las réplicas de síntesis guardadas no corresponden a la versión vigente del RTL. Repita \texttt{make thesis} antes de consignar estos números.
-\end{quote}
-Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El pipeline alcanzó una Fmax de 56.61 MHz ($\pm$ 2.10 MHz, $n = 5$) frente a los 36.91 MHz ($\pm$ 0.26 MHz, $n = 5$) del monociclo, una mejora de frecuencia del 53.4 \%.
+Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El pipeline alcanzó una Fmax de 54.45 MHz ($\pm$ 0.78 MHz, $n = 5$) frente a los 52.92 MHz ($\pm$ 0.73 MHz, $n = 5$) del monociclo, una mejora de frecuencia del 2.9 \%.
 
 \section{Verificación funcional}
 
@@ -34,7 +31,7 @@ El monociclo presenta CPI = 1 en los programas sin división: cada ciclo retira 
 
 \section{Análisis estadístico}
 
-Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.26 MHz en el monociclo (CV 0.69 \%) y de 2.10 MHz en el pipeline (CV 3.71 \%).
+Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.73 MHz en el monociclo (CV 1.38 \%) y de 0.78 MHz en el pipeline (CV 1.43 \%).
 
 \input{tables/statistics.tex}
 

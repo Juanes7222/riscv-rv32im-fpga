@@ -1,9 +1,9 @@
 suite,arch,passed,failed,skipped,errors,total,total_time_s
-test_rv32i,single_cycle,37,0,0,0,37,12.2233
-test_rv32m,single_cycle,8,0,0,0,8,2.5550
-test_rv32mi,single_cycle,15,0,0,0,15,4.6340
-test_alu_rv32i,single_cycle,27,0,0,0,27,0.0139
-test_branch,single_cycle,20,0,0,0,20,0.0106
-test_model_vs_dut,single_cycle,4,0,0,0,4,0.0266
-test_validation,single_cycle,1,0,0,0,1,24.4224
-test_validation,pipeline,1,0,0,0,1,35.0687
+test_rv32i,single_cycle,37,0,0,0,37,14.0240
+test_rv32m,single_cycle,8,0,0,0,8,2.9854
+test_rv32mi,single_cycle,15,0,0,0,15,5.2930
+test_alu_rv32i,single_cycle,27,0,0,0,27,0.0157
+test_branch,single_cycle,20,0,0,0,20,0.0122
+test_model_vs_dut,single_cycle,4,0,0,0,4,0.0275
+test_validation,single_cycle,1,0,0,0,1,25.3018
+test_validation,pipeline,1,0,0,0,1,35.3849

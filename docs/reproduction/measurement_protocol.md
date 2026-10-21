@@ -57,12 +57,12 @@ Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo: no se aplica
 
 | Programa | CPI monociclo | CPI pipeline | Throughput monociclo (MIPS) | Throughput pipeline (MIPS) | Speedup | Resultado |
 |---|---|---|---|---|---|---|
-| `branch_stress` | 1.0000 | 1.9998 | 36.91 | 28.31 | 0.767 | H0 no descartada |
-| `coremark_iter1` | 1.0001 | 1.3984 | 36.91 | 40.48 | 1.097 | H1 sostenida |
-| `coremark_iter10` | 1.0000 | 1.4016 | 36.91 | 40.39 | 1.094 | H1 sostenida |
-| `load_use_stress` | 1.0000 | 1.9893 | 36.91 | 28.46 | 0.771 | H0 no descartada |
-| `m_ext_stress` | 7.5806 | 8.0260 | 4.87 | 7.05 | 1.449 | H1 sostenida |
-| `raw_stress` | 1.0000 | 1.2511 | 36.91 | 45.25 | 1.226 | H1 sostenida |
+| `branch_stress` | 1.0000 | 1.9998 | 52.92 | 27.23 | 0.515 | H0 no descartada |
+| `coremark_iter1` | 1.0001 | 1.3984 | 52.91 | 38.94 | 0.736 | H0 no descartada |
+| `coremark_iter10` | 1.0000 | 1.4016 | 52.92 | 38.85 | 0.734 | H0 no descartada |
+| `load_use_stress` | 1.0000 | 1.9893 | 52.92 | 27.37 | 0.517 | H0 no descartada |
+| `m_ext_stress` | 7.5806 | 8.0260 | 6.98 | 6.78 | 0.972 | H0 no descartada |
+| `raw_stress` | 1.0000 | 1.2511 | 52.92 | 43.52 | 0.823 | H0 no descartada |
 
 ## 8. Réplicas
 

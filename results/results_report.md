@@ -1,6 +1,6 @@
 # RV32IM FPGA - Results Report
 
-*Generated: 2026-10-21 10:50*
+*Generated: 2026-10-21 16:16*
 
 ---
 
@@ -21,15 +21,15 @@
 
 | Metric | Single-Cycle | Pipeline |
 |---|---|---|
-| Fmax @85°C | 36.79 MHz | 52.53 MHz |
-| Fmax @0°C | 37.70 MHz | 52.78 MHz |
-| ALMs | 14487 | 4599 |
-| Registers | 20637 | 5155 |
-| DSP Blocks | 10 | 10 |
+| Fmax @85°C | 53.02 MHz | 53.41 MHz |
+| Fmax @0°C | 54.17 MHz | 53.59 MHz |
+| ALMs | 11438 | 3632 |
+| Registers | 18908 | 3913 |
+| DSP Blocks | 7 | 10 |
 | Memory Bits | 229888 | 246272 |
 | Pins | 85 | 85 |
-| Setup Slack (85°C) | -17.184 ns | -9.036 ns |
-| Hold Slack (85°C) | -17.184 ns | -9.036 ns |
+| Setup Slack (85°C) | -8.861 ns | -8.724 ns |
+| Hold Slack (85°C) | -8.861 ns | -8.724 ns |
 
 ---
 
@@ -37,13 +37,13 @@
 
 | Replica | Single-Cycle (MHz) | Pipeline (MHz) |
 |---|---|---|
-| Replica 1 | 36.73 | 56.60 |
-| Replica 2 | 37.11 | 53.00 |
-| Replica 3 | 37.26 | 57.96 |
-| Replica 4 | 36.68 | 58.06 |
-| Replica 5 | 36.79 | 57.45 |
-| **Mean ± σ** | **36.91 ± 0.26** | **56.61 ± 2.10** |
-| Min | 36.68 | 53.00 |
-| Max | 37.26 | 58.06 |
+| Replica 1 | 53.75 | 54.59 |
+| Replica 2 | 52.89 | 54.19 |
+| Replica 3 | 51.75 | 54.51 |
+| Replica 4 | 53.19 | 55.57 |
+| Replica 5 | 53.02 | 53.41 |
+| **Mean ± σ** | **52.92 ± 0.73** | **54.45 ± 0.78** |
+| Min | 51.75 | 53.41 |
+| Max | 53.75 | 55.57 |
 
 ---

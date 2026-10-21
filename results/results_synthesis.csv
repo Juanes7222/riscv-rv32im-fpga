@@ -1,3 +1,3 @@
 arch,fmax_85c_mhz,fmax_0c_mhz,alms,registers,dsp_blocks,memory_bits,pins,setup_slack_ns,hold_slack_ns,replica_count,fmax_mean_mhz,fmax_stddev_mhz,fmax_min_mhz,fmax_max_mhz
-single_cycle,36.79,37.7,14487,20637,10,229888,85,-17.184,-17.184,5,36.91,0.26,36.68,37.26
-pipeline,52.53,52.78,4599,5155,10,246272,85,-9.036,-9.036,5,56.61,2.10,53.00,58.06
+single_cycle,53.02,54.17,11438,18908,7,229888,85,-8.861,-8.861,5,52.92,0.73,51.75,53.75
+pipeline,53.41,53.59,3632,3913,10,246272,85,-8.724,-8.724,5,54.45,0.78,53.41,55.57

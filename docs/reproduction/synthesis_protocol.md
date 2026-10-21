@@ -31,25 +31,25 @@ Las réplicas cuyo `meta.json` no coincide con la huella vigente del RTL se cons
 
 ### Monociclo
 
-- Fmax media: 36.91 MHz (desviación estándar 0.26 MHz, CV 0.69 %, n = 5)
-- Rango: 36.68 MHz a 37.26 MHz
+- Fmax media: 52.92 MHz (desviación estándar 0.73 MHz, CV 1.38 %, n = 5)
+- Rango: 51.75 MHz a 53.75 MHz
 
 ### Pipeline
 
-- Fmax media: 56.61 MHz (desviación estándar 2.10 MHz, CV 3.71 %, n = 5)
-- Rango: 53.00 MHz a 58.06 MHz
+- Fmax media: 54.45 MHz (desviación estándar 0.78 MHz, CV 1.43 %, n = 5)
+- Rango: 53.41 MHz a 55.57 MHz
 
 ## 4. Trazabilidad
 
 | Réplica | Commit | Fecha |
 |---|---|---|
-| single_cycle / 1 | `` |  |
-| single_cycle / 2 | `` |  |
-| single_cycle / 3 | `` |  |
-| single_cycle / 4 | `` |  |
-| single_cycle / 5 | `` |  |
-| pipeline / 1 | `` |  |
-| pipeline / 2 | `` |  |
-| pipeline / 3 | `` |  |
-| pipeline / 4 | `` |  |
-| pipeline / 5 | `` |  |
+| single_cycle / 1 | `5192f63f` | 2026-10-21 15:12:47 |
+| single_cycle / 2 | `5192f63f` | 2026-10-21 15:12:47 |
+| single_cycle / 3 | `5192f63f` | 2026-10-21 15:12:47 |
+| single_cycle / 4 | `5192f63f` | 2026-10-21 15:12:47 |
+| single_cycle / 5 | `5192f63f` | 2026-10-21 15:12:47 |
+| pipeline / 1 | `6d679357` | 2026-10-21 15:53:35 |
+| pipeline / 2 | `6d679357` | 2026-10-21 15:55:40 |
+| pipeline / 3 | `6d679357` | 2026-10-21 15:57:41 |
+| pipeline / 4 | `6d679357` | 2026-10-21 15:59:46 |
+| pipeline / 5 | `6d679357` | 2026-10-21 16:02:31 |
