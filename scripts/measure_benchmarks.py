@@ -43,13 +43,22 @@ BENCHMARKS = [
 ARCHES = ["single_cycle", "pipeline"]
 
 
-def read_fmax() -> dict:
-    """Mean Fmax per architecture, from the synthesis results."""
-    path = RESULTS_DIR / "results_synthesis.csv"
+def read_fmax(path=None) -> dict:
+    """Mean Fmax per architecture, from the synthesis results.
+
+    The default source is the file written by the synthesis stage of the
+    experiment (the mean of the replicas); the legacy summary of the
+    collector is used as a fallback.
+    """
+    if path is None:
+        path = RESULTS_DIR / "results_fmax.csv"
+        if not path.exists():
+            path = RESULTS_DIR / "results_synthesis.csv"
     fmax = {}
     with open(path) as fp:
         for row in csv.DictReader(fp):
-            fmax[row["arch"]] = float(row["fmax_mean_mhz"])
+            if row.get("fmax_mean_mhz"):
+                fmax[row["arch"]] = float(row["fmax_mean_mhz"])
     return fmax
 
 
@@ -64,15 +73,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--riscv-tests", action="store_true",
                         help="Also measure every riscv-tests RV32UI binary")
-    parser.add_argument("--max-cycles", type=int, default=200_000,
-                        help="Cycle limit of the cocotb run (default: 200000)")
+    parser.add_argument("--max-cycles", type=int, default=20_000_000,
+                        help="Cycle limit of the cocotb run "
+                             "(default: 20000000, enough for CoreMark)")
     parser.add_argument("--output", type=pathlib.Path,
-                        default=RESULTS_DIR / "results_synthetic_benchmarks.csv")
+                        default=RESULTS_DIR / "results_benchmarks.csv")
     parser.add_argument("--only", nargs="+", default=None,
                         help="Measure only the named benchmarks")
     parser.add_argument("--from-csv", action="store_true",
                         help="Assemble the table from the saved per-benchmark "
                              "CSVs instead of running the simulations again")
+    parser.add_argument("--fmax-csv", type=pathlib.Path, default=None,
+                        help="CSV with the mean Fmax per architecture "
+                             "(default: results/results_fmax.csv)")
     args = parser.parse_args()
 
     benchmarks = list(BENCHMARKS)
@@ -81,7 +94,7 @@ def main() -> int:
     if args.riscv_tests:
         benchmarks += riscv_test_elfs()
 
-    fmax = read_fmax()
+    fmax = read_fmax(args.fmax_csv)
     rows = []
 
     for name, rel_path in benchmarks:
@@ -109,6 +122,10 @@ def main() -> int:
             cycles = int(data["cycle_count"])
             instr = int(data["instr_retired"])
             cpi = cycles / max(instr, 1)
+            # A run that did not reach the tohost write leaves the counters
+            # frozen at an arbitrary point: the measurement is not valid and
+            # must not reach the throughput or the speedup.
+            valid = data["result"] == "pass"
             throughput = fmax[arch] / cpi          # MIPS
             rows.append({
                 "architecture": arch,
@@ -118,9 +135,11 @@ def main() -> int:
                 "instr_retired": instr,
                 "cpi": f"{cpi:.4f}",
                 "fmax_mhz": fmax[arch],
-                "throughput_mips": f"{throughput:.3f}",
+                "throughput_mips": f"{throughput:.3f}" if valid else "",
+                "note": "" if valid else f"invalid measurement: {data['result']}",
             })
-            print(f" cycles={cycles} instr={instr} CPI={cpi:.4f}")
+            print(f" cycles={cycles} instr={instr} CPI={cpi:.4f}"
+                  f"{'' if valid else ' INVALID'}")
 
     # Both designs must execute the same instruction stream.  A difference
     # means one of them took a different path, and its counters cannot be
@@ -149,6 +168,10 @@ def main() -> int:
         sc = per_arch.get("single_cycle")
         pipe = per_arch.get("pipeline")
         if not sc or not pipe:
+            continue
+        if sc["result"] != "pass" or pipe["result"] != "pass":
+            continue
+        if not sc["throughput_mips"] or not pipe["throughput_mips"]:
             continue
         speedup = float(pipe["throughput_mips"]) / float(sc["throughput_mips"])
         sc["speedup_pipeline_over_single_cycle"] = f"{speedup:.4f}"
