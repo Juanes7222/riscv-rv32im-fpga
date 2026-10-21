@@ -6,6 +6,23 @@
     {
       "name": "x0",
       "label": "X0",
+      "row": 8,
+      "col": 92,
+      "width": 8,
+      "fmt": "hex",
+      "signal_bits": 32,
+      "display_min": 8,
+      "start_address": 1372,
+      "end_address": 1379,
+      "origin": "register table row 9",
+      "attr": {
+        "fg": 13,
+        "bg": 0
+      }
+    },
+    {
+      "name": "x1",
+      "label": "X1",
       "row": 9,
       "col": 92,
       "width": 8,
@@ -21,8 +38,8 @@
       }
     },
     {
-      "name": "x1",
-      "label": "X1",
+      "name": "x2",
+      "label": "X2",
       "row": 10,
       "col": 92,
       "width": 8,
@@ -38,8 +55,8 @@
       }
     },
     {
-      "name": "x2",
-      "label": "X2",
+      "name": "x3",
+      "label": "X3",
       "row": 11,
       "col": 92,
       "width": 8,
@@ -55,8 +72,8 @@
       }
     },
     {
-      "name": "x3",
-      "label": "X3",
+      "name": "x4",
+      "label": "X4",
       "row": 12,
       "col": 92,
       "width": 8,
@@ -72,8 +89,8 @@
       }
     },
     {
-      "name": "x4",
-      "label": "X4",
+      "name": "x5",
+      "label": "X5",
       "row": 13,
       "col": 92,
       "width": 8,
@@ -89,8 +106,8 @@
       }
     },
     {
-      "name": "x5",
-      "label": "X5",
+      "name": "x6",
+      "label": "X6",
       "row": 14,
       "col": 92,
       "width": 8,
@@ -106,8 +123,8 @@
       }
     },
     {
-      "name": "x6",
-      "label": "X6",
+      "name": "x7",
+      "label": "X7",
       "row": 15,
       "col": 92,
       "width": 8,
@@ -123,8 +140,8 @@
       }
     },
     {
-      "name": "x7",
-      "label": "X7",
+      "name": "x8",
+      "label": "X8",
       "row": 16,
       "col": 92,
       "width": 8,
@@ -140,8 +157,8 @@
       }
     },
     {
-      "name": "x8",
-      "label": "X8",
+      "name": "x9",
+      "label": "X9",
       "row": 17,
       "col": 92,
       "width": 8,
@@ -157,8 +174,8 @@
       }
     },
     {
-      "name": "x9",
-      "label": "X9",
+      "name": "x10",
+      "label": "X10",
       "row": 18,
       "col": 92,
       "width": 8,
@@ -174,8 +191,8 @@
       }
     },
     {
-      "name": "x10",
-      "label": "X10",
+      "name": "x11",
+      "label": "X11",
       "row": 19,
       "col": 92,
       "width": 8,
@@ -191,8 +208,8 @@
       }
     },
     {
-      "name": "x11",
-      "label": "X11",
+      "name": "x12",
+      "label": "X12",
       "row": 20,
       "col": 92,
       "width": 8,
@@ -208,8 +225,8 @@
       }
     },
     {
-      "name": "x12",
-      "label": "X12",
+      "name": "x13",
+      "label": "X13",
       "row": 21,
       "col": 92,
       "width": 8,
@@ -225,8 +242,8 @@
       }
     },
     {
-      "name": "x13",
-      "label": "X13",
+      "name": "x14",
+      "label": "X14",
       "row": 22,
       "col": 92,
       "width": 8,
@@ -242,8 +259,8 @@
       }
     },
     {
-      "name": "x14",
-      "label": "X14",
+      "name": "x15",
+      "label": "X15",
       "row": 23,
       "col": 92,
       "width": 8,
@@ -259,8 +276,8 @@
       }
     },
     {
-      "name": "x15",
-      "label": "X15",
+      "name": "x16",
+      "label": "X16",
       "row": 24,
       "col": 92,
       "width": 8,
@@ -276,8 +293,8 @@
       }
     },
     {
-      "name": "x16",
-      "label": "X16",
+      "name": "x17",
+      "label": "X17",
       "row": 25,
       "col": 92,
       "width": 8,
@@ -293,8 +310,8 @@
       }
     },
     {
-      "name": "x17",
-      "label": "X17",
+      "name": "x18",
+      "label": "X18",
       "row": 26,
       "col": 92,
       "width": 8,
@@ -310,8 +327,8 @@
       }
     },
     {
-      "name": "x18",
-      "label": "X18",
+      "name": "x19",
+      "label": "X19",
       "row": 27,
       "col": 92,
       "width": 8,
@@ -327,8 +344,8 @@
       }
     },
     {
-      "name": "x19",
-      "label": "X19",
+      "name": "x20",
+      "label": "X20",
       "row": 28,
       "col": 92,
       "width": 8,
@@ -344,8 +361,8 @@
       }
     },
     {
-      "name": "x20",
-      "label": "X20",
+      "name": "x21",
+      "label": "X21",
       "row": 29,
       "col": 92,
       "width": 8,
@@ -361,8 +378,8 @@
       }
     },
     {
-      "name": "x21",
-      "label": "X21",
+      "name": "x22",
+      "label": "X22",
       "row": 30,
       "col": 92,
       "width": 8,
@@ -378,8 +395,8 @@
       }
     },
     {
-      "name": "x22",
-      "label": "X22",
+      "name": "x23",
+      "label": "X23",
       "row": 31,
       "col": 92,
       "width": 8,
@@ -395,8 +412,8 @@
       }
     },
     {
-      "name": "x23",
-      "label": "X23",
+      "name": "x24",
+      "label": "X24",
       "row": 32,
       "col": 92,
       "width": 8,
@@ -412,8 +429,8 @@
       }
     },
     {
-      "name": "x24",
-      "label": "X24",
+      "name": "x25",
+      "label": "X25",
       "row": 33,
       "col": 92,
       "width": 8,
@@ -429,8 +446,8 @@
       }
     },
     {
-      "name": "x25",
-      "label": "X25",
+      "name": "x26",
+      "label": "X26",
       "row": 34,
       "col": 92,
       "width": 8,
@@ -446,8 +463,8 @@
       }
     },
     {
-      "name": "x26",
-      "label": "X26",
+      "name": "x27",
+      "label": "X27",
       "row": 35,
       "col": 92,
       "width": 8,
@@ -463,8 +480,8 @@
       }
     },
     {
-      "name": "x27",
-      "label": "X27",
+      "name": "x28",
+      "label": "X28",
       "row": 36,
       "col": 92,
       "width": 8,
@@ -480,8 +497,8 @@
       }
     },
     {
-      "name": "x28",
-      "label": "X28",
+      "name": "x29",
+      "label": "X29",
       "row": 37,
       "col": 92,
       "width": 8,
@@ -497,8 +514,8 @@
       }
     },
     {
-      "name": "x29",
-      "label": "X29",
+      "name": "x30",
+      "label": "X30",
       "row": 38,
       "col": 92,
       "width": 8,
@@ -514,8 +531,8 @@
       }
     },
     {
-      "name": "x30",
-      "label": "X30",
+      "name": "x31",
+      "label": "X31",
       "row": 39,
       "col": 92,
       "width": 8,
@@ -525,23 +542,6 @@
       "start_address": 6332,
       "end_address": 6339,
       "origin": "register table row 40",
-      "attr": {
-        "fg": 13,
-        "bg": 0
-      }
-    },
-    {
-      "name": "x31",
-      "label": "X31",
-      "row": 40,
-      "col": 92,
-      "width": 8,
-      "fmt": "hex",
-      "signal_bits": 32,
-      "display_min": 8,
-      "start_address": 6492,
-      "end_address": 6499,
-      "origin": "register table row 41",
       "attr": {
         "fg": 13,
         "bg": 0
@@ -1012,6 +1012,23 @@
       }
     },
     {
+      "name": "ex_pc",
+      "label": "EX_PC",
+      "row": 27,
+      "col": 46,
+      "width": 8,
+      "fmt": "hex",
+      "signal_bits": 32,
+      "display_min": 8,
+      "start_address": 4366,
+      "end_address": 4373,
+      "origin": "tagged after \"EX_PC\" on row 28",
+      "attr": {
+        "fg": 8,
+        "bg": 0
+      }
+    },
+    {
       "name": "dm_addr",
       "label": "Address",
       "row": 27,
@@ -1029,8 +1046,8 @@
       }
     },
     {
-      "name": "ex_pc",
-      "label": "EX_PC",
+      "name": "ex_instruction",
+      "label": "EX_Instr",
       "row": 28,
       "col": 46,
       "width": 8,
@@ -1039,7 +1056,7 @@
       "display_min": 8,
       "start_address": 4526,
       "end_address": 4533,
-      "origin": "tagged after \"EX_PC\" on row 29",
+      "origin": "tagged after \"EX_Instr\" on row 29",
       "attr": {
         "fg": 8,
         "bg": 0
@@ -1068,8 +1085,8 @@
       }
     },
     {
-      "name": "ex_instruction",
-      "label": "EX_Instr",
+      "name": "ex_rs1_data",
+      "label": "EX_rs1_data",
       "row": 29,
       "col": 46,
       "width": 8,
@@ -1078,9 +1095,9 @@
       "display_min": 8,
       "start_address": 4686,
       "end_address": 4693,
-      "origin": "tagged after \"EX_Instr\" on row 30",
+      "origin": "tagged after \"EX_rs1_data\" on row 30",
       "attr": {
-        "fg": 8,
+        "fg": 9,
         "bg": 0
       }
     },
@@ -1107,8 +1124,8 @@
       }
     },
     {
-      "name": "ex_rs1_data",
-      "label": "EX_rs1_data",
+      "name": "ex_rs2_data",
+      "label": "EX_rs2_data",
       "row": 30,
       "col": 46,
       "width": 8,
@@ -1117,7 +1134,7 @@
       "display_min": 8,
       "start_address": 4846,
       "end_address": 4853,
-      "origin": "tagged after \"EX_rs1_data\" on row 31",
+      "origin": "tagged after \"EX_rs2_data\" on row 31",
       "attr": {
         "fg": 9,
         "bg": 0
@@ -1163,8 +1180,8 @@
       }
     },
     {
-      "name": "ex_rs2_data",
-      "label": "EX_rs2_data",
+      "name": "ex_imm",
+      "label": "EX_imm",
       "row": 31,
       "col": 46,
       "width": 8,
@@ -1173,7 +1190,7 @@
       "display_min": 8,
       "start_address": 5006,
       "end_address": 5013,
-      "origin": "tagged after \"EX_rs2_data\" on row 32",
+      "origin": "tagged after \"EX_imm\" on row 32",
       "attr": {
         "fg": 9,
         "bg": 0
@@ -1221,23 +1238,6 @@
         "signal": "load_use_hazard",
         "fg": 11,
         "bg": 3
-      }
-    },
-    {
-      "name": "ex_imm",
-      "label": "EX_imm",
-      "row": 32,
-      "col": 46,
-      "width": 8,
-      "fmt": "hex",
-      "signal_bits": 32,
-      "display_min": 8,
-      "start_address": 5166,
-      "end_address": 5173,
-      "origin": "tagged after \"EX_imm\" on row 33",
-      "attr": {
-        "fg": 9,
-        "bg": 0
       }
     },
     {
@@ -1518,15 +1518,15 @@
     {
       "name": "instr_retired",
       "label": "InstrRetired",
-      "row": 44,
+      "row": 43,
       "col": 112,
       "width": 16,
       "fmt": "hex",
       "signal_bits": 64,
       "display_min": 16,
-      "start_address": 7152,
-      "end_address": 7167,
-      "origin": "tagged after \"InstrRetired\" on row 45",
+      "start_address": 6992,
+      "end_address": 7007,
+      "origin": "tagged after \"InstrRetired\" on row 44",
       "attr": {
         "fg": 9,
         "bg": 0
@@ -2159,15 +2159,15 @@
     {
       "name": "stage_id_ex_0",
       "label": "ID/EX",
-      "row": 26,
+      "row": 25,
       "col": 32,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 4192,
-      "end_address": 4192,
-      "origin": "stage header \"ID/EX\" on row 27",
+      "start_address": 4032,
+      "end_address": 4032,
+      "origin": "stage header \"ID/EX\" on row 26",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2183,15 +2183,15 @@
     {
       "name": "stage_id_ex_1",
       "label": "ID/EX",
-      "row": 26,
+      "row": 25,
       "col": 33,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 4193,
-      "end_address": 4193,
-      "origin": "stage header \"ID/EX\" on row 27",
+      "start_address": 4033,
+      "end_address": 4033,
+      "origin": "stage header \"ID/EX\" on row 26",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2207,15 +2207,15 @@
     {
       "name": "stage_id_ex_2",
       "label": "ID/EX",
-      "row": 26,
+      "row": 25,
       "col": 34,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 4194,
-      "end_address": 4194,
-      "origin": "stage header \"ID/EX\" on row 27",
+      "start_address": 4034,
+      "end_address": 4034,
+      "origin": "stage header \"ID/EX\" on row 26",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2231,15 +2231,15 @@
     {
       "name": "stage_id_ex_3",
       "label": "ID/EX",
-      "row": 26,
+      "row": 25,
       "col": 35,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 4195,
-      "end_address": 4195,
-      "origin": "stage header \"ID/EX\" on row 27",
+      "start_address": 4035,
+      "end_address": 4035,
+      "origin": "stage header \"ID/EX\" on row 26",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2255,15 +2255,15 @@
     {
       "name": "stage_id_ex_4",
       "label": "ID/EX",
-      "row": 26,
+      "row": 25,
       "col": 36,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 4196,
-      "end_address": 4196,
-      "origin": "stage header \"ID/EX\" on row 27",
+      "start_address": 4036,
+      "end_address": 4036,
+      "origin": "stage header \"ID/EX\" on row 26",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2279,15 +2279,15 @@
     {
       "name": "stage_execute_0",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 32,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6112,
-      "end_address": 6112,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5952,
+      "end_address": 5952,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2303,15 +2303,15 @@
     {
       "name": "stage_execute_1",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 33,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6113,
-      "end_address": 6113,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5953,
+      "end_address": 5953,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2327,15 +2327,15 @@
     {
       "name": "stage_execute_2",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 34,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6114,
-      "end_address": 6114,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5954,
+      "end_address": 5954,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2351,15 +2351,15 @@
     {
       "name": "stage_execute_3",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 35,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6115,
-      "end_address": 6115,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5955,
+      "end_address": 5955,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2375,15 +2375,15 @@
     {
       "name": "stage_execute_4",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 36,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6116,
-      "end_address": 6116,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5956,
+      "end_address": 5956,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2399,15 +2399,15 @@
     {
       "name": "stage_execute_5",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 37,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6117,
-      "end_address": 6117,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5957,
+      "end_address": 5957,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2423,15 +2423,15 @@
     {
       "name": "stage_execute_6",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 38,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6118,
-      "end_address": 6118,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5958,
+      "end_address": 5958,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2447,15 +2447,15 @@
     {
       "name": "stage_execute_7",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 39,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6119,
-      "end_address": 6119,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5959,
+      "end_address": 5959,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 9,
         "bg": 0
@@ -2471,15 +2471,15 @@
     {
       "name": "stage_execute_8",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 40,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6120,
-      "end_address": 6120,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5960,
+      "end_address": 5960,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2495,15 +2495,15 @@
     {
       "name": "stage_execute_9",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 41,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6121,
-      "end_address": 6121,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5961,
+      "end_address": 5961,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2519,15 +2519,15 @@
     {
       "name": "stage_execute_10",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 42,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6122,
-      "end_address": 6122,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5962,
+      "end_address": 5962,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2543,15 +2543,15 @@
     {
       "name": "stage_execute_11",
       "label": "EXECUTE (EX)",
-      "row": 38,
+      "row": 37,
       "col": 43,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6123,
-      "end_address": 6123,
-      "origin": "stage header \"EXECUTE (EX)\" on row 39",
+      "start_address": 5963,
+      "end_address": 5963,
+      "origin": "stage header \"EXECUTE (EX)\" on row 38",
       "attr": {
         "fg": 11,
         "bg": 0
@@ -2567,15 +2567,15 @@
     {
       "name": "stage_ex_mem_0",
       "label": "EX/MEM",
-      "row": 38,
+      "row": 37,
       "col": 61,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6141,
-      "end_address": 6141,
-      "origin": "stage header \"EX/MEM\" on row 39",
+      "start_address": 5981,
+      "end_address": 5981,
+      "origin": "stage header \"EX/MEM\" on row 38",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2591,15 +2591,15 @@
     {
       "name": "stage_ex_mem_1",
       "label": "EX/MEM",
-      "row": 38,
+      "row": 37,
       "col": 62,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6142,
-      "end_address": 6142,
-      "origin": "stage header \"EX/MEM\" on row 39",
+      "start_address": 5982,
+      "end_address": 5982,
+      "origin": "stage header \"EX/MEM\" on row 38",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2615,15 +2615,15 @@
     {
       "name": "stage_ex_mem_2",
       "label": "EX/MEM",
-      "row": 38,
+      "row": 37,
       "col": 63,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6143,
-      "end_address": 6143,
-      "origin": "stage header \"EX/MEM\" on row 39",
+      "start_address": 5983,
+      "end_address": 5983,
+      "origin": "stage header \"EX/MEM\" on row 38",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2639,15 +2639,15 @@
     {
       "name": "stage_ex_mem_3",
       "label": "EX/MEM",
-      "row": 38,
+      "row": 37,
       "col": 64,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6144,
-      "end_address": 6144,
-      "origin": "stage header \"EX/MEM\" on row 39",
+      "start_address": 5984,
+      "end_address": 5984,
+      "origin": "stage header \"EX/MEM\" on row 38",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2663,15 +2663,15 @@
     {
       "name": "stage_ex_mem_4",
       "label": "EX/MEM",
-      "row": 38,
+      "row": 37,
       "col": 65,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6145,
-      "end_address": 6145,
-      "origin": "stage header \"EX/MEM\" on row 39",
+      "start_address": 5985,
+      "end_address": 5985,
+      "origin": "stage header \"EX/MEM\" on row 38",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -2687,15 +2687,15 @@
     {
       "name": "stage_ex_mem_5",
       "label": "EX/MEM",
-      "row": 38,
+      "row": 37,
       "col": 66,
       "width": 1,
       "fmt": "text",
       "signal_bits": 8,
       "display_min": 1,
-      "start_address": 6146,
-      "end_address": 6146,
-      "origin": "stage header \"EX/MEM\" on row 39",
+      "start_address": 5986,
+      "end_address": 5986,
+      "origin": "stage header \"EX/MEM\" on row 38",
       "attr": {
         "fg": 10,
         "bg": 0
@@ -3717,30 +3717,6 @@
       }
     },
     {
-      "name": "arrow_24_43",
-      "label": "v",
-      "row": 24,
-      "col": 43,
-      "width": 1,
-      "fmt": "text",
-      "signal_bits": 8,
-      "display_min": 1,
-      "start_address": 3883,
-      "end_address": 3883,
-      "origin": "flow arrow on row 25, col 44",
-      "attr": {
-        "fg": 9,
-        "bg": 0
-      },
-      "kind": "text",
-      "text": "v",
-      "hot": {
-        "signal": "stage_id_active",
-        "fg": 9,
-        "bg": 1
-      }
-    },
-    {
       "name": "arrow_25_12",
       "label": "^",
       "row": 25,
@@ -3765,30 +3741,6 @@
       }
     },
     {
-      "name": "arrow_33_43",
-      "label": "^",
-      "row": 33,
-      "col": 43,
-      "width": 1,
-      "fmt": "text",
-      "signal_bits": 8,
-      "display_min": 1,
-      "start_address": 5323,
-      "end_address": 5323,
-      "origin": "flow arrow on row 34, col 44",
-      "attr": {
-        "fg": 9,
-        "bg": 0
-      },
-      "kind": "text",
-      "text": "^",
-      "hot": {
-        "signal": "stage_ex_active",
-        "fg": 9,
-        "bg": 1
-      }
-    },
-    {
       "name": "arrow_33_72",
       "label": "^",
       "row": 33,
@@ -3808,30 +3760,6 @@
       "text": "^",
       "hot": {
         "signal": "stage_mem_active",
-        "fg": 9,
-        "bg": 1
-      }
-    },
-    {
-      "name": "arrow_36_43",
-      "label": "v",
-      "row": 36,
-      "col": 43,
-      "width": 1,
-      "fmt": "text",
-      "signal_bits": 8,
-      "display_min": 1,
-      "start_address": 5803,
-      "end_address": 5803,
-      "origin": "flow arrow on row 37, col 44",
-      "attr": {
-        "fg": 9,
-        "bg": 0
-      },
-      "kind": "text",
-      "text": "v",
-      "hot": {
-        "signal": "stage_ex_active",
         "fg": 9,
         "bg": 1
       }
@@ -3984,7 +3912,7 @@
   "tables": [
     {
       "name": "prog_memory",
-      "row": 9,
+      "row": 8,
       "col": 102,
       "addr_col": 102,
       "data_col": 108,
@@ -3997,7 +3925,7 @@
     },
     {
       "name": "data_memory",
-      "row": 9,
+      "row": 8,
       "col": 118,
       "addr_col": 118,
       "data_col": 124,

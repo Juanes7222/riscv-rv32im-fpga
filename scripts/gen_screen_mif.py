@@ -75,6 +75,8 @@ COLOR_TO_INDEX = {
     '5555FF': 13,  # register table
     '00AAAA': 14,  # title
     'FFD966': 15,  # HAZARDS SIGNALS
+    'FFFF00': 15,  # HALTED label
+    'FF0000': 11,  # Counters label
 }
 BODY_INDEX = 9
 
