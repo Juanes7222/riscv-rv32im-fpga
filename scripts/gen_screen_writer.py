@@ -129,9 +129,9 @@ MNEMONICS = {
                         '011': 'MULHU', '100': 'DIV', '101': 'DIVU',
                         '110': 'REM', 'default': 'REMU'},
         },
-        'funct3': {'000': 'ADD', '001': 'SLL', '010': 'SLT', '011': 'SLTU',
-                   '100': 'XOR', '101': ('SRL', 'SRA'), '110': 'OR',
-                   'default': 'AND'},
+        'funct3': {'000': ('ADD', 'SUB'), '001': 'SLL', '010': 'SLT',
+                   '011': 'SLTU', '100': 'XOR', '101': ('SRL', 'SRA'),
+                   '110': 'OR', 'default': 'AND'},
     },
     0b0010011: {
         'funct3': {'000': 'ADDI', '010': 'SLTI', '011': 'SLTIU',

@@ -113,6 +113,13 @@ module tb_vga_panel;
         "rd=10 rs1=03 rs2=04     ",
         "imm=00000404            "};
 
+    // sub x6, x1, x2: the subtraction is the operation with funct7[5] set.
+    localparam [PANEL_BITS-1:0] EXP_SUB = {
+        "INSTR 40208333          ",
+        "MNEM  SUB               ",
+        "rd=06 rs1=01 rs2=02     ",
+        "imm=00000000            "};
+
     logic clk = 1'b0;
     logic rst_n = 1'b0;
 
@@ -365,6 +372,7 @@ module tb_vga_panel;
         run_phase(32'h0262C433, EXP_DIV);
         run_phase(32'h4083D4B3, EXP_SRA);
         run_phase(32'h4041D513, EXP_SRAI);
+        run_phase(32'h40208333, EXP_SUB);
 
         $display("sweeps of the panel: %0d pipeline, %0d single-cycle",
                  sweeps[DUT_PIPE], sweeps[DUT_SC]);

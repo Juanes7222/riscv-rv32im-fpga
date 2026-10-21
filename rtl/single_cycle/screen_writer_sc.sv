@@ -394,7 +394,7 @@ module screen_writer_single_cycle #(
                     endcase
                 end else begin
                     case (dec_funct3)
-                        3'b000: dec_mnemonic = "ADD   ";
+                        3'b000: dec_mnemonic = dec_funct7[5] ? "SUB   " : "ADD   ";
                         3'b001: dec_mnemonic = "SLL   ";
                         3'b010: dec_mnemonic = "SLT   ";
                         3'b011: dec_mnemonic = "SLTU  ";
