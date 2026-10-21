@@ -4012,5 +4012,12 @@
       "only_on_access": true,
       "depth_param": "DMEM_DEPTH"
     }
-  ]
+  ],
+  "panel": {
+    "row": 37,
+    "col": 0,
+    "width": 31,
+    "lines": 4,
+    "instruction_signal": "ex_instruction"
+  }
 }

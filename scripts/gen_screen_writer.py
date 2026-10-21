@@ -81,6 +81,60 @@ TABLE_FILLER = 2      # the colon and the space behind the address
 # address.
 TABLE_WORD_BITS = 14
 
+# The decoding panel: the lines that show the instruction in flight,
+# decoded.  The panel is a group of its own: its characters are a mix of
+# constant text and values decoded from the instruction, so it computes
+# them from the line and the column it draws.
+PANEL_LINES = 4
+PANEL_CHARS = 24
+
+# The colour of the labels of the panel: the body colour of the console.
+PANEL_LABEL_FG = 9
+
+# The values of the panel: their width and their colour.
+PANEL_VALUES = {
+    'instr':    (8, 8),    # the instruction in flight
+    'mnemonic': (6, 15),   # its mnemonic
+    'rd':       (2, 13),   # the register numbers
+    'rs1':      (2, 13),
+    'rs2':      (2, 13),
+    'imm':      (8, 12),   # the immediate
+}
+
+# The lines of the panel: every line is a list of segments, and a segment
+# is a constant label or a value decoded from the instruction in flight.
+PANEL_CONTENT = (
+    (('text', 'INSTR'), ('text', ' '), ('value', 'instr')),
+    (('text', 'MNEM'), ('text', '  '), ('value', 'mnemonic')),
+    (('text', 'rd='), ('value', 'rd'), ('text', ' '),
+     ('text', 'rs1='), ('value', 'rs1'), ('text', ' '),
+     ('text', 'rs2='), ('value', 'rs2')),
+    (('text', 'imm='), ('value', 'imm')),
+)
+
+# The mnemonic of every instruction the panel decodes.  The table is
+# indexed by the opcode and the funct3 of the instruction; the names are
+# padded with spaces to the six characters of the field.
+MNEMONICS = {
+    0b0110011: {'000': 'ADD', '001': 'SLL', '010': 'SLT', '011': 'SLTU',
+                '100': 'XOR', '101': 'SRL', '110': 'OR', 'default': 'AND'},
+    0b0010011: {'000': 'ADDI', '010': 'SLTI', '011': 'SLTIU', '100': 'XORI',
+                '110': 'ORI', '001': 'SLLI', '101': 'SRLI', 'default': 'ANDI'},
+    0b0100011: {'000': 'SB', '001': 'SH', 'default': 'SW'},
+    0b0000011: {'000': 'LB', '001': 'LH', '100': 'LBU', '101': 'LHU',
+                'default': 'LW'},
+    0b1100011: {'000': 'BEQ', '001': 'BNE', '100': 'BLT', '101': 'BGE',
+                '110': 'BLTU', 'default': 'BGEU'},
+    0b1101111: {'default': 'JAL'},
+    0b1100111: {'default': 'JALR'},
+    0b0110111: {'default': 'LUI'},
+    0b0010111: {'default': 'AUIPC'},
+    0b0111011: {'000': 'MUL', '001': 'MULH', '010': 'MULHSU', '011': 'MULHU',
+                'default': ''},
+    0b1111011: {'000': 'DIV', '001': 'DIVU', '010': 'REM', '011': 'REMU',
+                'default': ''},
+}
+
 
 def is_reg_field(name: str) -> bool:
     return re.fullmatch(r'x\d+', name) is not None
@@ -505,6 +559,312 @@ def table_blocks(t: dict) -> dict:
             'fsm': fsm, 'case': case}
 
 
+def panel_segments() -> List[List[dict]]:
+    """The segments of every line of the panel: their columns and their kind.
+
+    A segment is a constant label or a value; the width of a value comes
+    from its kind."""
+    lines = []
+    for line in PANEL_CONTENT:
+        segments = []
+        col = 0
+        for kind, content in line:
+            width = len(content) if kind == 'text' else PANEL_VALUES[content][0]
+            segments.append({'kind': kind, 'content': content, 'col': col,
+                             'width': width})
+            col += width
+        lines.append(segments)
+    return lines
+
+
+def label_name(text: str) -> str:
+    """The name of the constant that holds a label of the panel."""
+    return 'PANEL_TXT_' + re.sub(r'[^0-9A-Z]', '', text.upper())
+
+
+def panel_value_expression(kind: str, start: int, width: int) -> str:
+    """The expression of the characters of a value of the panel.
+
+    The register numbers are decimal, the instruction word and the
+    immediate are hex, and the mnemonic is the packed string the decoder
+    delivers."""
+    last = start + width - 1
+    if kind == 'instr':
+        return f'hex_digit(dec_instr, {last} - col)'
+    if kind == 'imm':
+        return f'hex_digit(dec_imm, {last} - col)'
+    if kind == 'mnemonic':
+        return f"8'((dec_mnemonic >> (8*({last} - col))) & 8'hFF)"
+    if kind in ('rd', 'rs1', 'rs2'):
+        return f'dec_digit(dec_{kind}, col - {start})'
+    raise ValueError(f"Unknown value of the panel: '{kind}'.")
+
+
+def panel_char_function(lines: List[List[dict]]) -> str:
+    """The function that returns the character of a cell of the panel.
+
+    The multiplexer of the panel has one input per segment of a line and
+    not one per character: the labels are constant text and the values are
+    decoded from the instruction in flight."""
+    cases = []
+    for index, segments in enumerate(lines):
+        branches = []
+        for segment in segments:
+            start = segment['col']
+            end = start + segment['width']
+            if segment['kind'] == 'text':
+                text = segment['content']
+                if len(set(text)) == 1:
+                    # A run of the same character: a space between the
+                    # values of a line.
+                    expr = f"8'h{ord(text[0]):02X}"
+                else:
+                    name = label_name(text)
+                    expr = (f"8'(({name} >> (8*({end - 1} - col))) "
+                            f"& 8'hFF)")
+            else:
+                expr = panel_value_expression(segment['content'], start,
+                                              segment['width'])
+            branches.append((end, expr))
+        body = []
+        for position, (end, expr) in enumerate(branches):
+            keyword = 'if' if position == 0 else 'else if'
+            body.append(f'                    {keyword} (col < {end})')
+            body.append(f'                        panel_char = {expr};')
+        body.append('                    else')
+        body.append("                        panel_char = 8'h20;  // ' '")
+        cases.append(f'                {index}: begin\n' +
+                     '\n'.join(body) + '\n                end')
+    return f"""    // The character of a cell of the panel: the labels are constant text,
+    // the values are decoded from the instruction in flight.
+    function automatic [7:0] panel_char(input int unsigned line,
+                                        input int unsigned col);
+        begin
+            case (line)
+{chr(10).join(cases)}
+                default: panel_char = 8'h20;  // ' '
+            endcase
+        end
+    endfunction"""
+
+
+def panel_attr_function(lines: List[List[dict]]) -> str:
+    """The function that returns the attribute of a cell of the panel.
+
+    The labels wear the body colour, every value the colour of its kind."""
+    cases = []
+    for index, segments in enumerate(lines):
+        colours: dict = {}
+        for segment in segments:
+            if segment['kind'] != 'value':
+                continue
+            fg = PANEL_VALUES[segment['content']][1]
+            colours.setdefault(fg, []).append(segment)
+        expr = f"8'h{PANEL_LABEL_FG:02X}"
+        for fg, group in reversed(list(colours.items())):
+            conditions = ' || '.join(
+                f"(col >= {s['col']} && col < {s['col'] + s['width']})"
+                for s in group
+            )
+            expr = f"{conditions} ? 8'h{fg:02X} : {expr}"
+        cases.append(f'                {index}: panel_attr = {expr};')
+    return f"""    // The attribute of a cell of the panel: the labels wear the body
+    // colour, every value the colour of its kind.
+    function automatic [7:0] panel_attr(input int unsigned line,
+                                        input int unsigned col);
+        begin
+            case (line)
+{chr(10).join(cases)}
+                default: panel_attr = 8'h{PANEL_LABEL_FG:02X};
+            endcase
+        end
+    endfunction"""
+
+
+def panel_mnemonic_case() -> str:
+    """The case that decodes the mnemonic of the instruction in flight."""
+    cases = []
+    for opcode, funct3s in MNEMONICS.items():
+        if list(funct3s) == ['default']:
+            cases.append(f"            7'b{opcode:07b}: "
+                         f'dec_mnemonic = "{funct3s["default"]:<6}";')
+            continue
+        items = []
+        for funct3, name in funct3s.items():
+            if funct3 == 'default':
+                items.append(f'                    default: '
+                             f'dec_mnemonic = "{name:<6}";')
+            else:
+                items.append(f"                    3'b{funct3}: "
+                             f'dec_mnemonic = "{name:<6}";')
+        cases.append(f"            7'b{opcode:07b}: begin\n"
+                     '                case (dec_funct3)\n' +
+                     '\n'.join(items) + '\n'
+                     '                endcase\n'
+                     '            end')
+    return '\n'.join(cases)
+
+
+def build_panel_group(panel: dict, screen_width: int) -> dict:
+    """Build the description of the group of the decoding panel.
+
+    The panel is not an ordinary field group: its characters come from
+    the line and the column it draws, so the multiplexer of the group has
+    one input per segment of a line and not one per character."""
+    if panel['width'] < PANEL_CHARS:
+        raise ValueError(
+            f"The decoding panel is {panel['width']} characters wide, but "
+            f'its lines are {PANEL_CHARS} characters long.'
+        )
+    if panel['lines'] != PANEL_LINES:
+        raise ValueError(
+            f"The decoding panel has {panel['lines']} lines, but the "
+            f'generator draws {PANEL_LINES}.'
+        )
+    return {
+        'name': 'PANEL',
+        'n': PANEL_LINES * PANEL_CHARS,
+        'fields': [],
+        'params': '',
+        'cases': '',
+        'snap': [],
+        'is_panel': True,
+        'row0': panel['row'] * screen_width + panel['col'],
+    }
+
+
+def panel_blocks(group: dict, screen_width: int, snapshot: str) -> dict:
+    """The generated blocks of the decoding panel.
+
+    The panel owns its state: the line and the column it draws, and the
+    instruction it decodes.  The instruction is captured at the sweep
+    boundary, because the word and its decode have to describe the same
+    instruction, and the field groups reload the shared snapshot bank
+    while the panel is drawn."""
+    lines = panel_segments()
+
+    labels = []
+    for segments in lines:
+        for segment in segments:
+            text = segment['content']
+            if segment['kind'] != 'text' or len(set(text)) == 1:
+                continue
+            if text not in labels:
+                labels.append(text)
+    label_decls = '\n'.join(
+        f'    // "{text}"\n'
+        f"    localparam logic [{8 * len(text) - 1}:0] {label_name(text)} = "
+        f'"{text}";'
+        for text in labels
+    )
+
+    decls = f"""    // The decoding panel: the instruction in flight, decoded.
+    localparam int PANEL_LINES = {PANEL_LINES};
+    localparam int PANEL_CHARS = {PANEL_CHARS};
+    localparam logic [12:0] PANEL_ROW0 = 13'd{group['row0']};
+    localparam logic [12:0] PANEL_STRIDE = 13'd{screen_width};
+
+    logic [1:0]  panel_line;         // the line of the panel being drawn
+    logic [4:0]  panel_col;          // the column of the line being drawn
+    logic [31:0] panel_instruction;  // the instruction the panel decodes
+
+    // The labels of the panel: constant text.
+{label_decls}"""
+
+    wires = f"""    // Instruction decode of the instruction in flight.
+    wire [31:0] dec_instr  = panel_instruction;
+    wire [6:0]  dec_opcode = panel_instruction[6:0];
+    wire [2:0]  dec_funct3 = panel_instruction[14:12];
+    wire [6:0]  dec_funct7 = panel_instruction[31:25];
+    wire [4:0]  dec_rd     = panel_instruction[11:7];
+    wire [4:0]  dec_rs1    = panel_instruction[19:15];
+    wire [4:0]  dec_rs2    = panel_instruction[24:20];
+    wire [11:0] dec_imm_i  = panel_instruction[31:20];
+    wire [11:0] dec_imm_s  = {{panel_instruction[31:25], panel_instruction[11:7]}};
+    wire [12:0] dec_imm_b  = {{panel_instruction[31], panel_instruction[7],
+                               panel_instruction[30:25], panel_instruction[11:8], 1'b0}};
+    wire [19:0] dec_imm_u  = panel_instruction[31:12];
+    wire [20:0] dec_imm_j  = {{panel_instruction[31], panel_instruction[19:12],
+                               panel_instruction[20], panel_instruction[30:21], 1'b0}};
+
+    // 0 = R, 1 = I, 2 = S, 3 = B, 4 = U, 5 = J
+    logic [2:0] dec_format;
+    always_comb begin
+        case (dec_opcode)
+            7'b0110011, 7'b0111011:                dec_format = 3'd0;  // OP, M
+            7'b0010011, 7'b0000011,
+            7'b1100111, 7'b1110011:                dec_format = 3'd1;  // OP-IMM, LOAD, JALR, SYSTEM
+            7'b0100011:                            dec_format = 3'd2;  // STORE
+            7'b1100011:                            dec_format = 3'd3;  // BRANCH
+            7'b0110111, 7'b0010111:                dec_format = 3'd4;  // LUI, AUIPC
+            7'b1101111:                            dec_format = 3'd5;  // JAL
+            default:                               dec_format = 3'd0;
+        endcase
+    end
+
+    // The mnemonic of the instruction in flight.
+    logic [47:0] dec_mnemonic;
+    always_comb begin
+        case (dec_opcode)
+{panel_mnemonic_case()}
+            default:    dec_mnemonic = "      ";
+        endcase
+    end
+
+    // The immediate of the decoded format, zero extended.
+    wire [31:0] dec_imm = (dec_format == 3'd1) ? {{20'd0, dec_imm_i}} :
+                          (dec_format == 3'd2) ? {{20'd0, dec_imm_s}} :
+                          (dec_format == 3'd3) ? {{19'd0, dec_imm_b}} :
+                          (dec_format == 3'd4) ? {{12'd0, dec_imm_u}} :
+                          (dec_format == 3'd5) ? {{11'd0, dec_imm_j}} : 32'd0;
+
+    // The decimal digit of a register number: the tens first.
+    function automatic [7:0] dec_digit(input logic [4:0] value, input int pos);
+        logic [5:0] tens;
+        begin
+            tens = (value >= 10) + (value >= 20) + (value >= 30);
+            if (pos == 0)
+                dec_digit = 8'd48 + tens;
+            else
+                dec_digit = 8'd48 + (value - 10 * tens);
+        end
+    endfunction
+
+{panel_char_function(lines)}
+
+{panel_attr_function(lines)}
+"""
+
+    resets = """            panel_line <= '0;
+            panel_col <= '0;
+            panel_instruction <= '0;"""
+
+    fsm = f"""                GRP_PANEL: begin
+                    if (panel_col == PANEL_CHARS - 1) begin
+                        panel_col <= 5'd0;
+                        panel_line <= panel_line + 2'd1;
+                        // The next sweep decodes the instruction the bank
+                        // holds now: the word and its decode have to
+                        // describe the same instruction.
+                        if (panel_line == PANEL_LINES - 1)
+                            panel_instruction <= {snapshot};
+                    end else begin
+                        panel_col <= panel_col + 5'd1;
+                    end
+                end"""
+
+    case = """            GRP_PANEL: begin
+                wr_en   = 1'b1;
+                wr_addr = PANEL_ROW0 + {10'd0, panel_line} * PANEL_STRIDE
+                          + {8'd0, panel_col};
+                wr_data = panel_char(panel_line, panel_col);
+                wr_attr = panel_attr(panel_line, panel_col);
+            end"""
+
+    return {'decls': decls, 'wires': wires, 'resets': resets, 'fsm': fsm,
+            'case': case}
+
+
 def generate_rtl(data: dict, mode: str) -> str:
     """Produce the SystemVerilog source for the screen writer."""
     fields = data['fields']
@@ -561,6 +921,21 @@ def generate_rtl(data: dict, mode: str) -> str:
     # one input per column, not one per character.
     groups.extend(table_groups)
 
+    # The decoding panel is a group of its own: it mixes the constant text
+    # of its labels with the values decoded from the instruction in flight.
+    panel = data.get('panel')
+    if panel:
+        instruction = panel['instruction_signal']
+        if instruction not in snapshots:
+            raise ValueError(
+                f"The decoding panel decodes the signal '{instruction}', "
+                'which this design neither samples nor derives.'
+            )
+        panel_group = build_panel_group(panel, screen_width)
+        panel_group['blocks'] = panel_blocks(panel_group, screen_width,
+                                             f'snap_{instruction}')
+        groups.append(panel_group)
+
     input_ports = '\n'.join(
         f"    input logic [{port_widths[n]-1}:0] {n},"
         for n in port_names
@@ -616,6 +991,15 @@ def generate_rtl(data: dict, mode: str) -> str:
         total_chars += g['n']
 
         group_consts.append(f"    localparam int GRP_{gname} = {idx};")
+
+        if g.get('is_panel'):
+            # The panel computes its characters from the line and the column
+            # it draws, and it owns its state.
+            counter_decls.append(f"    localparam int N_{gname} = {g['n']};")
+            counter_fsm.append(g['blocks']['fsm'])
+            case_blocks.append(g['blocks']['case'])
+            continue
+
         counter_decls.append(
             f"    localparam int N_{gname} = {g['n']};\n"
             f"    localparam int CTR_{gname}_W = {g['ctr_w']};\n"
@@ -679,7 +1063,8 @@ def generate_rtl(data: dict, mode: str) -> str:
     n_groups = len(groups)
     grp_w = max(1, (n_groups - 1).bit_length())
     ctr_resets = '\n'.join(
-        f"            ctr_{g['name'].lower()} <= '0;" for g in groups
+        f"            ctr_{g['name'].lower()} <= '0;"
+        for g in groups if not g.get('is_panel')
     )
 
     derived = '\n'.join('\n'.join(format_wires(block)) for block in wires)
@@ -689,6 +1074,15 @@ def generate_rtl(data: dict, mode: str) -> str:
     table_wires = '\n'.join(t['blocks']['wires'] for t in table_groups)
     table_state = '\n'.join(t['blocks']['state'] for t in table_groups)
     table_resets = '\n'.join(t['blocks']['resets'] for t in table_groups)
+
+    panel_decls = ''
+    panel_wires = ''
+    panel_resets = ''
+    for g in groups:
+        if g.get('is_panel'):
+            panel_decls = g['blocks']['decls']
+            panel_wires = g['blocks']['wires']
+            panel_resets = g['blocks']['resets']
 
     sv = f'''// screen_writer_{mode} - auto-generated by gen_screen_writer.py
 // Character-level round-robin, {total_chars} characters split in {n_groups}
@@ -730,6 +1124,8 @@ module screen_writer_{mode} #(
 
 {table_decls}
 
+{panel_decls}
+
 {table_wires}
 
 {shadow_ties}    logic [GRP_W-1:0] grp_ctr;
@@ -746,6 +1142,7 @@ module screen_writer_{mode} #(
     // Derived signals used by the attribute expressions; a signal may come
     // from a snapshot of another group, so it can lag one sweep behind.
 {derived_block}
+{panel_wires}
 {table_state}
     // Helper functions: value --> ASCII
     function automatic [7:0] hex_digit (
@@ -783,6 +1180,7 @@ module screen_writer_{mode} #(
 {snap_reset}
 {ctr_resets}
 {table_resets}
+{panel_resets}
         end else begin
             grp_ctr <= (grp_ctr == N_GROUPS - 1) ? '0 : grp_ctr + 1'b1;
             case (grp_ctr)

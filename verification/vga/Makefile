@@ -25,6 +25,10 @@ TABLE_TB  := tb_vga_table
 TABLE_RTL := ../../rtl/pipeline/screen_writer_pipeline.sv \
              ../../rtl/single_cycle/screen_writer_sc.sv
 
+PANEL_TB  := tb_vga_panel
+PANEL_RTL := ../../rtl/pipeline/screen_writer_pipeline.sv \
+             ../../rtl/single_cycle/screen_writer_sc.sv
+
 # The shadow memories include ../shared/mem_config.vh, so the include path
 # of the shared directory is needed.  MEM_CONFIG_VH switches the memory
 # images off: the shadow tests start from an empty memory and need none.
@@ -44,7 +48,7 @@ ROM_IMG := ../../build/vga_rom_shadow.mem
 
 all: run
 
-run: run-step run-palette run-highlight run-shadow run-rom run-table
+run: run-step run-palette run-highlight run-shadow run-rom run-table run-panel
 	$(SIM) -g2012 -o $(TB).vvp $(TB).sv $(RTL)
 	$(VVP) $(TB).vvp
 
@@ -76,6 +80,10 @@ run-table:
 	$(SIM) -g2012 -o $(TABLE_TB).vvp $(TABLE_TB).sv $(TABLE_RTL)
 	$(VVP) $(TABLE_TB).vvp
 
+run-panel:
+	$(SIM) -g2012 -o $(PANEL_TB).vvp $(PANEL_TB).sv $(PANEL_RTL)
+	$(VVP) $(PANEL_TB).vvp
+
 $(ROM_IMG):
 	@mkdir -p $(dir $@)
 	@printf 'AABBCCDD\n11223344\n55667788\n99AABBCC\n' > $@
@@ -83,7 +91,7 @@ $(ROM_IMG):
 clean:
 	rm -f $(TB).vvp $(STEP_TB).vvp $(PALETTE_TB).vvp $(HL_TB).vvp \
 	      $(PIPE_HL_TB).vvp $(SHADOW_TB).vvp $(MIRROR_TB).vvp $(ROM_TB).vvp \
-	      $(TABLE_TB).vvp
+	      $(TABLE_TB).vvp $(PANEL_TB).vvp
 
 .PHONY: all run run-step run-palette run-highlight run-shadow run-rom \
-	run-table clean
+	run-table run-panel clean

@@ -109,6 +109,22 @@ EXECUTING_PC: Dict[str, str] = {
     'Single-cycle': 'snap_pc',
 }
 
+# The decoding panel of the console: the rectangle of the screen the
+# instruction in flight is decoded in.  The template leaves the rectangle
+# empty, so the writer can paint it without touching a box border.
+PANEL_GEOMETRY: Dict[str, Dict[str, int]] = {
+    'Pipeline': {'row': 37, 'col': 0, 'width': 31, 'lines': 4},
+    'Single-cycle': {'row': 36, 'col': 83, 'width': 24, 'lines': 4},
+}
+
+# The instruction the panel decodes, per sheet: the one that executes.  The
+# pipeline has it in the EX stage, the single-cycle design has only one
+# stage.
+PANEL_INSTRUCTION: Dict[str, str] = {
+    'Pipeline': 'ex_instruction',
+    'Single-cycle': 'instruction',
+}
+
 # The stage boxes of each sheet and the signal that lights them up.  The two
 # designs derive different signals, so the map is per sheet: a stage is
 # active when its instruction register holds neither zero nor the canonical
@@ -957,6 +973,64 @@ def check_tables_do_not_overlap(tables: List[dict]) -> None:
                 )
 
 
+# The decoding panel of the console
+def panel_geometry(sheet: str) -> dict:
+    """The geometry of the decoding panel of a sheet.
+
+    The panel is a rectangle of the screen and the instruction it decodes.
+    The writer paints the rectangle, so the contract has to name both."""
+    geometry = dict(PANEL_GEOMETRY[sheet])
+    geometry['instruction_signal'] = PANEL_INSTRUCTION[sheet]
+    return geometry
+
+
+def check_panel_is_free(grid: List[List[str]], panel: dict,
+                        slots: List[Slot], tables: List[dict]) -> None:
+    """Fail when the decoding panel would paint over something else.
+
+    The panel is drawn in a rectangle the template leaves empty: a field,
+    a live table or a character of the template inside it would be
+    destroyed by the writer."""
+    row = panel['row']
+    col = panel['col']
+    rows = panel['lines']
+    width = panel['width']
+
+    if row + rows > SCREEN_H or col + width > SCREEN_W:
+        raise ValueError(
+            f'The decoding panel (row {row + 1}, col {col + 1}, '
+            f'{rows} lines of {width} characters) does not fit on the '
+            f'{SCREEN_W}x{SCREEN_H} screen.'
+        )
+
+    for s in slots:
+        if (row <= s.row < row + rows and
+                s.col < col + width and col < s.col + s.width):
+            raise ValueError(
+                f'The decoding panel collides with the field "{s.label}" '
+                f'on row {s.row + 1}.'
+            )
+
+    for t in tables:
+        rows_overlap = (row < t['row'] + t['rows'] and
+                        t['row'] < row + rows)
+        cols_overlap = (col < t['col'] + t['row_bytes'] and
+                        t['col'] < col + width)
+        if rows_overlap and cols_overlap:
+            raise ValueError(
+                f'The decoding panel collides with the table '
+                f'"{t["name"]}".'
+            )
+
+    for r in range(row, row + rows):
+        for c in range(col, col + width):
+            if grid[r][c] != ' ':
+                raise ValueError(
+                    f'The decoding panel covers the character '
+                    f'"{grid[r][c]}" on row {r + 1}, col {c + 1}.'
+                )
+
+
 # Step 6 - Stage headers and flow arrows
 def identifier(text: str) -> str:
     """A name that can be used as an identifier in the generated RTL."""
@@ -1173,7 +1247,7 @@ def build_mif(grid: List[List[str]], colors: List[List[int]],
         fp.write('END;\n')
 
 
-def write_field_map(slots: List[Slot], tables: List[dict],
+def write_field_map(slots: List[Slot], tables: List[dict], panel: dict,
                     out_path: Path) -> None:
     """Write the formal contract as JSON."""
     payload = {
@@ -1182,6 +1256,7 @@ def write_field_map(slots: List[Slot], tables: List[dict],
         'cell_count': CELLS,
         'fields': [s.to_dict() for s in slots],
         'tables': tables,
+        'panel': panel,
     }
     with open(out_path, 'w') as fp:
         json.dump(payload, fp, indent=2)
@@ -1272,13 +1347,23 @@ def main() -> int:
         print(f'ERROR: {exc}', file=sys.stderr)
         return 1
 
+    # The decoding panel: the rectangle the writer paints.
+    panel = panel_geometry(args.sheet)
+    try:
+        check_panel_is_free(grid, panel, slots, tables)
+    except ValueError as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        return 1
+
     # Generate artifacts
     build_mif(grid, colors, slots, Path(args.out_mif))
-    write_field_map(slots, tables, Path(args.out_fields))
+    write_field_map(slots, tables, panel, Path(args.out_fields))
 
     print(f'Rewrite fields: {len(header_slots)} stage header characters, '
           f'{len(arrow_slots)} flow arrow characters')
     print(f'Live tables: {[t["name"] for t in tables]}')
+    print(f'Decoding panel: row {panel["row"] + 1}, col {panel["col"] + 1}, '
+          f'{panel["lines"]} lines of {panel["width"]} characters')
     print(f'OK: {len(slots)} slots --> {args.out_mif} + {args.out_fields}')
     return 0
 
