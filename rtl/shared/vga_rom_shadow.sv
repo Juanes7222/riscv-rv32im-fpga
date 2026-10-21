@@ -3,6 +3,12 @@
 // The program is a ROM, so the copy never changes: it is initialised from
 // the same image the processor's instruction memory uses and read from the
 // VGA clock domain.
+//
+// The shadow returns the word of the array for every address, while the
+// processor's instruction memories return a NOP beyond the image: the
+// difference is accepted, because the multiplexer that would produce the
+// NOP keeps Quartus from inferring the M10K, and the Fmax it costs is
+// worth more than that corner case.
 `include "../shared/mem_config.vh"
 
 module vga_rom_shadow #(
@@ -26,13 +32,7 @@ module vga_rom_shadow #(
     logic [ADDR_BITS-1:0] word_index;
     assign word_index = rd_addr[ADDR_BITS+1:2];
 
-    // An address beyond the memory fetches a NOP, exactly like the
-    // processor's instruction memory, so the console never shows a word
-    // where the processor would execute a NOP.
-    logic addr_out_of_bounds;
-    assign addr_out_of_bounds = (rd_addr[31:ADDR_BITS+2] != 0);
-
     always_ff @(posedge rd_clk) begin
-        rd_data <= addr_out_of_bounds ? 32'h00000013 : mem[word_index];
+        rd_data <= mem[word_index];
     end
 endmodule

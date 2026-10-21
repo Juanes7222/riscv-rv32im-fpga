@@ -1,5 +1,8 @@
 // ROM shadow: the program image must be loaded and read in the VGA clock
-// domain, one word per pixel-clock cycle.
+// domain, one word per pixel-clock cycle.  The shadow is a plain ROM: an
+// address beyond the image is truncated to the depth of the array and
+// lands on a lower word, because the multiplexer that would return a NOP
+// keeps Quartus from inferring the M10K.
 module tb_vga_rom_shadow;
     logic rd_clk = 0;
     always #5 rd_clk = ~rd_clk;
@@ -24,11 +27,11 @@ module tb_vga_rom_shadow;
         expect_word(32'd4,  32'h11223344);
         expect_word(32'd8,  32'h55667788);
         expect_word(32'd12, 32'h99AABBCC);
-        // An address beyond the program fetches a NOP, exactly like the
-        // processor's instruction memory, so the console never shows a
-        // word where the processor would execute a NOP.
-        expect_word(32'd16, 32'h00000013);
-        expect_word(32'hFFFFFFF0, 32'h00000013);
+        // An address beyond the program is truncated to the depth of the
+        // array, so it lands on a lower word: the shadow is a plain ROM
+        // and has no out-of-range multiplexer.
+        expect_word(32'd16, 32'hAABBCCDD);
+        expect_word(32'hFFFFFFF0, 32'hAABBCCDD);
         $display("PASS");
         $finish;
     end
