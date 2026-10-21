@@ -511,7 +511,7 @@ module screen_writer_pipeline #(
     logic [2:0] dec_format;
     always_comb begin
         case (dec_opcode)
-            7'b0110011, 7'b0111011:                dec_format = 3'd0;  // OP, M
+            7'b0110011:                            dec_format = 3'd0;  // OP
             7'b0010011, 7'b0000011,
             7'b1100111, 7'b1110011:                dec_format = 3'd1;  // OP-IMM, LOAD, JALR, SYSTEM
             7'b0100011:                            dec_format = 3'd2;  // STORE
@@ -527,16 +527,29 @@ module screen_writer_pipeline #(
     always_comb begin
         case (dec_opcode)
             7'b0110011: begin
-                case (dec_funct3)
-                    3'b000: dec_mnemonic = "ADD   ";
-                    3'b001: dec_mnemonic = "SLL   ";
-                    3'b010: dec_mnemonic = "SLT   ";
-                    3'b011: dec_mnemonic = "SLTU  ";
-                    3'b100: dec_mnemonic = "XOR   ";
-                    3'b101: dec_mnemonic = "SRL   ";
-                    3'b110: dec_mnemonic = "OR    ";
-                    default: dec_mnemonic = "AND   ";
-                endcase
+                if (dec_funct7 == 7'b0000001) begin
+                    case (dec_funct3)
+                        3'b000: dec_mnemonic = "MUL   ";
+                        3'b001: dec_mnemonic = "MULH  ";
+                        3'b010: dec_mnemonic = "MULHSU";
+                        3'b011: dec_mnemonic = "MULHU ";
+                        3'b100: dec_mnemonic = "DIV   ";
+                        3'b101: dec_mnemonic = "DIVU  ";
+                        3'b110: dec_mnemonic = "REM   ";
+                        default: dec_mnemonic = "REMU  ";
+                    endcase
+                end else begin
+                    case (dec_funct3)
+                        3'b000: dec_mnemonic = "ADD   ";
+                        3'b001: dec_mnemonic = "SLL   ";
+                        3'b010: dec_mnemonic = "SLT   ";
+                        3'b011: dec_mnemonic = "SLTU  ";
+                        3'b100: dec_mnemonic = "XOR   ";
+                        3'b101: dec_mnemonic = dec_funct7[5] ? "SRA   " : "SRL   ";
+                        3'b110: dec_mnemonic = "OR    ";
+                        default: dec_mnemonic = "AND   ";
+                    endcase
+                end
             end
             7'b0010011: begin
                 case (dec_funct3)
@@ -546,7 +559,7 @@ module screen_writer_pipeline #(
                     3'b100: dec_mnemonic = "XORI  ";
                     3'b110: dec_mnemonic = "ORI   ";
                     3'b001: dec_mnemonic = "SLLI  ";
-                    3'b101: dec_mnemonic = "SRLI  ";
+                    3'b101: dec_mnemonic = dec_funct7[5] ? "SRAI  " : "SRLI  ";
                     default: dec_mnemonic = "ANDI  ";
                 endcase
             end
@@ -576,27 +589,17 @@ module screen_writer_pipeline #(
                     default: dec_mnemonic = "BGEU  ";
                 endcase
             end
-            7'b1101111: dec_mnemonic = "JAL   ";
-            7'b1100111: dec_mnemonic = "JALR  ";
-            7'b0110111: dec_mnemonic = "LUI   ";
-            7'b0010111: dec_mnemonic = "AUIPC ";
-            7'b0111011: begin
-                case (dec_funct3)
-                    3'b000: dec_mnemonic = "MUL   ";
-                    3'b001: dec_mnemonic = "MULH  ";
-                    3'b010: dec_mnemonic = "MULHSU";
-                    3'b011: dec_mnemonic = "MULHU ";
-                    default: dec_mnemonic = "      ";
-                endcase
+            7'b1101111: begin
+                dec_mnemonic = "JAL   ";
             end
-            7'b1111011: begin
-                case (dec_funct3)
-                    3'b000: dec_mnemonic = "DIV   ";
-                    3'b001: dec_mnemonic = "DIVU  ";
-                    3'b010: dec_mnemonic = "REM   ";
-                    3'b011: dec_mnemonic = "REMU  ";
-                    default: dec_mnemonic = "      ";
-                endcase
+            7'b1100111: begin
+                dec_mnemonic = "JALR  ";
+            end
+            7'b0110111: begin
+                dec_mnemonic = "LUI   ";
+            end
+            7'b0010111: begin
+                dec_mnemonic = "AUIPC ";
             end
             default:    dec_mnemonic = "      ";
         endcase

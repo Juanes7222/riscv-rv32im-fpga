@@ -82,6 +82,37 @@ module tb_vga_panel;
         "rd=08 rs1=01 rs2=02     ",
         "imm=00000008            "};
 
+    // mul x7, x3, x4: the M extension of this core is OP with
+    // funct7 = 0000001.
+    localparam [PANEL_BITS-1:0] EXP_MUL = {
+        "INSTR 024183B3          ",
+        "MNEM  MUL               ",
+        "rd=07 rs1=03 rs2=04     ",
+        "imm=00000000            "};
+
+    // div x8, x5, x6
+    localparam [PANEL_BITS-1:0] EXP_DIV = {
+        "INSTR 0262C433          ",
+        "MNEM  DIV               ",
+        "rd=08 rs1=05 rs2=06     ",
+        "imm=00000000            "};
+
+    // sra x9, x7, x8: the shift to the right is SRA when funct7[5] is
+    // set, SRL otherwise.
+    localparam [PANEL_BITS-1:0] EXP_SRA = {
+        "INSTR 4083D4B3          ",
+        "MNEM  SRA               ",
+        "rd=09 rs1=07 rs2=08     ",
+        "imm=00000000            "};
+
+    // srai x10, x3, 4: the immediate field of a shift immediate holds
+    // the funct7 of the instruction, so the panel shows it whole.
+    localparam [PANEL_BITS-1:0] EXP_SRAI = {
+        "INSTR 4041D513          ",
+        "MNEM  SRAI              ",
+        "rd=10 rs1=03 rs2=04     ",
+        "imm=00000404            "};
+
     logic clk = 1'b0;
     logic rst_n = 1'b0;
 
@@ -330,6 +361,10 @@ module tb_vga_panel;
         run_phase(32'h00410093, EXP_ADDI_X2);
         run_phase(32'h0000A083, EXP_LW);
         run_phase(32'h00208463, EXP_BEQ);
+        run_phase(32'h024183B3, EXP_MUL);
+        run_phase(32'h0262C433, EXP_DIV);
+        run_phase(32'h4083D4B3, EXP_SRA);
+        run_phase(32'h4041D513, EXP_SRAI);
 
         $display("sweeps of the panel: %0d pipeline, %0d single-cycle",
                  sweeps[DUT_PIPE], sweeps[DUT_SC]);

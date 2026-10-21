@@ -114,25 +114,45 @@ PANEL_CONTENT = (
 
 # The mnemonic of every instruction the panel decodes.  The table is
 # indexed by the opcode and the funct3 of the instruction; the names are
-# padded with spaces to the six characters of the field.
+# padded with spaces to the six characters of the field.  A name that
+# depends on the funct7 is a pair: the name for funct7[5] = 0 and the name
+# for funct7[5] = 1.
+#
+# The operations that need the funct7 of the instruction live in the
+# 'funct7' table of their opcode.  The M extension of this core is OP
+# with funct7 = 0000001, as the control unit decodes it; the opcodes of
+# the RISC-V manual cannot occur in this core.
 MNEMONICS = {
-    0b0110011: {'000': 'ADD', '001': 'SLL', '010': 'SLT', '011': 'SLTU',
-                '100': 'XOR', '101': 'SRL', '110': 'OR', 'default': 'AND'},
-    0b0010011: {'000': 'ADDI', '010': 'SLTI', '011': 'SLTIU', '100': 'XORI',
-                '110': 'ORI', '001': 'SLLI', '101': 'SRLI', 'default': 'ANDI'},
-    0b0100011: {'000': 'SB', '001': 'SH', 'default': 'SW'},
-    0b0000011: {'000': 'LB', '001': 'LH', '100': 'LBU', '101': 'LHU',
-                'default': 'LW'},
-    0b1100011: {'000': 'BEQ', '001': 'BNE', '100': 'BLT', '101': 'BGE',
-                '110': 'BLTU', 'default': 'BGEU'},
-    0b1101111: {'default': 'JAL'},
-    0b1100111: {'default': 'JALR'},
-    0b0110111: {'default': 'LUI'},
-    0b0010111: {'default': 'AUIPC'},
-    0b0111011: {'000': 'MUL', '001': 'MULH', '010': 'MULHSU', '011': 'MULHU',
-                'default': ''},
-    0b1111011: {'000': 'DIV', '001': 'DIVU', '010': 'REM', '011': 'REMU',
-                'default': ''},
+    0b0110011: {
+        'funct7': {
+            '0000001': {'000': 'MUL', '001': 'MULH', '010': 'MULHSU',
+                        '011': 'MULHU', '100': 'DIV', '101': 'DIVU',
+                        '110': 'REM', 'default': 'REMU'},
+        },
+        'funct3': {'000': 'ADD', '001': 'SLL', '010': 'SLT', '011': 'SLTU',
+                   '100': 'XOR', '101': ('SRL', 'SRA'), '110': 'OR',
+                   'default': 'AND'},
+    },
+    0b0010011: {
+        'funct3': {'000': 'ADDI', '010': 'SLTI', '011': 'SLTIU',
+                   '100': 'XORI', '110': 'ORI', '001': 'SLLI',
+                   '101': ('SRLI', 'SRAI'), 'default': 'ANDI'},
+    },
+    0b0100011: {
+        'funct3': {'000': 'SB', '001': 'SH', 'default': 'SW'},
+    },
+    0b0000011: {
+        'funct3': {'000': 'LB', '001': 'LH', '100': 'LBU', '101': 'LHU',
+                   'default': 'LW'},
+    },
+    0b1100011: {
+        'funct3': {'000': 'BEQ', '001': 'BNE', '100': 'BLT', '101': 'BGE',
+                   '110': 'BLTU', 'default': 'BGEU'},
+    },
+    0b1101111: {'funct3': {'default': 'JAL'}},
+    0b1100111: {'funct3': {'default': 'JALR'}},
+    0b0110111: {'funct3': {'default': 'LUI'}},
+    0b0010111: {'funct3': {'default': 'AUIPC'}},
 }
 
 
@@ -681,27 +701,60 @@ def panel_attr_function(lines: List[List[dict]]) -> str:
     endfunction"""
 
 
+def mnemonic_expression(name) -> str:
+    """The expression of a mnemonic.
+
+    A name is a string, or a pair: the name for funct7[5] = 0 and the
+    name for funct7[5] = 1."""
+    if isinstance(name, tuple):
+        return f'dec_funct7[5] ? "{name[1]:<6}" : "{name[0]:<6}"'
+    return f'"{name:<6}"'
+
+
+def mnemonic_funct3_case(funct3s: dict, indent: int) -> str:
+    """The case over the funct3 that gives the mnemonic."""
+    pad = ' ' * indent
+    if list(funct3s) == ['default']:
+        return (f'{pad}dec_mnemonic = '
+                f"{mnemonic_expression(funct3s['default'])};\n")
+    items = []
+    for funct3, name in funct3s.items():
+        if funct3 == 'default':
+            items.append(f'{pad}    default: '
+                         f'dec_mnemonic = {mnemonic_expression(name)};')
+        else:
+            items.append(f"{pad}    3'b{funct3}: "
+                         f'dec_mnemonic = {mnemonic_expression(name)};')
+    return (f'{pad}case (dec_funct3)\n' + '\n'.join(items) + '\n' +
+            f'{pad}endcase\n')
+
+
+def mnemonic_opcode_body(table: dict) -> str:
+    """The body of the case of one opcode.
+
+    The operations that need the funct7 of the instruction are decoded
+    first; the rest of the opcode only needs the funct3."""
+    funct7_table = table.get('funct7')
+    if funct7_table is None:
+        return mnemonic_funct3_case(table['funct3'], 16)
+    body = ''
+    for index, (funct7, funct3s) in enumerate(funct7_table.items()):
+        keyword = 'if' if index == 0 else 'end else if'
+        body += (f'                {keyword} '
+                 f"(dec_funct7 == 7'b{funct7}) begin\n" +
+                 mnemonic_funct3_case(funct3s, 20))
+    body += '                end else begin\n'
+    body += mnemonic_funct3_case(table['funct3'], 20)
+    body += '                end\n'
+    return body
+
+
 def panel_mnemonic_case() -> str:
     """The case that decodes the mnemonic of the instruction in flight."""
     cases = []
-    for opcode, funct3s in MNEMONICS.items():
-        if list(funct3s) == ['default']:
-            cases.append(f"            7'b{opcode:07b}: "
-                         f'dec_mnemonic = "{funct3s["default"]:<6}";')
-            continue
-        items = []
-        for funct3, name in funct3s.items():
-            if funct3 == 'default':
-                items.append(f'                    default: '
-                             f'dec_mnemonic = "{name:<6}";')
-            else:
-                items.append(f"                    3'b{funct3}: "
-                             f'dec_mnemonic = "{name:<6}";')
-        cases.append(f"            7'b{opcode:07b}: begin\n"
-                     '                case (dec_funct3)\n' +
-                     '\n'.join(items) + '\n'
-                     '                endcase\n'
-                     '            end')
+    for opcode, table in MNEMONICS.items():
+        cases.append(f"            7'b{opcode:07b}: begin\n" +
+                     mnemonic_opcode_body(table) + '            end')
     return '\n'.join(cases)
 
 
@@ -791,7 +844,7 @@ def panel_blocks(group: dict, screen_width: int, snapshot: str) -> dict:
     logic [2:0] dec_format;
     always_comb begin
         case (dec_opcode)
-            7'b0110011, 7'b0111011:                dec_format = 3'd0;  // OP, M
+            7'b0110011:                            dec_format = 3'd0;  // OP
             7'b0010011, 7'b0000011,
             7'b1100111, 7'b1110011:                dec_format = 3'd1;  // OP-IMM, LOAD, JALR, SYSTEM
             7'b0100011:                            dec_format = 3'd2;  // STORE
