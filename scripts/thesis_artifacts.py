@@ -1014,6 +1014,28 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
     losers = [m for m in measured if m.get("verdict") != "H1"]
     unmeasured = [m for m in metrics if not m.get("speedup")]
 
+    # Resource overhead of the pipeline and throughput per unit of logic.
+    overhead = {row["resource"]: row["overhead_pct"]
+                for row in efficiency_table(metrics, stats)
+                if row["overhead_pct"] is not None}
+    alm_overhead = overhead.get("alms", 0.0)
+    reg_overhead = overhead.get("registers", 0.0)
+    ram_overhead = overhead.get("ram_blocks", 0.0)
+    dsp_overhead = overhead.get("dsp_blocks", 0.0)
+
+    def mean_throughput(arch):
+        values = [m["arch"][arch]["throughput"]["mean"] for m in metrics
+                  if arch in m["arch"] and m["arch"][arch].get("throughput")]
+        return sum(values) / len(values) if values else None
+
+    per_alm_ratio = 1.0
+    sc_tp, pipe_tp = mean_throughput("single_cycle"), mean_throughput("pipeline")
+    sc_alms = stats["single_cycle"]["alms"]
+    pipe_alms = stats["pipeline"]["alms"]
+    if sc_tp and pipe_tp and sc_alms and pipe_alms:
+        per_alm_ratio = ((pipe_tp / (pipe_alms["mean"] / 1000.0))
+                         / (sc_tp / (sc_alms["mean"] / 1000.0)))
+
     def program_list(entries):
         return ", ".join(f"`{m['program']}`" for m in entries) if entries else "ninguno"
 
@@ -1036,11 +1058,19 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
             "conjunto de programas medido y no generaliza a cargas con una densidad "
             "de hazards superior a la de estos programas.\n")
     else:
+        penalties = [m["arch"]["pipeline"]["cpi"] / m["arch"]["single_cycle"]["cpi"] - 1
+                     for m in measured
+                     if m["arch"]["pipeline"]["cpi"] and m["arch"]["single_cycle"]["cpi"]]
         discussion_md = (
-            "El pipeline no supera al monociclo en ninguno de los programas medidos. "
-            "En este conjunto de cargas la penalización por hazards supera siempre a "
-            "la ganancia de frecuencia, de modo que la hipótesis de trabajo no queda "
-            "sostenida: el mayor Fmax del pipeline no se traduce en mayor "
+            "El pipeline no supera al monociclo en ninguno de los programas "
+            "medidos. La ganancia de frecuencia del pipeline es de "
+            f"{fmt((pipe_fmax['mean'] / sc_fmax['mean'] - 1) * 100, 1)} %, mientras "
+            "que la penalización por hazards elevate el CPI del pipeline entre "
+            f"{fmt(min(penalties) * 100, 0) if penalties else 0} % y "
+            f"{fmt(max(penalties) * 100, 0) if penalties else 0} % respecto al "
+            "monociclo: la segunda de las dos cantidades domina el resultado en "
+            "todos los programas, de modo que la hipótesis de trabajo no queda "
+            "sostenida y el mayor Fmax del pipeline no se traduce en mayor "
             "throughput.\n")
 
     md = []
@@ -1074,17 +1104,19 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
               "`\\ref{tab:verification_results}` resume el resultado.\n")
     md.append("## 7.3 Frecuencia máxima y recursos\n")
     md.append("La tabla `\\ref{tab:fmax_replicas}` presenta la Fmax de cada réplica y "
-              "la `\\ref{tab:resources}` la utilización de recursos. La "
-              "dispersión de la Fmax entre réplicas es baja en el monociclo y "
-              "moderada en el pipeline, lo que es coherente con la mayor libertad "
-              "de placement que deja una ruta crítica repartida en cinco "
-              "etapas.\n")
+              "la `\\ref{tab:resources}` la utilización de recursos. La dispersión "
+              f"de la Fmax entre réplicas es comparable en las dos arquitecturas "
+              f"(CV {fmt(sc_fmax['cv'])} % en el monociclo y {fmt(pipe_fmax['cv'])} "
+              f"% en el pipeline), de modo que la diferencia de Fmax entre los "
+              f"tratamientos ({fmt((pipe_fmax['mean'] / sc_fmax['mean'] - 1) * 100, 1)} %) "
+              "es mayor que la dispersión experimental y no es un artefacto del "
+              "proceso de síntesis.\n")
     md.append("## 7.4 CPI, IPC y throughput\n")
     md.append("La tabla `\\ref{tab:benchmarks}` muestra el CPI efectivo, el IPC y el "
               "throughput de cada programa. El monociclo presenta CPI = 1 en los "
               "programas sin división: cada ciclo retira una instrucción. La "
               "excepción es el programa de la extensión M, donde el divisor de 34 "
-              "ciceles mantiene el datapath ocupado y el CPI del monociclo sube a "
+              "ciclos mantiene el datapath ocupado y el CPI del monociclo sube a "
               "7.58. El pipeline retira una instrucción por ciclo en el mejor caso y "
               "pierde ciclos por hazard de datos, por vaciado de rama y por la "
               "latencia de la división.\n")
@@ -1096,17 +1128,31 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
               "La tabla `\\ref{tab:statistics}` recoge la estadística completa.\n")
     md.append("## 7.6 Eficiencia relativa\n")
     md.append("La tabla `\\ref{tab:efficiency}` contrasta el throughput con el costo "
-              "en recursos. El pipeline mejora el throughput con un número de "
-              "recursos que depende del tipo de recurso considerado, de modo que "
-              "la evaluación del intercambio entre rendimiento y área debe "
-              "hacerse recurso a recurso.\n")
+              "en recursos. El pipeline es más barato en lógica y más caro en "
+              "memoria: usa un "
+              f"{fmt(abs(alm_overhead), 0)} % menos de ALMs y un "
+              f"{fmt(abs(reg_overhead), 0)} % menos de registros, a cambio de un "
+              f"{fmt(ram_overhead, 0)} % más de bloques RAM y un "
+              f"{fmt(dsp_overhead, 0)} % más de bloques DSP. Expresado en throughput "
+              f"por mil ALMs, el pipeline multiplica por {fmt(per_alm_ratio, 2)} la "
+              "eficiencia del monociclo. El intercambio entre rendimiento y área "
+              "no es, por tanto, un compromiso equilibrado: en este diseño el "
+              "pipeline gana en área y pierde en throughput.\n")
     md.append("## 7.7 Evaluación de la hipótesis\n")
-    md.append(
-        f"La hipótesis de trabajo $H_1$ se sostiene en los programas "
-        f"{program_list(winners)} y no se descarta en los programas "
-        f"{program_list(losers)}. La tabla `\\ref{{tab:speedup}}` muestra el speedup "
-        "del pipeline respecto al monociclo y el extremo inferior de su "
-        "dispersión.\n")
+    if winners:
+        md.append(
+            f"La hipótesis de trabajo $H_1$ se sostiene en los programas "
+            f"{program_list(winners)} y no se descarta en los programas "
+            f"{program_list(losers)}. La tabla `\\ref{{tab:speedup}}` muestra el speedup "
+            "del pipeline respecto al monociclo y el extremo inferior de su "
+            "dispersión.\n")
+    else:
+        md.append(
+            "La hipótesis de trabajo $H_1$ no se sostiene en ninguno de los "
+            "programas medidos: el extremo inferior de la dispersión del speedup "
+            "queda por debajo de uno en todos los casos. La tabla "
+            "`\\ref{tab:speedup}` muestra el speedup del pipeline respecto al "
+            "monociclo y su dispersión.\n")
     md.append("## 7.8 Discusión\n")
     md.append(discussion_md)
     md.append("## 7.9 Limitaciones\n")

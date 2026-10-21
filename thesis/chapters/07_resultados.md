@@ -14,11 +14,11 @@ Antes de medir el rendimiento se verificó la corrección funcional de ambas imp
 
 ## 7.3 Frecuencia máxima y recursos
 
-La tabla `\ref{tab:fmax_replicas}` presenta la Fmax de cada réplica y la `\ref{tab:resources}` la utilización de recursos. La dispersión de la Fmax entre réplicas es baja en el monociclo y moderada en el pipeline, lo que es coherente con la mayor libertad de placement que deja una ruta crítica repartida en cinco etapas.
+La tabla `\ref{tab:fmax_replicas}` presenta la Fmax de cada réplica y la `\ref{tab:resources}` la utilización de recursos. La dispersión de la Fmax entre réplicas es comparable en las dos arquitecturas (CV 1.38 % en el monociclo y 1.43 % en el pipeline), de modo que la diferencia de Fmax entre los tratamientos (2.9 %) es mayor que la dispersión experimental y no es un artefacto del proceso de síntesis.
 
 ## 7.4 CPI, IPC y throughput
 
-La tabla `\ref{tab:benchmarks}` muestra el CPI efectivo, el IPC y el throughput de cada programa. El monociclo presenta CPI = 1 en los programas sin división: cada ciclo retira una instrucción. La excepción es el programa de la extensión M, donde el divisor de 34 ciceles mantiene el datapath ocupado y el CPI del monociclo sube a 7.58. El pipeline retira una instrucción por ciclo en el mejor caso y pierde ciclos por hazard de datos, por vaciado de rama y por la latencia de la división.
+La tabla `\ref{tab:benchmarks}` muestra el CPI efectivo, el IPC y el throughput de cada programa. El monociclo presenta CPI = 1 en los programas sin división: cada ciclo retira una instrucción. La excepción es el programa de la extensión M, donde el divisor de 34 ciclos mantiene el datapath ocupado y el CPI del monociclo sube a 7.58. El pipeline retira una instrucción por ciclo en el mejor caso y pierde ciclos por hazard de datos, por vaciado de rama y por la latencia de la división.
 
 ## 7.5 Análisis estadístico
 
@@ -26,15 +26,15 @@ Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviaci�
 
 ## 7.6 Eficiencia relativa
 
-La tabla `\ref{tab:efficiency}` contrasta el throughput con el costo en recursos. El pipeline mejora el throughput con un número de recursos que depende del tipo de recurso considerado, de modo que la evaluación del intercambio entre rendimiento y área debe hacerse recurso a recurso.
+La tabla `\ref{tab:efficiency}` contrasta el throughput con el costo en recursos. El pipeline es más barato en lógica y más caro en memoria: usa un 68 % menos de ALMs y un 79 % menos de registros, a cambio de un 13 % más de bloques RAM y un 43 % más de bloques DSP. Expresado en throughput por mil ALMs, el pipeline multiplica por 2.11 la eficiencia del monociclo. El intercambio entre rendimiento y área no es, por tanto, un compromiso equilibrado: en este diseño el pipeline gana en área y pierde en throughput.
 
 ## 7.7 Evaluación de la hipótesis
 
-La hipótesis de trabajo $H_1$ se sostiene en los programas ninguno y no se descarta en los programas `branch_stress`, `coremark_iter1`, `coremark_iter10`, `load_use_stress`, `m_ext_stress`, `raw_stress`. La tabla `\ref{tab:speedup}` muestra el speedup del pipeline respecto al monociclo y el extremo inferior de su dispersión.
+La hipótesis de trabajo $H_1$ no se sostiene en ninguno de los programas medidos: el extremo inferior de la dispersión del speedup queda por debajo de uno en todos los casos. La tabla `\ref{tab:speedup}` muestra el speedup del pipeline respecto al monociclo y su dispersión.
 
 ## 7.8 Discusión
 
-El pipeline no supera al monociclo en ninguno de los programas medidos. En este conjunto de cargas la penalización por hazards supera siempre a la ganancia de frecuencia, de modo que la hipótesis de trabajo no queda sostenida: el mayor Fmax del pipeline no se traduce en mayor throughput.
+El pipeline no supera al monociclo en ninguno de los programas medidos. La ganancia de frecuencia del pipeline es de 2.9 %, mientras que la penalización por hazards elevate el CPI del pipeline entre 6 % y 100 % respecto al monociclo: la segunda de las dos cantidades domina el resultado en todos los programas, de modo que la hipótesis de trabajo no queda sostenida y el mayor Fmax del pipeline no se traduce en mayor throughput.
 
 ## 7.9 Limitaciones
 
