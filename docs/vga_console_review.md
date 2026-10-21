@@ -453,10 +453,10 @@ Quartus 25.1, at the build depths the versioned `synthesis/*/setup.tcl` sets
 
 | | before | after |
 |---|---|---|
-| pipeline Fmax (clk) | 52.97 MHz | 52.82 MHz (-0.28 %) |
-| pipeline ALM | 4 146 / 32 070 (13 %) | 4 588 / 32 070 (14 %) |
+| pipeline Fmax (clk) | 52.97 MHz | 52.10 MHz (-1.6 %) |
+| pipeline ALM | 4 146 / 32 070 (13 %) | 4 625 / 32 070 (14 %) |
 | pipeline M10K | 16 / 397 (4 %) | 35 / 397 (9 %) |
-| pipeline VGA domain | 145.56 MHz | 124.56 MHz |
+| pipeline VGA domain | 145.56 MHz | 127.08 MHz |
 | single-cycle Fmax (clk) | 36.13 MHz | 37.86 MHz (+4.8 %) |
 | single-cycle ALM | 13 878 / 32 070 (43 %) | 13 880 / 32 070 (43 %) |
 | single-cycle M10K | 12 / 397 (3 %) | 31 / 397 (8 %) |
@@ -465,26 +465,46 @@ Quartus 25.1, at the build depths the versioned `synthesis/*/setup.tcl` sets
 Two figures of this table must not be read at face value:
 
 - **The VGA domain must reach 74.25 MHz**, and it does with room to spare:
-  the achievable period of the pixel clock is 8.03 ns in the pipeline and
+  the achievable period of the pixel clock is 7.87 ns in the pipeline and
   7.52 ns in the single-cycle, against the 13.47 ns the 720p60 mode needs
-  (+5.4 ns and +5.9 ns of margin). The negative setup slack the Timing
+  (+5.6 ns and +5.9 ns of margin). The negative setup slack the Timing
   Analyzer prints for that clock is an artefact of the SDC, which models the
   derived pixel clock at half its real period (6.734 ns, i.e. 148.5 MHz,
   instead of 13.47 ns; the derived clock inherits the deliberately
   aggressive target the SDC sets on `clk`). The same artefact is in the
   "before" figures.
-- **The M10K blocks are the shadow copies.** The +19 blocks of the
-  single-cycle and the +8 of the pipeline are the data shadow (four byte
-  lanes) and the program shadow (the ROM), plus the video memory, which now
-  needs its full 16-bit width because the attribute byte is read; it used to
-  be pruned to 8 bits.
+- **The M10K blocks are the shadow copies.** Both designs grow by 19 blocks
+  (16 → 35 in the pipeline, 12 → 31 in the single-cycle): the data shadow
+  (four byte lanes) and the program shadow (the ROM), plus the video
+  memory, which now needs its full 16-bit width because the attribute byte
+  is read; it used to be pruned to 8 bits.
 
-The "before" column is the main tree's own build of the same sources
-without the console rework, the "after" column the build of the rework
-(measured at the revisions `15dd7d0` and `50abe69`; the two commits that
-follow them change only the index expression of the data shadow, a NOP
-multiplexer in the ROM shadow and the formatting of the panel fields, so the
-resource figures are not expected to move).
+The "before" column is the main tree's own builds of the same sources
+without this work. The "after" column was measured on the pipeline at the
+state after the program shadow's out-of-range NOP was removed (commit
+`75742a9`), and on the single-cycle at the state before the last three
+commits (`50abe69`, `f6c488d`, `59c9412`), which change the formatting of
+the panel's fields, the index expression of the data shadow and the
+out-of-range behaviour of the program shadow, and therefore move no
+resource of the single-cycle: its figures are not expected to move.
+
+The program shadow's out-of-range NOP was measured to break the M10K
+inference of that ROM — 35 blocks / 4 588 ALM / 52.82 MHz with the NOP
+removed, against 28 blocks / 4 835 ALM / 50.21 MHz with it — so it was
+removed: the processor's Fmax matters more than a display-only corner case
+(a fetch beyond the program image shows an aliased word where the CPU
+executes a NOP).
+
+**The -1.6 % of the pipeline is not a clean result.** The same design
+measured 52.82 MHz before the last three commits and 52.10 MHz after them,
+against a baseline of 52.97 MHz. The critical path of that design runs
+from the data memory's RAM through the ALU's multiplier to the PC redirect,
+so its length depends on the placement, and a small design edit moves it
+by about this much. The project's own measurement protocol quotes
+56.61 ± 1.88 MHz for the pipeline across five replicas, so a swing of
+this order is inside the protocol's own uncertainty: the console rework
+does not demonstrably slow the processor, and the five-replica protocol on
+the merged branch is the reference measurement.
 
 ### The step mode
 
@@ -516,9 +536,11 @@ state machine.
 
 ### Pin assignments
 
-The step mode needs two board pins: `KEY[1]` (`key_step`) and `SW[9]`
-(`step_mode`). They are assigned in the versioned
-`synthesis/de1soc_pins.tcl`.
+The step mode adds two top-level inputs to both designs, `key_step` and
+`step_mode`. The DE1-SoC pin file has to assign them to **KEY[1] =
+PIN_AA15** and **SW[9] = PIN_AE12**; until that assignment exists, the
+build reports the two ports as unassigned ("Missing location assignment")
+and the mode is not operable on the board.
 
 ---
 
