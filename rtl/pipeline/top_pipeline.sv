@@ -840,6 +840,8 @@ module top_pipeline #(
         .alu_b            (ex_alu_b),
         .alu_res          (ex_alu_result),
         .alu_op           (ex_alu_op),
+        .alua_src         (ex_alua_src),
+        .alub_src         (ex_alub_src),
         .br_op            (ex_br_op),
 
         // EX/MEM register outputs

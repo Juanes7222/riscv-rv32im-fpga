@@ -182,6 +182,37 @@ static dump above was the intermediate solution — see **Results**.
 
 ---
 
+## F8 — the pipeline left the ALU source mux inputs unconnected
+
+The pipeline console writer takes `alua_src` and `alub_src` and shows them
+in the `ALUASrc`/`ALUBSrc` fields. `top_pipeline.sv` never connected them,
+so the synthesis mapped both ports to GND and the console showed a frozen
+zero instead of the value the ALU operand mux had selected.
+
+The single-cycle design connects both ports, so the defect was invisible
+there. It entered the pipeline when the colour rework regenerated
+`rtl/pipeline/screen_writer_pipeline.sv` with the two new ports (commit
+`36f14e2`) without touching `rtl/pipeline/top_pipeline.sv`.
+
+The synthesis report shows the consequence:
+
+```
+; screen_writer_pipeline:u_writer|snap_alua_src[0]  ; Stuck at GND due to stuck port data_in ;
+; screen_writer_pipeline:u_writer|snap_alua_src[1]  ; Merged with screen_writer_pipeline:u_writer|snap_alub_src[0] ;
+```
+
+A register that is removed while being merged with another one breaks the
+fanout accounting of the removed-registers report, and the Quartus synthesis
+aborts with `Internal Error: Sub-system: SCL ... node_id != 0`. The abort is
+not deterministic — it depends on what the synthesis happens to optimise away
+— so it surfaced on the fourth flash of the hardware campaign and not on the
+first three.
+
+The fix connects the EX stage signals, the same stage the console already
+reads `alu_a`, `alu_b` and `alu_op` from. See ADR 045.
+
+---
+
 ## Implementation
 
 ### `rtl/shared/vga_controller.sv`
