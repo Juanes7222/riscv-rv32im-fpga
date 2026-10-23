@@ -5,7 +5,7 @@
 #
 # Prerequisites:
 #   1. The .sof must be compiled with SignalTap enabled and the .stp file
-#      included in the project (use make build-fpga ARCH=<arch>).
+#      included in the project (use make build-fpga ARCH=<arch>, NOT make build).
 #   2. The DE1-SoC must be connected via JTAG (USB Blaster).
 #   3. The test program must be loaded into IMEM (make flash or the VGA console
 #      will show stale data).
@@ -100,6 +100,10 @@ if {![file exists $stp_file]} {
 
 if {[catch {open_session -name $stp_file} open_result]} {
     puts "Error: failed to open STP session: ${open_result}"
+    puts ""
+    puts "Most likely cause: the .sof was compiled without SignalTap II."
+    puts "  Build with SignalTap first:  make build-fpga ARCH=${arch}"
+    puts "  Then capture:                make capture ARCH=${arch}"
     exit 1
 }
 puts "Session opened."
@@ -118,6 +122,13 @@ puts "  Waiting for benchmark to write to tohost..."
 
 if {[catch {run -instance $instance_name} run_result]} {
     puts "Error: capture run failed: ${run_result}"
+    puts ""
+    puts "Most likely causes:"
+    puts "  1. The .sof was compiled without SignalTap II. Build with:"
+    puts "     make build-fpga ARCH=${arch}"
+    puts "  2. The SignalTap instance name does not match the .stp file."
+    puts "     Expected instance: ${instance_name}"
+    puts "  3. The benchmark did not write to tohost (trigger never fired)."
     close_session
     exit 1
 }

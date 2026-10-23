@@ -26,6 +26,7 @@ PROJECT              = $(PROJECT_$(ARCH))
 QUARTUS_SH  = quartus_sh.exe
 QUARTUS_PGM = quartus_pgm.exe
 QUARTUS_STA = quartus_sta.exe
+QUARTUS_STP = quartus_stp.exe
 
 SOF_FILE = $(SYNTH_DIR)/output_files/$(PROJECT).sof
 STA_RPT  = $(SYNTH_DIR)/output_files/$(PROJECT).sta.rpt
@@ -187,8 +188,7 @@ build-fpga: check-project $(MEM_CONFIG_VH) $(SCREEN_MIF)
 capture:
 	@echo "[$(ARCH)] Running SignalTap capture..."
 	@mkdir -p $(CROSS_VAL_DIR) 2>/dev/null || true
-	$(QUARTUS_STP:.exe=) -t scripts/run_capture.tcl $(ARCH) $(CROSS_VAL_DIR) || \
-		$(QUARTUS_STP) -t scripts/run_capture.tcl $(ARCH) $(CROSS_VAL_DIR)
+	$(QUARTUS_STP) -t scripts/run_capture.tcl $(ARCH) $(CROSS_VAL_DIR)
 
 
 # Parse captured SignalTap data and compare with cocotb results.
