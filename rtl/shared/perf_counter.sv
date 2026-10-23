@@ -18,15 +18,18 @@ module perf_counters #(
     input  logic        program_done,
 
     // Outputs - observed by cocotb via DUT ports; tapped by SignalTap II (ADR 026)
-    output logic [63:0] cycle_count,
-    output logic [63:0] instr_retired,
-    output logic        program_done_synced,  // registered for SignalTap trigger
+    // (* keep *) prevents Quartus from pruning these signals when they are not
+    // connected to top-level outputs (program_done_synced is wired to () in
+    // both top-levels).  SignalTap II needs them visible in the netlist.
+    output logic [63:0] cycle_count        /* synthesis keep */,
+    output logic [63:0] instr_retired      /* synthesis keep */,
+    output logic        program_done_synced /* synthesis keep */,  // registered for SignalTap trigger
 
     // Counters frozen at the instant the program wrote to tohost.  They are
     // the on-board counterpart of the values cocotb reports, so the console
     // shows the same numbers the simulation measured.
-    output logic [63:0] cycles_at_done,
-    output logic [63:0] instr_at_done
+    output logic [63:0] cycles_at_done     /* synthesis keep */,
+    output logic [63:0] instr_at_done      /* synthesis keep */
 );
 
     logic instr_retired_en;

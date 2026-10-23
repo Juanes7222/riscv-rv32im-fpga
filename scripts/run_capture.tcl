@@ -1,13 +1,19 @@
 # Runs a SignalTap II capture and exports results to CSV.
-# Usage: quartus_stp -t run_capture.tcl <pipeline|single_cycle> [output_dir]
+#
+# Usage:
+#   quartus_stp -t scripts/run_capture.tcl <pipeline|single_cycle> [output_dir]
 #
 # Prerequisites:
 #   1. The .sof must be compiled with SignalTap enabled and the .stp file
-#      included in the project (use build_fpga.tcl).
+#      included in the project (use make build-fpga ARCH=<arch>).
 #   2. The DE1-SoC must be connected via JTAG (USB Blaster).
-#   3. The test program must be loaded into IMEM.
+#   3. The test program must be loaded into IMEM (make flash or the VGA console
+#      will show stale data).
 #
-# All paths are resolved relative to this script's directory.
+# The capture triggers on program_done_synced == 1 (the instant the benchmark
+# writes to tohost) and exports cycle_count, instr_retired and
+# program_done_synced to CSV.  With sample_depth=1K and trigger_position=1,
+# the CSV contains the frozen counter values after the benchmark completes.
 
 package require ::quartus::stp
 
@@ -16,7 +22,7 @@ set script_dir [file dirname [info script]]
 set repo_root   [file normalize [file join $script_dir ".."]]
 
 if {$argc < 1} {
-    puts "Usage: quartus_stp -t run_capture.tcl <pipeline|single_cycle> \[output_dir\]"
+    puts "Usage: quartus_stp -t run_capture.tcl <pipeline|single_cycle> [output_dir]"
     exit 1
 }
 
@@ -27,20 +33,35 @@ if {[llength $argv] > 1} {
     set output_dir [file join $repo_root "results"]
 }
 
-# Locate the .sof file: search synthesis/<arch>/output_files/
+# Map architecture to project, top-level and instance names
+if {$arch eq "pipeline"} {
+    set project_name  "rv32im_pipeline"
+    set top_level     "top_pipeline"
+    set instance_name "perf_capture_pipeline"
+    set stp_file      [file join $repo_root "stp" "perf_capture_pipeline.stp"]
+} elseif {$arch eq "single_cycle"} {
+    set project_name  "rv32im_single_cycle"
+    set top_level     "top_single_cycle"
+    set instance_name "perf_capture_sc"
+    set stp_file      [file join $repo_root "stp" "perf_capture_sc.stp"]
+} else {
+    puts "Error: architecture must be 'pipeline' or 'single_cycle', got '$arch'"
+    exit 1
+}
+
 set synthesis_dir [file join $repo_root "synthesis" $arch]
-set sof_pattern  "${synthesis_dir}/output_files/rv32im_${arch}*.sof"
-set sofs [glob -nocomplain $sof_pattern]
+set sof_pattern   "${synthesis_dir}/output_files/${project_name}.sof"
+set sofs          [glob -nocomplain $sof_pattern]
 
 if {[llength $sofs] == 0} {
     puts "Error: no .sof found matching ${sof_pattern}"
-    puts "Compile first with SignalTap: quartus_sh -t scripts/build_fpga.tcl ${arch}"
+    puts "Compile first with SignalTap: make build-fpga ARCH=${arch}"
     exit 1
 }
 
 # Use the most recent .sof
 set sof [lindex [lsort -decreasing $sofs] 0]
-puts "Using: ${sof}"
+puts "Using SOF: ${sof}"
 
 # Ensure output directory exists
 file mkdir $output_dir
@@ -49,14 +70,15 @@ set csv_file [file join $output_dir "capture_${arch}.csv"]
 # ---------------------------------------------------------------------------
 # Step 1: Program the FPGA via JTAG
 # ---------------------------------------------------------------------------
-# The DE1-SoC chain is USB-Blaster -> MAX10 -> Cyclone V, so the FPGA is
-# device 2.  Programming device 1 configures the MAX10 and fails.
+# The DE1-SoC JTAG chain is USB-Blaster -> MAX10 -> Cyclone V, so the FPGA is
+# device 2 in the chain.  Programming device 1 configures the MAX10 and fails.
 puts ""
-puts "Programming FPGA..."
-puts "  quartus_pgm -c 1 -m jtag -o p;${sof}@2"
+puts "Programming FPGA (device 2 in JTAG chain)..."
+set pgm_cmd "quartus_pgm -c \"DE-SoC\" -m JTAG -o \"P;${sof}@2\""
+puts "  ${pgm_cmd}"
 
-if {[catch {exec quartus_pgm -c 1 -m jtag -o "p;${sof}@2"} prog_result]} {
-    puts "Warning: quartus_pgm failed: ${prog_result}"
+if {[catch {exec {*}$pgm_cmd} pgm_result]} {
+    puts "Warning: quartus_pgm failed: ${pgm_result}"
     puts "Check that the USB Blaster is connected and the DE1-SoC is powered on."
     puts "Continuing to STP capture anyway..."
 } else {
@@ -64,114 +86,60 @@ if {[catch {exec quartus_pgm -c 1 -m jtag -o "p;${sof}@2"} prog_result]} {
 }
 
 # ---------------------------------------------------------------------------
-# Step 2: Find and open the SignalTap .stp file
+# Step 2: Open the SignalTap II session
 # ---------------------------------------------------------------------------
 puts ""
-puts "Opening SignalTap II via JTAG..."
-
-set stp_file [file join $repo_root "stp" "perf_capture_${arch}.stp"]
+puts "Opening SignalTap II session..."
+puts "  STP file: ${stp_file}"
 
 if {![file exists $stp_file]} {
     puts "Error: no .stp file found at ${stp_file}"
-    puts "Run 'quartus_sh -t scripts/create_stp.tcl ${arch}' first,"
-    puts "or create the .stp file manually in the SignalTap II GUI."
+    puts "Run 'quartus_sh -t scripts/create_stp.tcl ${arch}' first."
     exit 1
 }
 
-puts "Using STP: ${stp_file}"
-
-# The SignalTap Tcl API (stp_open, stp_run, stp_export) was removed from
-# Quartus Prime 25.1.  Fail with an explanation instead of an "invalid
-# command name" error.
-if {[llength [info commands stp_run]] == 0} {
-    puts "Error: this Quartus Prime version does not provide the SignalTap Tcl API."
-    puts ""
-    puts "The stp_open / stp_run / stp_export commands were removed in"
-    puts "Quartus Prime 25.1, and the Logic Analyzer Interface API expects a"
-    puts ".lai file that only the SignalTap II GUI can produce."
-    puts ""
-    puts "To capture the counters from the board:"
-    puts "  1. Open the SignalTap II GUI with the project that has"
-    puts "     ENABLE_SIGNALTAP enabled (make build-fpga ARCH=${arch})."
-    puts "  2. Load stp/perf_capture_${arch}.stp, run the acquisition and"
-    puts "     export the waveform as CSV to results/capture_${arch}.csv."
-    puts "  3. Compare it with: make cross-validate ARCH=${arch}"
+if {[catch {open_session -name $stp_file} open_result]} {
+    puts "Error: failed to open STP session: ${open_result}"
     exit 1
 }
-
-# Open STP file
-if {[catch {stp_open -file $stp_file} open_result]} {
-    puts "Error: failed to open STP file: ${open_result}"
-    exit 1
-}
+puts "Session opened."
 
 # ---------------------------------------------------------------------------
-# Step 3: Run the capture and wait for trigger
+# Step 3: Run the capture
 # ---------------------------------------------------------------------------
-set instance_name "perf_capture_${arch}"
-if {$arch eq "single_cycle"} {
-    set instance_name "perf_capture_sc"
-}
+# `run` is blocking: it starts the acquisition, waits for the trigger
+# (program_done_synced == 1) and returns when the capture buffer is full.
 puts ""
-puts "Starting STP run..."
-puts "  Instance: ${instance_name}"
-puts "  Trigger:  program_done_synced == 1"
-puts "  Output:   ${csv_file}"
-puts "  Waiting for benchmark to complete..."
+puts "Starting SignalTap capture..."
+puts "  Instance : ${instance_name}"
+puts "  Trigger  : ${top_level}|u_perf|program_done_synced == 1"
+puts "  Output   : ${csv_file}"
+puts "  Waiting for benchmark to write to tohost..."
 
-# Run the capture (non-blocking)
-stp_run -instance $instance_name
-
-# Poll for trigger status (timeout after 10 seconds)
-set timeout_ms 10000
-set poll_interval_ms 100
-set elapsed_ms 0
-set triggered 0
-
-while {$elapsed_ms < $timeout_ms} {
-    after $poll_interval_ms
-    set elapsed_ms [expr {$elapsed_ms + $poll_interval_ms}]
-
-    set status [stp_get_status -instance $instance_name]
-
-    # Status values: "Running", "Triggered", "Stopped", "Idle"
-    if {[string match "*Triggered*" $status] || [string match "*Stopped*" $status]} {
-        set triggered 1
-        break
-    }
-
-    puts -nonewline "."
-    flush stdout
+if {[catch {run -instance $instance_name} run_result]} {
+    puts "Error: capture run failed: ${run_result}"
+    close_session
+    exit 1
 }
-
-puts ""
-
-if {!$triggered} {
-    puts "Warning: trigger not received within ${timeout_ms}ms."
-    puts "  Possible causes:"
-    puts "  - Test program did not write to tohost (TOHOST_ADDR mismatch?)"
-    puts "  - Processor is stuck in reset (KEY[0] released?)"
-    puts "  - Clock not running"
-    puts "  - SignalTap instance name mismatch (expected: ${instance_name})"
-    puts "  Exporting available data..."
-}
+puts "Capture complete."
 
 # ---------------------------------------------------------------------------
 # Step 4: Export captured data to CSV
 # ---------------------------------------------------------------------------
-puts ""
 puts "Exporting to CSV: ${csv_file}"
 
-if {[catch {stp_export -instance $instance_name -file $csv_file -format CSV} export_result]} {
+if {[catch {export_data_log -instance $instance_name -format CSV -output_file $csv_file} export_result]} {
     puts "Error: failed to export: ${export_result}"
-    stp_close
+    close_session
     exit 1
 }
-
 puts "Export successful."
 
-# Close STP connection
-stp_close
+# ---------------------------------------------------------------------------
+# Step 5: Close session
+# ---------------------------------------------------------------------------
+close_session
+puts "Session closed."
 
 # ---------------------------------------------------------------------------
 # Summary
@@ -183,7 +151,7 @@ puts "  SOF:          ${sof}"
 puts "  Output:       ${csv_file}"
 puts ""
 puts "Next step: parse the CSV with:"
-puts "  python scripts/parse_stp_csv.py ${csv_file} --output-dir ${output_dir}"
+puts "  python3 scripts/parse_stp_csv.py ${csv_file} --output-dir ${output_dir}"
 puts ""
 
 exit 0
