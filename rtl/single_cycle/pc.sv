@@ -15,12 +15,18 @@ module pc (
     // step_hold: 1 freezes the processor (step mode).
     input  logic        step_hold,
 
+    // fetch_valid: 0 during the single fill cycle after reset, when the
+    // instruction memory has not captured the first address yet.
+    input  logic        fetch_valid,
+
     output logic [31:0] pc,
-    output logic [31:0] pc_plus4
+    output logic [31:0] pc_plus4,
+
+    // next_pc: the address the instruction memory must capture this cycle.
+    output logic [31:0] next_pc
 );
 
     logic [31:0] branch_target;
-    logic [31:0] next_pc;
 
     assign pc_plus4 = pc + 32'd4;
 
@@ -32,13 +38,14 @@ module pc (
                      mret_exec  ? mepc_value  :
                      branch     ? branch_target : pc_plus4;
 
-    // PC register: synchronous reset to 0x00000000, stall during division
-    // or while the step mode freezes the processor
+    // PC register: synchronous reset to 0x00000000, stall during division,
+    // while the step mode freezes the processor, or until the first
+    // instruction has been fetched
     always_ff @(posedge clk) begin
         if (!rst_n)
             pc <= 32'h0000_0000;
-        else if (div_busy || step_hold)
-            pc <= pc;           // stall: DIV_RUNNING or DIV_DONE active, or frozen by step mode
+        else if (!fetch_valid || div_busy || step_hold)
+            pc <= pc;           // hold: no instruction, DIV running, or frozen by step mode
         else
             pc <= next_pc;
     end

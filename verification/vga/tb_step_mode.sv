@@ -72,8 +72,10 @@ module tb_step_mode;
         .trap_target (32'd0),
         .mepc_value  (32'd0),
         .step_hold   (step_hold),
+        .fetch_valid (1'b1),
         .pc          (sc_pc),
-        .pc_plus4    ()
+        .pc_plus4    (),
+        .next_pc     ()
     );
 
     // ── Performance counters: they stop while the processor is frozen ─

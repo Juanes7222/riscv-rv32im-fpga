@@ -56,7 +56,7 @@ require updating the helper layer.
 import cocotb
 from cocotb.triggers import Timer
 
-from conftest import start_clock, step_clock, reset_dut
+from conftest import start_clock, step_clock, reset_dut, prime_fetch
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -131,9 +131,9 @@ async def _setup_and_execute(dut, instruction, initial_regs=None,
     #     pre-deposit (X) values at the rising edge.
     await Timer(2, unit="ns")
 
-    # 3. Step the clock once. This is the cycle that exits reset
-    #    (rst_n=1 was already set by reset_dut), fetches the instruction
-    #    at PC=0, executes it, and writes the result to dest_reg.
+    # 3. Fill the fetch stage, then step the clock once. The step executes
+    #    the instruction at PC=0 and writes the result to dest_reg.
+    await prime_fetch(dut)
     await step_clock(dut)
 
     # 4. Assert the destination register holds the expected value.

@@ -1,6 +1,8 @@
 # ADR 011 - Instruction Memory: Asynchronous Read
 
-**Status:** Accepted  
+**Status:** Superseded in part by [ADR 046](046_single_cycle_imem_next_pc.md) —
+the instruction memory of the single-cycle processor now uses a registered
+read addressed with the next PC. The data memory decision stands.  
 **Date:** 2026-04-24
 
 ## Context
@@ -68,6 +70,13 @@ would change the microarchitecture from single-cycle to two-cycle for
 instruction fetch, which is structurally incompatible with the design.
 This would require adding an explicit pipeline stage (IF/ID) and an additional
 stall cycle on branches, negating the single-cycle advantage of CPI = 1.
+
+> **Superseded by ADR 046.** This argument assumes the address presented to the
+> memory must be the current PC. Presenting the next PC instead - which the
+> datapath already computes combinationally in the same cycle - lets the
+> memory's own address register act as the IF/ID boundary without adding a
+> bubble. The single-cycle instruction memory now uses a registered read and is
+> inferred as M10K.
 
 ## Consequences
 

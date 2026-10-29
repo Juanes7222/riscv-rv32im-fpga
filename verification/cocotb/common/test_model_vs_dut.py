@@ -38,7 +38,7 @@ It does NOT catch:
 import cocotb
 from cocotb.triggers import Timer
 
-from conftest import start_clock, step_clock, reset_dut
+from conftest import start_clock, step_clock, reset_dut, prime_fetch
 
 # The reference_model package lives outside the cocotb test directory
 # (at verification/reference_model/, while this file is in
@@ -106,9 +106,10 @@ async def _sync_model_and_dut(dut, model):
         word = int.from_bytes(model.imem[i*4 : (i+1)*4], "little")
         dut.u_imem.mem[i].value = word
 
-    # Settle deposits.
+    # Settle deposits, fill the fetch stage, then step both: one clock edge
+    # on the DUT, one step on the model.
     await Timer(2, unit="ns")
-    # Step both: one clock edge on the DUT, one step on the model.
+    await prime_fetch(dut)
     await step_clock(dut)
     model.step()
 
@@ -196,6 +197,7 @@ async def test_model_matches_dut_for_program_five_steps(dut):
     for i, w in enumerate(program):
         dut.u_imem.mem[i].value = w
     await Timer(2, unit="ns")
+    await prime_fetch(dut)
 
     for step_n, w in enumerate(program):
         await step_clock(dut)
@@ -227,6 +229,7 @@ async def test_model_matches_dut_for_ecall_trap(dut):
     dut.u_imem.mem[1].value = 0b1110011
     dut.u_imem.mem[0x100 // 4].value = (0x302 << 20) | 0b1110011
     await Timer(2, unit="ns")
+    await prime_fetch(dut)
 
     # Step 1: CSRRW
     await step_clock(dut)
