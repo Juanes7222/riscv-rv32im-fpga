@@ -44,7 +44,11 @@ module top_single_cycle #(
     // Fetch
     logic [31:0] pc;
     logic [31:0] pc_plus4;
+    logic [31:0] next_pc;
+    logic [31:0] imem_addr;
+    logic [31:0] imem_instruction;
     logic [31:0] instruction;
+    logic        fetch_valid;
 
     // Instruction fields
     logic [6:0]  opcode;
@@ -221,7 +225,7 @@ module top_single_cycle #(
     ) u_perf (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .enable               (~step_hold),
+        .enable               (~step_hold & fetch_valid),
         .div_busy             (div_busy),
         .valid_wb             (1'b0),
         .program_done         (program_done_pulse),
@@ -244,15 +248,32 @@ module top_single_cycle #(
         .trap_target (trap_target),
         .mepc_value  (mepc_value),
         .step_hold   (step_hold),
+        .fetch_valid (fetch_valid),
         .pc          (pc),
-        .pc_plus4    (pc_plus4)
+        .pc_plus4    (pc_plus4),
+        .next_pc     (next_pc)
     );
+
+    // One fill cycle after reset: the instruction memory has no captured
+    // address yet, so the processor holds the reset vector and executes a
+    // NOP.  The cycle is excluded from the performance counters, so the
+    // CPI=1 invariant keeps its meaning.
+    always_ff @(posedge clk) begin
+        if (!rst_n) fetch_valid <= 1'b0;
+        else        fetch_valid <= 1'b1;
+    end
+
+    // While filling, the address presented is the reset vector (pc is held).
+    assign imem_addr  = fetch_valid ? next_pc : pc;
+    assign instruction = fetch_valid ? imem_instruction : 32'h0000_0013;
 
     instruction_memory #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
-        .addr        (pc),
-        .instruction (instruction)
+        .clk         (clk),
+        .fetch_en    (~div_busy & ~step_hold),
+        .next_pc     (imem_addr),
+        .instruction (imem_instruction)
     );
 
     control_unit u_cu (

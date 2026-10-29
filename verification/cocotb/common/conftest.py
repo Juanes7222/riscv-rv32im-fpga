@@ -90,3 +90,12 @@ async def reset_dut(dut, hold_cycles: int = 2) -> None:
         await step_clock(dut)
     await Timer(2, unit="ns")
     dut.rst_n.value = 1
+
+
+async def prime_fetch(dut) -> None:
+    """Fill the synchronous instruction memory with the reset vector.
+
+    The instruction memory registers its read, so the first cycle after reset
+    only captures the address; the instruction arrives on the next cycle.
+    Call this after writing dut.u_imem.mem and before the instruction step."""
+    await step_clock(dut)

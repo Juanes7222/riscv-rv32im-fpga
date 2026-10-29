@@ -1,25 +1,30 @@
-// Instruction memory with asynchronous (combinational) read.
+// Instruction memory with synchronous (registered) read, inferred as M10K.
 // Used by the single-cycle processor.  The pipelined processor uses
-// instruction_memory_pipe.sv which provides M10K inference via
-// synchronous-read RTL.
+// instruction_memory_pipe.sv.
 //
-// M10K ROM inference on Cyclone V requires synchronous-read RTL
-// (always_ff).  A purely combinational read cannot be placed in M10K
-// blocks.  The single-cycle architecture needs combinational read,
-// so this module targets logic-cell implementation.  Keep IMEM_DEPTH
-// small enough that the array fits in the device.
+// The address port receives the NEXT pc, not the current one.  The array's
+// address register therefore acts as the IF/ID boundary: the word read with
+// the next pc at the end of cycle N is the instruction of cycle N+1, already
+// available when it is executed.  The branch/jump target is computed
+// combinationally in the same cycle, so no bubble is added and the CPI stays 1.
+//
+// M10K inference requires the read to be registered.  The out-of-range mux
+// sits AFTER the output register: a mux in front of the array keeps Quartus
+// from inferring the block (see vga_rom_shadow.sv).
 `include "../shared/mem_config.vh"
 
 module instruction_memory #(
     parameter int unsigned IMEM_DEPTH = 1024
 )(
-    input  logic [31:0] addr,
+    input  logic        clk,
+    input  logic        fetch_en,   // 0 holds the output register (DIV, step mode)
+    input  logic [31:0] next_pc,
     output logic [31:0] instruction
 );
 
     localparam ADDR_BITS = $clog2(IMEM_DEPTH);
 
-    logic [31:0] mem [0:IMEM_DEPTH-1];
+    (* ramstyle = "M10K" *) logic [31:0] mem [0:IMEM_DEPTH-1];
 
     initial begin
         `ifdef IMEM_FILE
@@ -27,23 +32,31 @@ module instruction_memory #(
         `endif
     end
 
-    // NOTE: load_imem/load_dmem debug tasks removed.
-    // Quartus 25.1 parsed the hierarchical references inside
-    // `ifndef SYNTHESIS, causing synthesis errors (aggregate value, u_imem/u_dmem
-    // undeclared). Testbenches load .mem files via the initial block above.
-
-    // Extract index outside always_comb to avoid Icarus constant-select bug
+    // Extract index outside always_ff to avoid Icarus constant-select bug
     logic [ADDR_BITS-1:0] word_index;
-    assign word_index = addr[ADDR_BITS+1:2];
+    logic                 addr_out_of_bounds;
+    assign word_index         = next_pc[ADDR_BITS+1:2];
+    assign addr_out_of_bounds = (next_pc[31:ADDR_BITS+2] != 0);
 
-    logic addr_out_of_bounds;
-    assign addr_out_of_bounds = (addr[31:ADDR_BITS+2] != 0);
+    // The output register is the fetch stage register: it holds the
+    // instruction of the pc that the datapath is executing.  It lives in its
+    // own always_ff so Quartus sees the plain RAM read pattern.
+    logic [31:0] mem_q;
 
-    // Pure combinational read.  The mux is placed AFTER the array access
-    // so tooling has the best chance of recognizing the memory pattern.
-    logic [31:0] mem_read;
-    assign mem_read = mem[word_index];
+    always_ff @(posedge clk) begin
+        if (fetch_en)
+            mem_q <= mem[word_index];
+    end
 
-    assign instruction = addr_out_of_bounds ? 32'h00000013 : mem_read;
+    // Registered with the word it belongs to, so the NOP stays aligned with
+    // the instruction even across a stall.
+    logic oob_q;
+
+    always_ff @(posedge clk) begin
+        if (fetch_en)
+            oob_q <= addr_out_of_bounds;
+    end
+
+    assign instruction = oob_q ? 32'h0000_0013 : mem_q;
 
 endmodule

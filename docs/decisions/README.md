@@ -50,3 +50,4 @@ the original, and both remain in the index.
 | [036](038_branch_resolution_ex_predict_not-taken.md) | Branch Resolution in EX with Predict-Not-Taken Policy | Accepted | |
 | [044](044_step_mode_processor_freeze.md) | Step Mode: Freezing the Processor for the VGA Console | Accepted | adds the `key_step`/`step_mode` inputs, the `step_mode_ctrl` module, `alu_rv32im.hold` and `pc.step_hold` |
 | [045](045_pipeline_console_alu_source_ports.md) | Pipeline console: the ALU source mux inputs were left unconnected | Accepted | connects `alua_src`/`alub_src` in `top_pipeline.sv`; removes the constant register whose removal crashed the Quartus synthesis report |
+| [046](046_single_cycle_imem_next_pc.md) | Single-cycle instruction memory: registered read addressed with next_pc | Accepted | supersedes ADR 011 §4; moves the single-cycle IMEM into M10K blocks and keeps CPI = 1 |

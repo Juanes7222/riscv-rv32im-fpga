@@ -44,9 +44,11 @@ WRITER_pipeline     = screen_writer_pipeline.sv
 SCREEN_MIF    = $(SYNTH_DIR)/screen.mif
 SCREEN_WRITER = $(RTL_ROOT)/$(ARCH)/$(WRITER_$(ARCH)).sv
 
-# Memory depths for synthesis - keep small for fast Quartus compilation.
-# cocotb overrides these via environment variables (16384 / 8192).
-IMEM_DEPTH := 2048
+# Memory depths for synthesis.  The instruction memory is an M10K block RAM
+# (ADR 046), so its depth is cheap; 4096 words (16 KB) holds CoreMark's .text.
+# The data memory is still an asynchronous logic-cell array, so its depth stays
+# small.  cocotb overrides both via environment variables (16384 / 8192).
+IMEM_DEPTH := 4096
 DMEM_DEPTH := 512
 
 BUILD_DIR ?= build

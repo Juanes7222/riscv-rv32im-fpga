@@ -106,24 +106,25 @@ The processor contains five sequential elements:
 |---------|--------|------|-------|
 | Program counter | `pc_unit` | Register (FF) | 32 bits |
 | Register file | `register_file` | Register array (FF) | 32 x 32 bits |
-| Instruction memory | `instruction_memory` | Logic cells (async ROM) † | IMEM_DEPTH x 32 bits |
+| Instruction memory | `instruction_memory` | M10K (registered read, ADR 046) | IMEM_DEPTH x 32 bits |
 | Data memory | `data_memory` | Logic cells (async read / sync write RAM) † | DMEM_DEPTH x 32 bits |
 | Divisor state machine | `alu_rv32im` | FSM + registers | ~70 bits internal |
 
 † The single-cycle microarchitecture requires combinational (asynchronous) read
-for both memories - the instruction word must be available in the same cycle as
-the PC, and load data must be available for write-back in the same cycle.
-Intel Cyclone V M10K blocks always register the read operation internally
-(Intel Corporation, 2016); they cannot implement true combinational read.
-Quartus Prime therefore implements these memories in logic cells (LUTs and
-flip-flops), ignoring the `ramstyle = "M10K"` attribute present in the RTL.
-See [ADR 011](../decisions/011_instruction_memory_async_read.md) and the
-Memory Implementation section below.
+for the data memory: load data must be available for write-back in the same
+cycle in which the ALU produces the address. Intel Cyclone V M10K blocks always
+register the read operation internally (Intel Corporation, 2016); they cannot
+implement true combinational read. Quartus Prime therefore implements the data
+memory in logic cells (LUTs and flip-flops), ignoring the `ramstyle = "M10K"`
+attribute present in the RTL. The instruction memory has no such constraint
+because it is addressed with the next PC (ADR 046). See
+[ADR 011](../decisions/011_instruction_memory_async_read.md),
+[ADR 046](../decisions/046_single_cycle_imem_next_pc.md) and the Memory
+Implementation section below.
 
 The pipelined processor, in contrast, uses dedicated synchronous-read modules
 (`instruction_memory_pipe.sv`, `data_memory_pipe.sv`) that map to M10K blocks
-- 64 for instruction memory and 32 for data memory out of the 308 available
-on the Cyclone V 5CSEMA5F31C6.
+for both of its memories.
 
 The divisor FSM is the only sequential element that is not part of the
 standard single-cycle datapath. It is dormant for all non-division instructions.
@@ -136,7 +137,8 @@ standard single-cycle datapath. It is dormant for all non-division instructions.
 
 | Signal | Width | Source | Destination | Description |
 |--------|-------|--------|-------------|-------------|
-| `pc` | 32 | `pc_unit` | `instruction_memory`, `alu_a_mux` | Current program counter |
+| `pc` | 32 | `pc_unit` | `alu_a_mux`, console | Current program counter |
+| `next_pc` | 32 | `pc_unit` | `instruction_memory` | Address captured by the memory this cycle (ADR 046) |
 | `pc_plus4` | 32 | `pc_unit` | `wb_mux` | PC + 4, used as return address for JAL/JALR |
 | `instruction` | 32 | `instruction_memory` | `control_unit`, `register_file`, `imm_gen` | Raw 32-bit instruction word |
 
@@ -428,34 +430,41 @@ logic and accommodate larger programs (e.g. CoreMark) in CI.
 
 ## Memory Implementation: Logic Cells vs. M10K
 
-A key architectural difference between the single-cycle and pipeline
-implementations is how memories are realised in the FPGA fabric.
+The two memories of the single-cycle processor are realised differently in the
+FPGA fabric: the instruction memory is a synchronous M10K ROM, the data memory
+is an asynchronous array in logic cells.
 
-### Why the single-cycle cannot use M10K blocks
+### Instruction memory: registered read addressed with the next PC
 
-The single-cycle datapath requires **combinational (asynchronous) read** for
-both instruction and data memory:
+A combinational read cannot be mapped to an M10K block: the block samples the
+address on a clock edge and presents the data a fixed access time later (Intel
+Corporation, 2016, Section 3-4: M10K Memory Blocks). The single-cycle processor
+therefore does not present the *current* PC to the memory. It presents the
+*next* PC, which the datapath computes combinationally in the same cycle
+(`pc.sv` already resolves the branch/jump target from the ALU output). The
+array's address register then acts as the IF/ID boundary: the word read with
+the next PC at the end of cycle N is the instruction of cycle N+1, available
+when it is executed. No bubble is added, so the CPI stays 1 (ADR 046).
 
-- **Instruction memory:** The PC is presented as an address at the start of the
-  cycle, and the instruction word must be valid at the decode logic inputs in
-  the *same* cycle, without waiting for a clock edge.
-- **Data memory:** For load instructions, the effective address computed by the
-  ALU must produce valid read data at the write-back mux inputs within the same
-  cycle.
+The read is written as `always_ff ... mem_q <= mem[word_index]` with the
+out-of-range NOP mux after the register, which Quartus Prime maps to M10K
+blocks. A 4096-word (16 KB) instruction memory occupies 13 M10K blocks of the
+397 available.
 
-Intel Cyclone V M10K blocks are fundamentally synchronous storage elements.
-Every read operation is clocked internally, the address is sampled on a clock
-edge and the data appears at the output a fixed access time later (Intel
-Corporation, 2016, Section 3-4: M10K Memory Blocks). While the output register
-can be bypassed (`OUTDATA_REG_A = "UNREGISTERED"` in the `altsyncram`
-megafunction), the memory array itself is still clocked. A true combinational
-read cannot be mapped to an M10K block.
+The only cost is one fill cycle after reset, during which the processor holds
+the reset vector and executes a NOP; the performance counters do not count it.
 
-When Quartus Prime encounters an unpacked array read written as a continuous
-assignment (`assign mem_read = mem[addr]`), it implements the array in logic
-cells, LUTs and flip-flops, irrespective of any `ramstyle` attribute attached
-to the array declaration. The `ramstyle = "M10K"` attribute present in
-`instruction_memory.sv` is silently ignored for this reason.
+### Data memory: asynchronous read in logic cells
+
+Load data must be available at the write-back mux in the same cycle in which the
+ALU produces the effective address. Deferring the read by one cycle would
+require a load-use interlock and break CPI = 1, so `data_memory.sv` keeps a
+combinational read. Quartus Prime implements the array in logic cells (LUTs and
+flip-flops) irrespective of the `ramstyle` attribute attached to the array
+declaration: for `DMEM_DEPTH = 512` the data memory alone costs about 9 000 of
+the 32 070 ALMs on the device. This is the binding constraint for running
+CoreMark on the single-cycle, and the reason the instruction-memory change alone
+does not make the benchmark fit.
 
 ### How the pipeline uses M10K efficiently
 
@@ -467,18 +476,11 @@ a synchronous (clocked) read is sufficient. The pipeline modules
 `instruction_memory_pipe.sv` and `data_memory_pipe.sv` describe synchronous
 reads using `always_ff` blocks, which Quartus Prime maps to M10K blocks.
 
-The synthesis results confirm this difference:
-
-| Metric | Single-cycle | Pipeline |
-|--------|-------------|----------|
-| M10K blocks used | 0 | 96 |
-| ALMs (with IMEM_DEPTH=2048, DMEM_DEPTH=512) | ~11 500 | ~2 100 |
-| Fmax (Slow 85°C, quartile-based) | 37.54 MHz | 57.59 MHz |
-
-The single-cycle uses ~11 500 ALMs because the 2048 x 32-bit instruction memory
-requires ~65 000 flip-flops, each mapped to a logic cell. The pipeline uses
-only ~2 100 ALMs because the 16384-word instruction memory fits in 64 M10K
-blocks (each M10K = 10 Kbits, configurable as 1024 x 10 bits).
+The area difference between the two implementations is therefore no longer
+uniform: the instruction memory is a block RAM on both sides, while the data
+memory is a block RAM only in the pipeline. The measured figures for the current
+RTL are kept in `results/` and reported in the results chapter; the single-cycle
+numbers predate ADR 046 and are regenerated with the standard five replicas.
 
 ### References
 

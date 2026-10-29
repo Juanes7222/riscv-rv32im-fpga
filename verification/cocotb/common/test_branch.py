@@ -53,7 +53,7 @@ these to top-level ports.
 import cocotb
 from cocotb.triggers import Timer
 
-from conftest import start_clock, step_clock, reset_dut
+from conftest import start_clock, step_clock, reset_dut, prime_fetch
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -114,6 +114,7 @@ async def _setup_and_execute_branch(dut, instruction, initial_regs, expected_pc)
     dut.u_imem.mem[0].value = instruction
 
     await Timer(2, unit="ns")
+    await prime_fetch(dut)
     await step_clock(dut)
 
     # Assert the PC matches the expected value.
