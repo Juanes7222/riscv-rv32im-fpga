@@ -236,3 +236,51 @@ This defect was invisible to the riscv-tests because none of them places a
 branch directly behind a load, and to the ALU consumers of a load-use
 hazard, because a duplicated ALU instruction writes the same value twice.
 
+
+## 7. On-board CoreMark run (ADR 051)
+
+`TOHOST_ADDR` was passed to Quartus in the `0x` form.  Quartus takes an
+"Untyped" parameter as a plain number and does **not** parse the prefix, so
+`0x6000` reached the netlist as 0: the synthesized comparator was
+`alu_sum == 0`, the store that `start.S` performs at `0x6000` executed, but
+`program_done` never rose.  The console showed the final `j 3b` of `start.S`
+(`PC = 0x44`, instruction `0000006f`), `HALTED = 0` and both counters at 0.
+
+A three-line project whose only output is `(K == 32'h6000)` reproduces it:
+
+| `set_parameter -name K ...` | Synthesized output |
+|-----------------------------|--------------------|
+| `0x6000`                    | `assign o = gnd`   |
+| `24576`                     | `assign o = vcc`   |
+| `32'h6000`                  | `assign o = gnd`   |
+
+The flow now passes `[expr {$tohost_addr}]`, and `map.rpt` shows
+`TOHOST_ADDR ; 24576`.  With that bitstream the console freezes the counters:
+
+| Run | `CyclesToPass` | `InstrToPass` | CPI | Time at 40 MHz |
+|-----|----------------|---------------|-----|----------------|
+| CoreMark, 200 iterations  | `03BDE080` (62 775 424) | `03BDE05E` (62 775 390) | 1.0000005 | 1.57 s |
+| CoreMark, 2000 iterations | `25689C64` (627 612 772) | `25689C42` (627 612 738) | 1.0000001 | 15.69 s |
+
+The pipeline needs its own bitstream (`TOHOST_ADDR` has the same value) and runs
+at its own clock:
+
+| Run | `CyclesToPass` | `InstrToPass` | CPI | Time at 50 MHz |
+|-----|----------------|---------------|-----|----------------|
+| CoreMark, 2000 iterations (pipeline) | `34725683` (879 908 483) | `25689A57` (627 612 247) | 1.4020 | 17.60 s |
+
+Both architectures retire the same program: 627 612 738 against 627 612 247
+instructions (491 apart, 0.00008 %), the same difference the 10-iteration
+cocotb run shows (3 153 527 against 3 153 032).  The pipeline console has no
+`HALTED` cell, so there the evidence of completion is that `CyclesToPass` and
+`InstrToPass` are non-zero and stop changing: the two counters are loaded only
+by the `program_done` pulse, so a frozen non-zero value cannot come from a
+running program.
+
+The two runs separate the fixed cost from the per-iteration cost:
+313 798.5 cycles per iteration plus 15 719 cycles of fixed cost.  That is why
+the 10-second EEMBC floor needs `ITERATIONS >= 1275` on this clock, and the
+2000 default gives 15.69 s.  The model predicts 3 153 704 cycles for 10
+iterations; cocotb reports 3 153 561 (0.005 % apart).  The difference between
+`CyclesToPass` and `InstrToPass` is 34 cycles in both board runs and in
+simulation, so it is not measurement noise: it is the fixed part of the run.

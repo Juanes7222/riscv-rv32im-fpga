@@ -26,9 +26,13 @@ implementation of Activity 3.3 in ADR 026, but it never worked:
 1. The SignalTap Tcl API (`stp_open`, `stp_run`, `stp_export`) was removed in
    Quartus Prime 25.1: the `::quartus::stp` package loads but registers no
    command.
-2. The hand-written `.stp` files in `stp/` are not accepted by Quartus 25.1
-   (`Error (262006): File ... is not a valid Signal Tap File`), so a
+2. The hand-written `.stp` files in `stp/` are not accepted by Quartus 25.1.
+   `quartus_stp <project> --stp_file=<file> --enable` answers
+   `Error (262006): File "..." is not a valid Signal Tap File -- ignoring`,
+   including the version regenerated with the GUI's XML shape, so a
    "SignalTap build" silently produces a design **without** any capture logic.
+   A valid `.stp` needs one save from the SignalTap II GUI
+   (`quartus_stpw.exe`), which is a manual step.
 3. `scripts/run_capture.tcl` had a Tcl error (`lindex $argv 1 [default]`) and
    programmed device 1 of the chain (the MAX10) instead of the FPGA.
 4. The Logic Analyzer Interface, the API that is available, needs a `.lai`
