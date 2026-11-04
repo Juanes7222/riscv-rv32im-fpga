@@ -151,8 +151,11 @@ set_parameter -name DMEM_DEPTH 1024
 # Address whose write of 1 freezes the performance counters.  The riscv-tests
 # and the synthetic programs use 0x708; CoreMark's packed data map uses
 # 0x6000, and the Makefile exports the value for both setup.tcl and build.tcl.
+#
+# Quartus takes an "Untyped" parameter as a plain number and does NOT parse the
+# 0x form: "0x6000" silently became 0 (ADR 051).  [expr] reads the hex form.
 set tohost_addr 0x00000708
 if {[info exists ::env(TOHOST_ADDR)]} {
     set tohost_addr $::env(TOHOST_ADDR)
 }
-set_parameter -name TOHOST_ADDR $tohost_addr
+set_parameter -name TOHOST_ADDR [expr {$tohost_addr}]

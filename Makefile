@@ -191,7 +191,7 @@ build-fpga: check-project $(MEM_CONFIG_VH) $(SCREEN_MIF)
 		echo "[$(ARCH)] Warning: create_stp.tcl failed. Using existing .stp file if any."
 	@echo "[$(ARCH)] Starting SignalTap compilation..."
 	@SECONDS=0; \
-	$(QUARTUS_SH) -t scripts/build_fpga.tcl $(ARCH) || exit 1; \
+	(cd $(SYNTH_DIR) && $(QUARTUS_SH) -t ../../scripts/build_fpga.tcl $(ARCH)) || exit 1; \
 	echo "[$(ARCH)] SignalTap build completed in $$SECONDS seconds"
 
 

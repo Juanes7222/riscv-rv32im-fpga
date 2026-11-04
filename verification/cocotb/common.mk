@@ -32,6 +32,13 @@ COMPILE_ARGS += -DFONT_ROM_FILE=\"$(abspath $(RTL_ROOT)/shared/vga_font_rom.hex)
 # configuration, so a run at DMEM_DEPTH=1024 really exercises 1024 words.
 COMPILE_ARGS += -P$(TOPLEVEL).IMEM_DEPTH=$(IMEM_DEPTH)
 COMPILE_ARGS += -P$(TOPLEVEL).DMEM_DEPTH=$(DMEM_DEPTH)
+# The same tohost address the bitstream will carry.  Without it the simulation
+# keeps the RTL default 0x708 and the frozen-counter path of a program that
+# writes somewhere else is never exercised, which is how the parameter bug of
+# ADR 051 reached the board.
+ifneq ($(TOHOST_ADDR),)
+COMPILE_ARGS += -P$(TOPLEVEL).TOHOST_ADDR=$(shell printf %d $(TOHOST_ADDR))
+endif
 
 # The waveform dump is off unless it is asked for: a long benchmark run
 # writes gigabytes and becomes I/O bound.

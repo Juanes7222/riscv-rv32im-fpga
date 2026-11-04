@@ -116,10 +116,16 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     verif_dir = REPO_ROOT / "verification" / "cocotb" / arch
     top = "top_pipeline" if arch == "pipeline" else "top_single_cycle"
 
+    # The DUT must watch the same address the program writes, otherwise the
+    # frozen-counter path is never exercised and the equality assertion is
+    # skipped (ADR 051).  Both values come from the ELF's tohost symbol.
+    tohost_addr = _get_tohost_addr(elf_path)
+
     env = os.environ.copy()
     env["VALIDATION_ELF"] = str(elf_path)
     env["VALIDATION_CSV"] = str(csv_path)
     env["VALIDATION_MAX_CYCLES"] = str(max_cycles)
+    env["VALIDATION_TOHOST_ADDR"] = hex(tohost_addr)
     env["PATH"] = f"{REPO_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
 
     # A stale CSV must never be mistaken for a fresh reference.
@@ -131,7 +137,8 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
          "SIM=icarus",
          f"COCOTB_TEST_MODULES=test_validation",
          "TEST=test_validation",
-         f"TOPLEVEL={top}"],
+         f"TOPLEVEL={top}",
+         f"TOHOST_ADDR={tohost_addr:#x}"],
         capture_output=True,
         text=True,
         env=env,
