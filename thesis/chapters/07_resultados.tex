@@ -3,7 +3,10 @@
 
 \section{Resumen}
 
-Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El pipeline alcanzó una Fmax de 54.45 MHz ($\pm$ 0.78 MHz, $n = 5$) frente a los 52.92 MHz ($\pm$ 0.73 MHz, $n = 5$) del monociclo, una mejora de frecuencia del 2.9 \%.
+\begin{quote}
+\textbf{Aviso.} Las réplicas de síntesis guardadas no corresponden a la versión vigente del RTL. Repita \texttt{make thesis} antes de consignar estos números.
+\end{quote}
+Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El pipeline alcanzó una Fmax de 59.50 MHz ($\pm$ 1.42 MHz, $n = 5$) frente a los 47.76 MHz ($\pm$ 0.77 MHz, $n = 5$) del monociclo, una mejora de frecuencia del 24.6 \%.
 
 \section{Verificación funcional}
 
@@ -29,9 +32,17 @@ El monociclo presenta CPI = 1 en los programas sin división: cada ciclo retira 
 
 \input{figures/diagrams/cpi_comparison.tex}
 
+\subsection{CoreMark en hardware}
+
+CoreMark es la carga de referencia del anteproyecto (sección 9.2.13) y exige al menos 10 s de ejecución, así que la corrida oficial usa 2000 iteraciones. El programa ocupa 9044 bytes de la memoria de instrucciones (55 \% de 16 KB) y 3389 bytes del bloque de datos (83 \% de 4 KB), por lo que cabe en el dispositivo.
+
+\input{tables/coremark.tex}
+
+Los ciclos y las instrucciones son los contadores congelados que se leyeron en la consola VGA. La normalización por frecuencia aísla el efecto del CPI: el monociclo rinde 3.19 CoreMark/MHz y el pipeline 2.27.
+
 \section{Análisis estadístico}
 
-Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.73 MHz en el monociclo (CV 1.38 \%) y de 0.78 MHz en el pipeline (CV 1.43 \%).
+Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.77 MHz en el monociclo (CV 1.62 \%) y de 1.42 MHz en el pipeline (CV 2.39 \%).
 
 \input{tables/statistics.tex}
 
@@ -49,7 +60,6 @@ Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviaci�
 
 \begin{itemize}
 \item El tamaño muestral ($n = 5$) limita el análisis a la estadística descriptiva.
-\item El CPI se mide en simulación; la única fuente de dispersión considerada es la variabilidad de la Fmax entre réplicas.
-\item CoreMark se mide con diez iteraciones; la mezcla de instrucciones, y por tanto el CPI, es la de la corrida completa.
-\item CoreMark no cabe en la memoria de instrucciones de la FPGA, por lo que no se midió en hardware.
+\item El CPI se mide con los contadores del procesador en cocotb y se verifica sobre la FPGA con CoreMark (ADR 051); la única fuente de dispersión considerada es la variabilidad de la Fmax entre réplicas.
+\item CoreMark se mide en simulación con diez iteraciones; la corrida oficial en hardware usa 2000 iteraciones ($\geq$ 10 s, EEMBC) y se ejecuta una vez por arquitectura, porque el conteo de ciclos no depende del seed de place-and-route.
 \end{itemize}

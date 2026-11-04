@@ -487,6 +487,89 @@ def table_benchmarks(metrics: list) -> str:
     return "\n".join(lines)
 
 
+COREMARK_CSV = RESULTS / "results_coremark.csv"
+
+
+def read_coremark_hardware() -> list:
+    """The official CoreMark runs, read from the frozen board counters.
+
+    One row per architecture: iterations, cycles and instructions as the VGA
+    console shows them, and the clock the CPU ran at.  Everything else is
+    derived, so the file only stores what was measured.
+    """
+    if not COREMARK_CSV.exists():
+        return []
+    rows = []
+    with open(COREMARK_CSV) as fp:
+        for row in csv.DictReader(fp):
+            cycles = int(row["cycles"])
+            instructions = int(row["instructions"])
+            iterations = int(row["iterations"])
+            clock = float(row["clock_mhz"])
+            seconds = cycles / (clock * 1e6)
+            score = iterations / seconds
+            rows.append({
+                "arch": row["architecture"],
+                "iterations": iterations,
+                "cycles": cycles,
+                "instructions": instructions,
+                "clock_mhz": clock,
+                "seconds": seconds,
+                "score": score,
+                "per_mhz": score / clock,
+                "cpi": cycles / instructions if instructions else 0.0,
+            })
+    return rows
+
+
+def write_coremark_csv() -> Path:
+    """Persist the official CoreMark hardware run so it can be re-derived."""
+    rows = read_coremark_hardware()
+    path = RESULTS / "results_coremark.csv"
+    with open(path, "w", newline="") as fp:
+        writer = csv.writer(fp)
+        writer.writerow([
+            "architecture", "iterations", "cycles", "instructions",
+            "clock_mhz", "seconds", "score", "score_per_mhz",
+        ])
+        for row in rows:
+            writer.writerow([
+                row["arch"], row["iterations"], row["cycles"],
+                row["instructions"], row["clock_mhz"], row["seconds"],
+                row["score"], row["per_mhz"],
+            ])
+    print(f"  {path.relative_to(REPO_ROOT)}")
+    return path
+
+
+def table_coremark(rows: list) -> str:
+    """CoreMark in hardware: the official EEMBC run (>= 10 s)."""
+    if not rows:
+        return ""
+    lines = table_header()
+    lines += [
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\caption{CoreMark en hardware, 2000 iteraciones ($\geq$ 10 s, regla "
+        r"de EEMBC). Ciclos e instrucciones son los contadores congelados que "
+        r"muestra la consola VGA.}",
+        r"\label{tab:coremark}",
+        r"\begin{tabular}{lrrrrrr}",
+        r"\toprule",
+        r"Arquitectura & Reloj (MHz) & Ciclos & Instrucciones & Tiempo (s) & "
+        r"CoreMark & CoreMark/MHz \\",
+        r"\midrule",
+    ]
+    for row in rows:
+        lines.append(
+            f"{ARCH_LABELS[row['arch']]} & {fmt(row['clock_mhz'], 0)} & "
+            f"{row['cycles']} & {row['instructions']} & "
+            f"{fmt(row['seconds'], 2)} & {fmt(row['score'], 2)} & "
+            f"{fmt(row['per_mhz'], 3)} \\\\")
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    return "\n".join(lines)
+
+
 def table_speedup(metrics: list) -> str:
     lines = table_header()
     lines += [
@@ -1006,7 +1089,7 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
 # --------------------------------------------------------------------------
 
 def write_chapter(metrics: list, stats: dict, replicas: list, verification: list,
-                  stale: bool, fingerprint: str) -> list:
+                  coremark: list, stale: bool, fingerprint: str) -> list:
     """Markdown and LaTeX drafts of the results chapter."""
     sc_fmax = stats["single_cycle"]["fmax"]
     pipe_fmax = stats["pipeline"]["fmax"]
@@ -1121,6 +1204,36 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
               "7.58. El pipeline retira una instrucción por ciclo en el mejor caso y "
               "pierde ciclos por hazard de datos, por vaciado de rama y por la "
               "latencia de la división.\n")
+    md.append("### CoreMark en hardware\n")
+    md.append(
+        "CoreMark es la carga de referencia del anteproyecto (sección 9.2.13), "
+        "y su regla de ejecución exige al menos 10 s, de modo que la corrida "
+        "oficial en la FPGA usa 2000 iteraciones y no las diez de la "
+        "simulación. El programa ocupa 9044 bytes de la memoria de "
+        "instrucciones (55 % de los 16 KB) y 3389 bytes del bloque de datos "
+        "(83 % de los 4 KB), así que cabe en el dispositivo.\n")
+    if coremark:
+        md.append("| Arquitectura | Reloj (MHz) | Ciclos | Instrucciones | "
+                  "Tiempo (s) | CoreMark | CoreMark/MHz |")
+        md.append("|---|---|---|---|---|---|---|")
+        for row in coremark:
+            md.append(
+                f"| {ARCH_LABELS[row['arch']]} | {fmt(row['clock_mhz'], 0)} | "
+                f"{row['cycles']} | {row['instructions']} | "
+                f"{fmt(row['seconds'], 2)} | {fmt(row['score'], 2)} | "
+                f"{fmt(row['per_mhz'], 3)} |")
+        md.append("")
+        md.append(
+            "La tabla `\\ref{tab:coremark}` recoge la corrida; los ciclos y "
+            "las instrucciones son los contadores congelados que se leyeron en "
+            "la consola VGA. El monociclo rinde "
+            f"{fmt(coremark[0]['per_mhz'], 2)} CoreMark/MHz y el pipeline "
+            f"{fmt(coremark[-1]['per_mhz'], 2)}: la normalización por "
+            "frecuencia aísla el efecto del CPI, que es la variable "
+            "arquitectural que el benchmark mide.\n")
+    else:
+        md.append("No hay una corrida de CoreMark en hardware registrada "
+                  "(`results/results_coremark.csv`).\n")
     md.append("## 7.5 Análisis estadístico\n")
     md.append(f"Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La "
               f"desviación estándar de la Fmax es de {fmt(sc_fmax['std'])} MHz en el "
@@ -1163,14 +1276,14 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
     md.append(
         "- El tamaño muestral ($n = 5$ réplicas) limita el análisis a la estadística "
         "descriptiva; no se aplican pruebas de significancia.\n"
-        "- El CPI se mide en simulación, no sobre la FPGA: es el mismo valor que "
-        "congela el hardware, pero la variabilidad de la Fmax es la única fuente "
-        "de dispersión considerada.\n"
-        "- CoreMark se mide con diez iteraciones para que la corrida termine en "
-        "minutos; la mezcla de instrucciones, y por tanto el CPI, es la misma "
-        "que con la corrida completa.\n"
-        "- CoreMark no cabe en la memoria de instrucciones de la FPGA, por lo que "
-        "no se midió en hardware (ADR 042).\n")
+        "- El CPI se mide con los contadores del procesador en cocotb y se "
+        "verifica sobre la FPGA con CoreMark (ADR 051). Los contadores son "
+        "deterministas, así que la única fuente de dispersión que se modela "
+        "estadísticamente es la Fmax.\n"
+        "- CoreMark se mide en simulación con diez iteraciones para el CPI; la "
+        "corrida oficial en hardware usa 2000 iteraciones para cumplir el "
+        "mínimo de 10 s de EEMBC y se ejecuta una vez por arquitectura, porque "
+        "el conteo de ciclos no depende del seed de place-and-route.\n")
 
     tex = []
     tex.append("% Generado por scripts/thesis_artifacts.py - no editar a mano.")
@@ -1226,6 +1339,27 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
     tex.append("")
     tex.append(r"\input{figures/diagrams/cpi_comparison.tex}")
     tex.append("")
+    tex.append(r"\subsection{CoreMark en hardware}")
+    tex.append("")
+    tex.append("CoreMark es la carga de referencia del anteproyecto (sección "
+               "9.2.13) y exige al menos 10 s de ejecución, así que la corrida "
+               "oficial usa 2000 iteraciones. El programa ocupa 9044 bytes de la "
+               "memoria de instrucciones (55 \\% de 16 KB) y 3389 bytes del "
+               "bloque de datos (83 \\% de 4 KB), por lo que cabe en el "
+               "dispositivo.")
+    if coremark:
+        tex.append("")
+        tex.append(r"\input{tables/coremark.tex}")
+        tex.append("")
+        tex.append("Los ciclos y las instrucciones son los contadores "
+                   "congelados que se leyeron en la consola VGA. La "
+                   "normalización por frecuencia aísla el efecto del CPI: "
+                   f"el monociclo rinde {fmt(coremark[0]['per_mhz'], 2)} "
+                   f"CoreMark/MHz y el pipeline {fmt(coremark[-1]['per_mhz'], 2)}.")
+    else:
+        tex.append("")
+        tex.append("No hay una corrida de CoreMark en hardware registrada.")
+    tex.append("")
     tex.append(r"\section{Análisis estadístico}")
     tex.append("")
     tex.append(f"Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. "
@@ -1251,12 +1385,14 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
     tex.append(r"\begin{itemize}")
     tex.append(r"\item El tamaño muestral ($n = 5$) limita el análisis a la "
                "estadística descriptiva.")
-    tex.append(r"\item El CPI se mide en simulación; la única fuente de dispersión "
-               "considerada es la variabilidad de la Fmax entre réplicas.")
-    tex.append(r"\item CoreMark se mide con diez iteraciones; la mezcla de "
-               "instrucciones, y por tanto el CPI, es la de la corrida completa.")
-    tex.append(r"\item CoreMark no cabe en la memoria de instrucciones de la FPGA, "
-               "por lo que no se midió en hardware.")
+    tex.append(r"\item El CPI se mide con los contadores del procesador en "
+               r"cocotb y se verifica sobre la FPGA con CoreMark (ADR 051); la "
+               r"única fuente de dispersión considerada es la variabilidad de "
+               r"la Fmax entre réplicas.")
+    tex.append(r"\item CoreMark se mide en simulación con diez iteraciones; la "
+               r"corrida oficial en hardware usa 2000 iteraciones ($\geq$ 10 s, "
+               r"EEMBC) y se ejecuta una vez por arquitectura, porque el conteo "
+               r"de ciclos no depende del seed de place-and-route.")
     tex.append(r"\end{itemize}")
 
     return md, tex
@@ -1284,6 +1420,7 @@ def main() -> int:
         write_statistics_csv(stats),
         write_benchmarks_csv(metrics),
         write_efficiency_csv(efficiency, metrics),
+        write_coremark_csv(),
     ]
 
     tables = {
@@ -1293,6 +1430,7 @@ def main() -> int:
         "statistics.tex": table_statistics(stats),
         "efficiency.tex": table_efficiency(metrics, stats, efficiency),
         "speedup.tex": table_speedup(metrics),
+        "coremark.tex": table_coremark(read_coremark_hardware()),
         "verification_results.tex": table_verification(verification),
     }
     for name, content in tables.items():
@@ -1318,7 +1456,9 @@ def main() -> int:
     # A replica without a fingerprint comes from an unknown RTL: it is stale
     # too, and the numbers it holds cannot be compared with the others.
     stale = any(r.get("fingerprint") != fingerprint for r in replicas)
-    md, tex = write_chapter(metrics, stats, replicas, verification, stale, fingerprint)
+    coremark = read_coremark_hardware()
+    md, tex = write_chapter(metrics, stats, replicas, verification, coremark,
+                            stale, fingerprint)
     (CHAPTERS / "07_resultados.md").write_text("\n".join(md))
     (CHAPTERS / "07_resultados.tex").write_text("\n".join(tex) + "\n")
     written.append(CHAPTERS / "07_resultados.md")

@@ -55,26 +55,10 @@ Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo: no se aplica
 
 ## 7. Resultados por programa
 
-Throughput = Fmax / CPI, with the mean Fmax of the five replicas
-(monociclo 48.37 MHz, pipeline 58.74 MHz; `IMEM_DEPTH = 4096`,
-`DMEM_DEPTH = 1024`). The speedup is the ratio pipeline / monociclo, so a
-value below 1 means the monociclo is faster in throughput.
-
 | Programa | CPI monociclo | CPI pipeline | Throughput monociclo (MIPS) | Throughput pipeline (MIPS) | Speedup | Resultado |
 |---|---|---|---|---|---|---|
-| `branch_stress` | 1.0000 | 1.9998 | 48.37 | 29.37 | 0.607 | H0 no descartada |
-| `coremark_iter1` | 1.0001 | 1.3984 | 48.37 | 42.01 | 0.869 | H0 no descartada |
-| `coremark_iter10` | 1.0000 | 1.4018 | 48.37 | 41.90 | 0.866 | H0 no descartada |
-| `load_use_stress` | 1.0000 | 1.9893 | 48.37 | 29.53 | 0.610 | H0 no descartada |
-| `m_ext_stress` | 7.5806 | 8.0260 | 6.38 | 7.32 | 1.147 | H0 descartada |
-| `raw_stress` | 1.0000 | 1.2511 | 48.37 | 46.95 | 0.971 | H0 no descartada |
-
-Only `m_ext_stress`, where both architectures spend most of their cycles in
-the 34-cycle divider and the monociclo's CPI loses its advantage, gives the
-pipeline a throughput win. On the board the monociclo runs at 40 MHz instead
-of 48.37 MHz (ADR 049), so its absolute MIPS on hardware are 40.0 (CoreMark)
-against 35.7 for the pipeline; the ratios above are the frequency-normalised
-comparison.
+| `coremark_iter1` | 1.0001 | 1.3996 | 47.75 | 42.51 | 0.890 | H0 no descartada |
+| `coremark_iter10` | 1.0000 | 1.4018 | 47.76 | 42.45 | 0.889 | H0 no descartada |
 
 ## 8. Réplicas
 

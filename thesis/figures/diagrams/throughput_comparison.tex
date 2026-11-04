@@ -8,14 +8,14 @@
   ybar,
   bar width=8pt,
   ylabel={Throughput (MIPS)},
-  xtick={1,2,3,4,5,6},
-  xticklabels={{branch\_stress}, {coremark\_iter1}, {coremark\_iter10}, {load\_use\_stress}, {m\_ext\_stress}, {raw\_stress}},
+  xtick={1,2},
+  xticklabels={{coremark\_iter1}, {coremark\_iter10}},
   xmin=0.5,
   enlarge x limits=0.1,
   legend style={at={(0.5,-0.25)},anchor=north,legend columns=2},
 ]
-  \addplot coordinates {(1,52.920), (2,52.915), (3,52.920), (4,52.920), (5,6.981), (6,52.920)};
-  \addplot coordinates {(1,27.230), (2,38.940), (3,38.851), (4,27.373), (5,6.785), (6,43.525)};
+  \addplot coordinates {(1,47.753), (2,47.758)};
+  \addplot coordinates {(1,42.512), (2,42.445)};
   \legend{Monociclo,Pipeline}
 \end{axis}
 \end{tikzpicture}
