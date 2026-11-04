@@ -38,7 +38,7 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Generate rtl/shared/mem_config.vh with `define macros for $readmemh. "
-            ".mem files must have been produced by scripts/elf_to_mem.py."
+            ".mem files must have been produced by scripts/elf_to_mem_split.py."
         )
     )
     parser.add_argument(
@@ -103,12 +103,12 @@ def validate_mem_file(sim_path: str, linux_path: str | None, label: str) -> None
     if not check_path.exists():
         raise FileNotFoundError(
             f"{label} .mem file not found: {check_path}\n"
-            "Generate it first with: python3 scripts/elf_to_mem.py <bin> <depth> <out>"
+            "Generate it first with: make mem ELF=<path/to/program.elf>"
         )
     if not sim_path.endswith(".mem"):
         raise ValueError(
             f"{label} path does not have a .mem extension: {sim_path}\n"
-            "Verify the path points to a file produced by elf_to_mem.py."
+            "Verify the path points to a file produced by elf_to_mem_split.py."
         )
 
 

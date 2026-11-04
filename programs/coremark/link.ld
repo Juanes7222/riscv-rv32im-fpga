@@ -1,15 +1,27 @@
 /* CoreMark linker script for RV32IM bare-metal.
-   Harvard architecture: .text --> IMEM, .data/.tohost --> DMEM.
-   The linker sees a flat address space; we assign unique addresses to all
-   sections.  .text at 0x0, tohost at 0x5000 (well above .text end for ~9 KB
-   CoreMark), data at 0x6000, stack at top of 32 KB DMEM (0x8000). */
+   Harvard architecture: executable sections --> IMEM, everything else --> DMEM.
+   The two memories are separate, with their own address decoders, so the
+   data sections no longer have to sit above .text.
+
+   The data window is 0x6000-0x7000: 4 KB, the depth of the single-cycle data
+   memory (DMEM_DEPTH = 1024, ADR 047).  Everything the program reads with a
+   load has to fit in it, .rodata included: CoreMark's CRC tables live there
+   and the benchmark fails its own verification without them.
+
+   The image is packed with no gaps so that the whole writable footprint plus
+   the read-only data fits: .tohost 8 B, .rodata 1.4 KB, .data 12 B, .bss
+   2 KB (MEM_STATIC keeps the working block there) and the stack, which takes
+   whatever is left (~700 B; the call frames measure ~400 B).
+
+   .tohost at 0x6000 is not the RTL default (0x708, the riscv-tests value):
+   build the CoreMark bitstream with TOHOST_ADDR=0x6000. */
 
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
 SECTIONS
 {
-    /* ---------- IMEM ---------- */
+    /* ---------- IMEM: executable code only ---------- */
     . = 0x00000000;
     .text : {
         *(.text.init)
@@ -17,6 +29,15 @@ SECTIONS
         *(.text.*)
     }
 
+    /* ---------- DMEM: base of the 4 KB window ---------- */
+    . = 0x00006000;
+    .tohost : {
+        PROVIDE(tohost = .);
+        LONG(0);
+        LONG(0);
+    }
+
+    /* Read-only data is data: it is loaded from, not executed. */
     . = ALIGN(4);
     .rodata : {
         *(.rodata)
@@ -25,16 +46,7 @@ SECTIONS
         *(.srodata.*)
     }
 
-    /* ---------- DMEM: tohost at 0x5000 ---------- */
-    . = 0x00005000;
-    .tohost : {
-        PROVIDE(tohost = .);
-        LONG(0);
-        LONG(0);
-    }
-
-    /* ---------- DMEM: data at 0x6000 ---------- */
-    . = 0x00006000;
+    . = ALIGN(4);
     .data : {
         __data_start = .;
         *(.data)
@@ -55,13 +67,18 @@ SECTIONS
         __bss_end = .;
     }
 
-    /* Stack: 4 KB at top of DMEM (grows down from just below 0x8000). */
-    . = 0x00007000;
-    .stack : {
-        . += 4096;
-        . = ALIGN(16);
-        PROVIDE(__stack_top = .);  /* = 0x8000 */
+    /* The stack is whatever is left of the window.  If .bss grows past the
+       top the size would go negative and the link fails. */
+    . = ALIGN(16);
+    __stack_bottom = .;
+    __stack_size = 0x00007000 - __stack_bottom;
+    .stack (NOLOAD) : {
+        . += __stack_size;
+        PROVIDE(__stack_top = .);
     }
+
+    ASSERT(__stack_top - __stack_bottom >= 0x200,
+           "CoreMark: less than 512 bytes of stack left in the 4 KB data window")
 
     /DISCARD/ : {
         *(.comment)

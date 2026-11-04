@@ -28,6 +28,10 @@ COMPILE_ARGS ?= -I$(RTL_ROOT)/shared
 COMPILE_ARGS += -DIMEM_FILE=\"$(abspath $(SIM_IMEM))\"
 COMPILE_ARGS += -DDMEM_FILE=\"$(abspath $(SIM_DMEM))\"
 COMPILE_ARGS += -DFONT_ROM_FILE=\"$(abspath $(RTL_ROOT)/shared/vga_font_rom.hex)\"
+# The simulated arrays must have the depth of the images and of the hardware
+# configuration, so a run at DMEM_DEPTH=1024 really exercises 1024 words.
+COMPILE_ARGS += -P$(TOPLEVEL).IMEM_DEPTH=$(IMEM_DEPTH)
+COMPILE_ARGS += -P$(TOPLEVEL).DMEM_DEPTH=$(DMEM_DEPTH)
 
 # The waveform dump is off unless it is asked for: a long benchmark run
 # writes gigabytes and becomes I/O bound.
@@ -47,6 +51,7 @@ SHARED_SRCS = \
 
 SHARED_VGA_SRCS = \
     $(RTL_ROOT)/shared/vga_pll.sv \
+    $(RTL_ROOT)/shared/cpu_pll.sv \
     $(RTL_ROOT)/shared/vga_text_mode.sv \
     $(RTL_ROOT)/shared/vga_controller.sv \
     $(RTL_ROOT)/shared/vga_font_rom.sv \
@@ -64,13 +69,18 @@ export DMEM_DEPTH  ?= 8192
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # The simulation images only need to exist when the simulator starts; each
-# test regenerates them for the ELF it exercises.
+# test regenerates them for the ELF it exercises.  The two memories have
+# separate decoders, so each gets its own image (ADR 047).
 $(SIM_IMEM): $(SIM_TEST_ELF)
 	@mkdir -p $(SIM_MEM_DIR)
-	python3 $(SCRIPTS_ROOT)/elf_to_mem.py $< $(IMEM_DEPTH) $@
+	python3 $(SCRIPTS_ROOT)/elf_to_mem_split.py $< \
+		--imem-depth $(IMEM_DEPTH) --imem-out $(SIM_IMEM) \
+		--dmem-depth $(DMEM_DEPTH) --dmem-out $(SIM_DMEM)
 
 $(SIM_DMEM): $(SIM_TEST_ELF)
 	@mkdir -p $(SIM_MEM_DIR)
-	python3 $(SCRIPTS_ROOT)/elf_to_mem.py $< $(DMEM_DEPTH) $@
+	python3 $(SCRIPTS_ROOT)/elf_to_mem_split.py $< \
+		--imem-depth $(IMEM_DEPTH) --imem-out $(SIM_IMEM) \
+		--dmem-depth $(DMEM_DEPTH) --dmem-out $(SIM_DMEM)
 
 sim_build/sim.vvp: $(SIM_IMEM) $(SIM_DMEM)

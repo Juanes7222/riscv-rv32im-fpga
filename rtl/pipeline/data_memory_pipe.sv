@@ -52,10 +52,13 @@ module data_memory_pipe #(
     assign zero_ext     = dm_ctrl[2];
 
 
-    logic [12:0] word_addr;
+    // Word index follows DMEM_DEPTH (ADR 047): the hardcoded 13-bit slice
+    // made the parameter useless and pointed outside the array.
+    localparam int unsigned ADDR_BITS = $clog2(DMEM_DEPTH);
+    logic [ADDR_BITS-1:0] word_addr;
     logic        addr_bit1;
     logic [1:0]  addr_bits10;
-    assign word_addr   = addr[14:2];
+    assign word_addr   = addr[ADDR_BITS+1:2];
     assign addr_bit1   = addr[1];
     assign addr_bits10 = addr[1:0];
 

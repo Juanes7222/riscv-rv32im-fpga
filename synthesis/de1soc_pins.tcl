@@ -140,7 +140,19 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to vga_b[5]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to vga_b[6]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to vga_b[7]
 
-# Memory sizes.  Small values keep the compilation fast; the cocotb
+# Memory sizes.  These are the depths every program is built for: 4096 words
+# (16 KB) of instructions in M10K (ADR 046) and 1024 words (4 KB) of data in
+# logic cells (ADR 047).  This file is sourced after the per-architecture
+# setup.tcl, so it is the single place where they are set; the cocotb
 # testbenches override them with the environment (16384 / 8192).
-set_parameter -name IMEM_DEPTH 2048
-set_parameter -name DMEM_DEPTH 512
+set_parameter -name IMEM_DEPTH 4096
+set_parameter -name DMEM_DEPTH 1024
+
+# Address whose write of 1 freezes the performance counters.  The riscv-tests
+# and the synthetic programs use 0x708; CoreMark's packed data map uses
+# 0x6000, and the Makefile exports the value for both setup.tcl and build.tcl.
+set tohost_addr 0x00000708
+if {[info exists ::env(TOHOST_ADDR)]} {
+    set tohost_addr $::env(TOHOST_ADDR)
+}
+set_parameter -name TOHOST_ADDR $tohost_addr

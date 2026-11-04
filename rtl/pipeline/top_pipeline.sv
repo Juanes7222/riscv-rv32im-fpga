@@ -113,6 +113,7 @@ module top_pipeline #(
     logic [1:0]  fwd_a_sel, fwd_b_sel;
     logic [31:0] ex_alu_a, ex_alu_b;
     logic [31:0] ex_alu_result;
+    logic [31:0] ex_alu_sum;      // adder result, free of the multiplier
     logic        ex_div_busy, ex_div_done;
     logic        ex_branch_taken, ex_mask_pc_lsb;
     logic [31:0] ex_pc_plus4;
@@ -304,8 +305,8 @@ module top_pipeline #(
         if (trap_flush)
             pc_redirect_target = wb_mret_exec ? mepc_value : trap_target;
         else
-            pc_redirect_target = {ex_alu_result[31:1],
-                                  ex_mask_pc_lsb ? 1'b0 : ex_alu_result[0]};
+            pc_redirect_target = {ex_alu_sum[31:1],
+                                  ex_mask_pc_lsb ? 1'b0 : ex_alu_sum[0]};
     end
 
     pc_unit u_pcunit (
@@ -541,6 +542,7 @@ module top_pipeline #(
         .b       (ex_alu_b),
         .alu_op  (ex_alu_op),
         .alu_res (ex_alu_result),
+        .alu_sum (ex_alu_sum),
         .div_busy(ex_div_busy),
         .div_done(ex_div_done)
     );

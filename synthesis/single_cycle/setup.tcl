@@ -43,14 +43,10 @@ foreach sv_file [glob -nocomplain "$rtl_arch/*.sv"] {
 # Timing constraints
 set_global_assignment -name SDC_FILE $constraints_sdc
 
-# Memory depths.  They must match the image generation depths in the Makefile
-# (IMEM_DEPTH / DMEM_DEPTH).  The console's shadow copies of the program
-# and data memories are sized from these parameters, so the resource budget
-# of the whole design depends on them.
-# The instruction memory is an M10K block RAM (ADR 046): 4096 words (16 KB)
-# holds CoreMark's .text and costs 13 M10K blocks.
-set_parameter -name IMEM_DEPTH 4096
-set_parameter -name DMEM_DEPTH 512
+# Memory depths and the counter-freeze address live in the pinout file
+# (../de1soc_pins.tcl), which is sourced at the end of this script: it is the
+# single place where they are set, for both architectures, so a second copy
+# here would only be overwritten (ADR 046/047).
 
 # Video memory initialisation and font ROM hex
 set_global_assignment -name MIF_FILE screen.mif

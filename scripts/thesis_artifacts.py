@@ -907,10 +907,11 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
         "",
         "El mismo valor congelado en el silicio es el que muestra la consola VGA, y "
         "una aserción del testbench comprueba que coincide con el que reporta la "
-        "simulación (ADR 042). CoreMark es la excepción: señala el final de la "
-        "corrida con su propia dirección de tohost (0x5000), distinta de la que "
-        "vigila el RTL (0x708), y por tanto sus contadores congelados no son "
-        "comparables con los de la simulación.",
+        "simulación (ADR 042). CoreMark señala el final de la corrida con su propia "
+        "dirección de tohost (0x6000) y su bitstream se construye con "
+        "`TOHOST_ADDR=0x6000` (ADR 047), de modo que el RTL vigila la misma "
+        "dirección y sus contadores congelados también son comparables con los "
+        "de la simulación.",
         "",
         "## 3. Programas de prueba",
         "",

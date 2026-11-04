@@ -60,7 +60,7 @@ async def test_coremark_smoke(dut):
             if is_pipeline:
                 pc = int(dut.u_pcunit.pc.value)
             else:
-                pc = int(dut.u_pc.pc_out.value)
+                pc = int(dut.u_pc.pc.value)
         except Exception:
             pc = -1
 

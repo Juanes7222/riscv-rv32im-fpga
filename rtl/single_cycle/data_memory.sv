@@ -1,6 +1,17 @@
 `include "../shared/mem_config.vh"
 
-// Data memory: byte-enable writes, asynchronous read, M10K inference target.
+// Data memory: half-cycle M10K read, byte-enable writes.
+//
+// The single-cycle CPU computes the load address right after the rising edge
+// and the register file takes the loaded word at the next rising edge, so the
+// array only has the second half of the cycle.  The read address is captured
+// on the falling edge and the output of the block is combinational, which
+// keeps the load inside its own cycle (CPI = 1) and still lets Quartus infer
+// M10K instead of 32 768 registers (ADR 048).
+//
+// Four byte-lane arrays, one per byte, guarantee the M10K inference and give
+// native byte enables; the selection and sign extension run after the block
+// output, exactly like the pipelined memory.
 module data_memory #(
     parameter int unsigned DMEM_DEPTH = 8192
 ) (
@@ -16,18 +27,25 @@ module data_memory #(
     output logic [31:0] dbg_wr_data
 );
 
-    (* ramstyle = "M10K" *) logic [31:0] mem [0:DMEM_DEPTH-1];
+    (* ramstyle = "M10K" *) logic [7:0] mem_b0 [0:DMEM_DEPTH-1];
+    (* ramstyle = "M10K" *) logic [7:0] mem_b1 [0:DMEM_DEPTH-1];
+    (* ramstyle = "M10K" *) logic [7:0] mem_b2 [0:DMEM_DEPTH-1];
+    (* ramstyle = "M10K" *) logic [7:0] mem_b3 [0:DMEM_DEPTH-1];
 
     initial begin
         `ifdef DMEM_FILE
-            $readmemh(`DMEM_FILE, mem);
+            // Load 32-bit words from the .mem file into a temporary array,
+            // then distribute bytes to the four lane memories.
+            logic [31:0] tmp [0:DMEM_DEPTH-1];
+            $readmemh(`DMEM_FILE, tmp);
+            for (int i = 0; i < DMEM_DEPTH; i++) begin
+                mem_b0[i] = tmp[i][7:0];
+                mem_b1[i] = tmp[i][15:8];
+                mem_b2[i] = tmp[i][23:16];
+                mem_b3[i] = tmp[i][31:24];
+            end
         `endif
     end
-
-    // NOTE: load_imem/load_dmem debug tasks removed.
-    // They were in `ifndef SYNTHESIS but Quartus 25.1 still parsed the
-    // hierarchical references (u_imem/u_dmem) causing synthesis errors.
-    // Testbenches load .mem files through the initial block above.
 
     localparam [1:0] WIDTH_BYTE = 2'b00;
     localparam [1:0] WIDTH_HALF = 2'b01;
@@ -38,11 +56,14 @@ module data_memory #(
     assign access_width = dm_ctrl[1:0];
     assign zero_ext     = dm_ctrl[2];
 
-    // Address extractions - Icarus workaround for constant selects in always_*
-    logic [12:0] word_addr;
+    // The word index follows DMEM_DEPTH; a hardcoded 13-bit slice made the
+    // parameter useless and put every address outside a 512-word array
+    // (ADR 047).
+    localparam int unsigned ADDR_BITS = $clog2(DMEM_DEPTH);
+    logic [ADDR_BITS-1:0] word_addr;
     logic        addr_bit1;
     logic [1:0]  addr_bits10;
-    assign word_addr   = addr[14:2];
+    assign word_addr   = addr[ADDR_BITS+1:2];
     assign addr_bit1   = addr[1];
     assign addr_bits10 = addr[1:0];
 
@@ -92,19 +113,28 @@ module data_memory #(
     assign dbg_wr_be   = be;
     assign dbg_wr_data = wr_data_rep;
 
-    // Synchronous write
+    // Synchronous write, only the enabled byte lanes.
     always_ff @(posedge clk) begin
-        if (dm_wr) begin
-            if (be[0]) mem[word_addr][7:0]   <= wr_rep_b0;
-            if (be[1]) mem[word_addr][15:8]  <= wr_rep_b1;
-            if (be[2]) mem[word_addr][23:16] <= wr_rep_b2;
-            if (be[3]) mem[word_addr][31:24] <= wr_rep_b3;
-        end
+        if (dm_wr && be[0]) mem_b0[word_addr] <= wr_rep_b0;
+        if (dm_wr && be[1]) mem_b1[word_addr] <= wr_rep_b1;
+        if (dm_wr && be[2]) mem_b2[word_addr] <= wr_rep_b2;
+        if (dm_wr && be[3]) mem_b3[word_addr] <= wr_rep_b3;
     end
 
-    // Asynchronous read
+    // Half-cycle read: the address is captured on the falling edge, so the
+    // lane outputs settle before the rising edge that writes the register
+    // file.  A store at the previous rising edge is already in the lanes.
+    logic [ADDR_BITS-1:0] word_addr_q;
+    always_ff @(negedge clk) word_addr_q <= word_addr;
+
+    logic [7:0] rd_b0, rd_b1, rd_b2, rd_b3;
+    assign rd_b0 = mem_b0[word_addr_q];
+    assign rd_b1 = mem_b1[word_addr_q];
+    assign rd_b2 = mem_b2[word_addr_q];
+    assign rd_b3 = mem_b3[word_addr_q];
+
     logic [31:0] mem_word;
-    assign mem_word = mem[word_addr];
+    assign mem_word = {rd_b3, rd_b2, rd_b1, rd_b0};
 
     logic [15:0] mem_half_hi, mem_half_lo;
     logic [7:0]  mem_byte_0, mem_byte_1, mem_byte_2, mem_byte_3;

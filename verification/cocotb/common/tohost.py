@@ -28,37 +28,6 @@ def get_tohost_addr(elf_path: Union[str, pathlib.Path]) -> int:
         return symbols[0].entry["st_value"]
 
 
-def _elf_to_raw_binary(elf_path: pathlib.Path, bin_path: pathlib.Path) -> None:
-    """Generate a raw memory image from ELF PT_LOAD segments without objcopy."""
-    with open(elf_path, "rb") as f:
-        elf = ELFFile(f)
-        load_segments = [s for s in elf.iter_segments() if s["p_type"] == "PT_LOAD"]
-
-        if not load_segments:
-            raise RuntimeError(f"No PT_LOAD segments in {elf_path}")
-
-        starts = []
-        ends = []
-        for seg in load_segments:
-            start = int(seg["p_paddr"] or seg["p_vaddr"])
-            end = start + int(seg["p_filesz"])
-            starts.append(start)
-            ends.append(end)
-
-        base = min(starts)
-        limit = max(ends)
-        image = bytearray(limit - base)
-
-        for seg in load_segments:
-            start = int(seg["p_paddr"] or seg["p_vaddr"])
-            data = seg.data()
-            off = start - base
-            image[off:off + len(data)] = data
-
-    with open(bin_path, "wb") as out:
-        out.write(image)
-
-
 def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
     """
     Convert an ELF to imem.mem + dmem.mem for the simulation.
@@ -67,6 +36,10 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.
     build/dmem.mem, generated at the synthesis memory depths) is never
     overwritten by a simulation run.  mem_config.vh belongs to the synthesis
     flow; the simulator overrides the paths from the command line instead.
+
+    The two memories have separate address decoders, so each one gets its own
+    image: the code sections at their own addresses and the writable sections
+    relative to the base of the data window (ADR 047).
     """
     # In synthesis (rtl/shared/): IMEM_DEPTH=16384, DMEM_DEPTH=8192.
     # The cocotb Makefiles export these; fallback matches the RTL defaults.
@@ -74,23 +47,15 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.
     dmem_depth = int(os.environ.get("DMEM_DEPTH", 8192))
 
     sim_dir    = BUILD_DIR / "sim"
-    bin_path   = sim_dir / "program.bin"
     imem_path  = sim_dir / "imem.mem"
     dmem_path  = sim_dir / "dmem.mem"
 
     sim_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build raw binary from ELF in pure Python to avoid host objcopy dependency.
-    _elf_to_raw_binary(elf_path, bin_path)
-
     subprocess.run(
-        ["python3", str(SCRIPTS_ROOT / "elf_to_mem.py"),
-         str(bin_path), str(imem_depth), str(imem_path)],
-        check=True,
-    )
-    subprocess.run(
-        ["python3", str(SCRIPTS_ROOT / "elf_to_mem.py"),
-         str(bin_path), str(dmem_depth), str(dmem_path)],
+        ["python3", str(SCRIPTS_ROOT / "elf_to_mem_split.py"), str(elf_path),
+         "--imem-depth", str(imem_depth), "--imem-out", str(imem_path),
+         "--dmem-depth", str(dmem_depth), "--dmem-out", str(dmem_path)],
         check=True,
     )
     return imem_path, dmem_path

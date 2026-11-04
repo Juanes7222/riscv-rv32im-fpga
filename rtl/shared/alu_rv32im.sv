@@ -9,6 +9,12 @@ module alu_rv32im (
     input  logic [31:0] b,
     input  logic [4:0]  alu_op,
     output logic [31:0] alu_res,
+    // Sum of the two operands, always the adder result.  The load/store
+    // address and the branch target are always additions, but taking them
+    // from the shared output mux puts the DSP multiplier in their timing
+    // path (the mux's worst arc) even though those instructions never use
+    // it.  The mux output stays for the writeback.
+    output logic [31:0] alu_sum,
     output logic        div_busy,
     output logic        div_done
 );
@@ -40,6 +46,8 @@ module alu_rv32im (
     logic        [63:0] mul_uu;
     logic signed [32:0] a_33, b_33;
     logic signed [65:0] mul_su;
+
+    assign alu_sum = a + b;
 
     assign mul_ss = $signed(a) * $signed(b);
     assign mul_uu = a * b;

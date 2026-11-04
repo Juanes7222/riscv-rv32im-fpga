@@ -28,6 +28,19 @@ project_open $project_name -force
 
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 
+# The tohost address must match the program's tohost symbol.  The Makefile
+# exports TOHOST_ADDR (0x708 by default, 0x6000 for CoreMark, ADR 047), so a
+# rebuild for another program does not need a new project.
+set tohost_addr 0x00000708
+if {[info exists ::env(TOHOST_ADDR)]} {
+    set tohost_addr $::env(TOHOST_ADDR)
+}
+set_parameter -name TOHOST_ADDR $tohost_addr
+
+# The campaign measures the architecture, not whatever the tool can do in a
+# reduced-effort pass: Auto Fit skips optimizations and costs Fmax (ADR 048).
+set_global_assignment -name FITTER_EFFORT "STANDARD FIT"
+
 # Optional seed argument for unique P&R per replica
 if {$argc > 0} {
     set seed [lindex $argv 0]

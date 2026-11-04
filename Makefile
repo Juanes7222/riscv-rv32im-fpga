@@ -46,10 +46,22 @@ SCREEN_WRITER = $(RTL_ROOT)/$(ARCH)/$(WRITER_$(ARCH)).sv
 
 # Memory depths for synthesis.  The instruction memory is an M10K block RAM
 # (ADR 046), so its depth is cheap; 4096 words (16 KB) holds CoreMark's .text.
-# The data memory is still an asynchronous logic-cell array, so its depth stays
-# small.  cocotb overrides both via environment variables (16384 / 8192).
+# The data memory is still an asynchronous logic-cell array: 1024 words
+# (4 KB) is the minimum that holds CoreMark's 2 KB working block plus its
+# stack (ADR 047), and it is what every program now uses.  cocotb overrides
+# both via environment variables (16384 / 8192).
 IMEM_DEPTH := 4096
-DMEM_DEPTH := 512
+DMEM_DEPTH := 1024
+
+# Address at which the RTL freezes the performance counters.  The riscv-tests and
+# the synthetic programs put tohost at 0x708; CoreMark's packed data map puts
+# it at 0x6000 (ADR 047), so its bitstream needs TOHOST_ADDR=0x6000.
+TOHOST_ADDR ?= 0x00000708
+export TOHOST_ADDR
+# WSL only forwards the variables named in WSLENV to the Windows Quartus
+# binaries; without this, build.tcl sees no TOHOST_ADDR and falls back to the
+# default.  WSLENV is ignored on native Linux.
+export WSLENV := TOHOST_ADDR
 
 BUILD_DIR ?= build
 
@@ -421,20 +433,26 @@ mem: $(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem $(SCREEN_MIF)
 screen: $(IMEM_MEM) $(DMEM_MEM)
 	IMEM=$(IMEM_MEM) DMEM=$(DMEM_MEM) bash scripts/gen_screen_artifacts.sh
 
-# The binary is rebuilt whenever an ELF is given.  Timestamps alone are not
+# The images are rebuilt whenever an ELF is given.  Timestamps alone are not
 # enough: two different programs can carry the same mtime, and the resulting
 # bitstream would silently hold the previous program.
+#
+# The two memories have separate address decoders, so each one gets its own
+# image: the code sections at their own addresses, the data sections relative
+# to the base of the data window (ADR 047).
 ifneq ($(ELF),)
-$(BUILD_DIR)/program.bin: FORCE
+$(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem: FORCE
 	@mkdir -p $(BUILD_DIR)
-	riscv-none-elf-objcopy -O binary $(ELF) $@
+	python3 scripts/elf_to_mem_split.py $(ELF) \
+		--imem-depth $(IMEM_DEPTH) --imem-out $(BUILD_DIR)/imem.mem \
+		--dmem-depth $(DMEM_DEPTH) --dmem-out $(BUILD_DIR)/dmem.mem
 endif
 
-$(BUILD_DIR)/imem.mem: $(BUILD_DIR)/program.bin
-	python3 scripts/elf_to_mem.py $< $(IMEM_DEPTH) $@
-
-$(BUILD_DIR)/dmem.mem: $(BUILD_DIR)/program.bin
-	python3 scripts/elf_to_mem.py $< $(DMEM_DEPTH) $@
+ifeq ($(ELF),)
+$(BUILD_DIR)/imem.mem $(BUILD_DIR)/dmem.mem:
+	@echo "Error: $@ not found. Generate it with: make mem ELF=<path/to/program.elf>"
+	@exit 1
+endif
 
 
 .PHONY: check-elf

@@ -53,10 +53,18 @@ typedef ee_u32 CORE_TICKS;
 #endif
 
 /************************/
-/* Memory method: stack-allocated */
+/* Memory method: static buffer.
+ *
+ * MEM_STACK puts the 2 000-byte working block on the stack for the whole
+ * run, so the stack alone needs ~2.4 KB.  MEM_STATIC moves that block to
+ * .bss and leaves the stack with the call frames only (~400 bytes), which
+ * is what lets the whole data image fit in the 4 KB data memory of the
+ * single-cycle processor (ADR 047).  The benchmark's behaviour and its
+ * instruction mix are unchanged.
+ */
 /************************/
 #ifndef MEM_METHOD
-#define MEM_METHOD MEM_STACK
+#define MEM_METHOD MEM_STATIC
 #endif
 
 /************************/
