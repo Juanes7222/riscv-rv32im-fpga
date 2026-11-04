@@ -82,12 +82,15 @@ state of the five stages on every clock cycle.
   counters is kept.
 * The program loaded in the FPGA must write to `tohost = 0x708`, the
   address the `TOHOST_ADDR` parameter defaults to. The synthetic programs
-  were moved to that address; CoreMark uses `0x5000` and needs a build with
-  that parameter.
-* CoreMark does not fit in the current FPGA instruction memory
+  were moved to that address; CoreMark uses `0x6000` and needs a build with
+  `TOHOST_ADDR=0x6000` (ADR 047).
+* CoreMark does not fit in the memory configuration of this campaign
   (`IMEM_DEPTH = 2048` words = 8 KB, and its text occupies 10.5 KB), and
-  neither does its stack fit in the 2 KB data memory: measuring CoreMark in
-  hardware needs a larger memory configuration, and therefore its own Fmax.
+  neither does its data image fit in the 2 KB data memory: measuring CoreMark
+  in hardware needs a larger memory configuration, and therefore its own Fmax.
+  ADR 046 raised the instruction memory to 4 096 words and ADR 047 the data
+  memory to 1 024 words; the numbers of this ADR correspond to the 2 048/512
+  configuration.
 
 ## Note on the assembler
 

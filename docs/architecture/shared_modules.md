@@ -30,6 +30,7 @@ for the normative RTL specification and full design rationale.
 | `b` | input | 32 | Operand B |
 | `alu_op` | input | 5 | Operation select (see encoding below) |
 | `alu_res` | output | 32 | Result (combinational for non-division; registered for division) |
+| `alu_sum` | output | 32 | `a + b`, always the adder result, taken before the output mux (ADR 050) |
 | `div_busy` | output | 1 | High while division FSM is in DIV_RUNNING or DIV_DONE state |
 | `div_done` | output | 1 | 1-cycle pulse when division result is valid (DONE-->IDLE transition) |
 
@@ -77,6 +78,11 @@ for the normative RTL specification and full design rationale.
   `div_done` is kept high instead of being consumed, so the result is still
   written when the processor is released. The single-cycle ties `hold` to
   `step_hold`, the pipeline ties it to `1'b0` (ADR 044).
+- **`alu_sum` bypasses the output mux.** The load/store address (single-cycle)
+  and the branch/jump target (pipeline) are always an addition, but taking them
+  from `alu_res` timed them through the DSP multiplier, the mux's worst arc.
+  `alu_sum` is the adder alone; both tops use it for those two values
+  (ADR 050).
 
 ### Division Corner Cases
 
@@ -197,14 +203,18 @@ See [ADR 011](../decisions/011_instruction_memory_async_read.md) for rationale.
 
 ## data_memory
 
-**File:** `rtl/shared/data_memory.sv`  
-**Type:** Synchronous write, asynchronous read  
+**File:** `rtl/single_cycle/data_memory.sv` (single-cycle) and
+`rtl/pipeline/data_memory_pipe.sv` (pipeline)  
+**Type:** Synchronous write, read on the second half of the cycle (single-cycle)
+/ synchronous read (pipeline)  
 **Description:** Read-write data memory. Supports byte, halfword, and word
 accesses. On loads, the result is sign- or zero-extended to 32 bits as
 specified by `dm_ctrl`. On stores, only the relevant byte lanes are written
-using byte enables. See [ADR 019](../decisions/019_data_memory_async_read.md),
-[ADR 020](../decisions/020_data_memory_organization.md), and
-[ADR 021](../decisions/021_dm_ctrl_funct3.md).
+using byte enables. Both versions are four byte-lane M10K arrays. See
+[ADR 019](../decisions/019_data_memory_async_read.md),
+[ADR 020](../decisions/020_data_memory_organization.md),
+[ADR 021](../decisions/021_dm_ctrl_funct3.md) and
+[ADR 048](../decisions/048_single_cycle_half_cycle_data_memory.md).
 
 ### Ports
 
@@ -233,8 +243,10 @@ for loads and is irrelevant for stores; bits [1:0] encode access width.
 
 ### Behavioral Notes
 
-- Read is asynchronous: `rd_data` is available combinationally in the same
-  cycle the address is presented (ADR 019).
+- Read: in the single-cycle processor the read address is captured on the
+  falling edge and `rd_data` is combinational from the M10K output, so a load
+  completes in its own cycle (ADR 048). In the pipeline the read is registered
+  on the rising edge and the load-use interlock covers the extra cycle.
 - Write is synchronous: memory is updated on the rising edge of `clk` when
   `dm_wr == 1`.
 - Write data `wr_data` is replicated across all byte positions before the

@@ -453,7 +453,25 @@ shorter stages. The critical path is determined by the **slowest stage**
 (Patterson & Hennessy, 2017, Section 4.5; Harris & Harris, 2021,
 Section 7.3):
 
-**EX stage** - The execute stage includes the longest combinational path:
+**CSR → EX stage** - The critical path measured after place-and-route starts
+in the writeback stage and ends in the EX/MEM register:
+
+```
+MEM/WB register (wb_csr_addr)
+  --> csr_file (combinational read of the CSR register)
+  --> writeback mux (wb_rd_data)
+  --> forwarding mux into the EX stage (ex_rs1_fwd / ex_rs2_fwd)
+  --> alu_rv32im (DSP-block multiply)
+  --> EX/MEM register (mem_alu_result)
+```
+
+The CSR value is forwarded from the writeback stage to the execute stage
+because the register file cannot be read and written in the same cycle; a
+multiply that uses that value therefore carries the DSP delay into the EX/MEM
+register. The measured data delay is 16.6 ns.
+
+**EX stage** - For the rest of the instructions the execute stage is the
+longest one:
 
 ```
 ID/EX register output (ex_alu_a, ex_alu_b)
@@ -463,19 +481,22 @@ ID/EX register output (ex_alu_a, ex_alu_b)
   --> setup time of EX/MEM register
 ```
 
-For MUL instructions, the DSP-block multiplication adds 2–3 levels of
-DSP cascade, which may compete with the ALU adder path. The divisor path
-does **not** appear on the critical path because it is implemented as a
+The branch and jump target is taken from the adder alone (ADR 050): taking it
+from the shared ALU output mux put the multiplier in the fetch path, because
+the mux's worst arc is the multiply and a branch never uses it. The divisor
+path does **not** appear on the critical path because it is implemented as a
 multi-cycle FSM (Weste & Harris, 2010, Section 11.4).
 
 **MEM stage** - The memory access adds the registered read delay of the
 M10K block (for loads) or the write cycle (for stores). The registered
 output `dmem_rd_data` is available at the MEM/WB setup time.
 
-The empirical Fmax measured for the pipeline is **57.59 MHz** (Slow 85°C,
-quartile-based, `IMEM_DEPTH=2048`, `DMEM_DEPTH=512`), compared to
-**37.54 MHz** for the single-cycle on the same device. The 53 % higher
-frequency reflects the shorter combinational paths per stage.
+The empirical Fmax measured for the pipeline is **58.74 MHz** (Slow 85°C,
+mean of five replicas: 57.13-60.28 MHz, with `IMEM_DEPTH=4096` and
+`DMEM_DEPTH=1024`), compared to **48.37 MHz** for the single-cycle on the
+same device. The 21 % higher frequency reflects the shorter combinational
+paths per stage; both designs run from `CLOCK_50` on the board, except that
+the single-cycle uses its own 40 MHz clock (ADR 049).
 
 ---
 
@@ -486,8 +507,8 @@ to Intel Cyclone V M10K embedded memory blocks.
 
 | Module | File | Type | Depth (synthesis) | Depth (simulation) | M10K blocks |
 |--------|------|------|-------------------|--------------------|-------------|
-| `instruction_memory_pipe` | `rtl/pipeline/instruction_memory_pipe.sv` | ROM (synchronous) | 2048 words | 16384 words | 64 |
-| `data_memory_pipe` | `rtl/pipeline/data_memory_pipe.sv` | RAM (synchronous, 4 byte-lanes) | 512 words | 8192 words | 32 |
+| `instruction_memory_pipe` | `rtl/pipeline/instruction_memory_pipe.sv` | ROM (synchronous) | 4096 words | 16384 words | 13 |
+| `data_memory_pipe` | `rtl/pipeline/data_memory_pipe.sv` | RAM (synchronous, 4 byte-lanes) | 1024 words | 8192 words | 4 |
 
 ### Why synchronous read works for the pipeline
 
@@ -548,9 +569,16 @@ full control over byte-lane granularity. This technique infers 32 M10K blocks
 
 | Metric | Pipeline | Single-cycle (for comparison) |
 |--------|----------|-------------------------------|
-| M10K blocks | 96 (64 IMEM + 32 DMEM) | 0 |
-| ALMs | ~2 100 | ~11 500 |
-| Fmax (Slow 85°C) | 57.59 MHz | 37.54 MHz |
+| M10K blocks | 44 | 60 |
+| ALMs | 5 752 | 3 831 |
+| Registers | 5 109 | 4 117 |
+| DSP blocks | 10 | 10 |
+| PLLs | 1 (VGA) | 2 (VGA + CPU, ADR 049) |
+| Fmax (Slow 85°C) | 58.74 MHz (mean of 5) | 48.37 MHz (mean of 5) |
+
+(The figures are from the September-November 2026 campaign with
+`IMEM_DEPTH = 4096` and `DMEM_DEPTH = 1024`, the configuration CoreMark
+needs; `results/results_synthesis.csv` holds the full table.)
 
 ---
 
@@ -558,8 +586,8 @@ full control over byte-lane granularity. This technique infers 32 M10K blocks
 
 | Parameter | Synthesis value | Simulation (cocotb) value | Notes |
 |-----------|-----------------|---------------------------|-------|
-| `IMEM_DEPTH` | 2048 words (8 KB) | 16384 words (64 KB) | Set via `.qsf` `set_parameter` for synthesis |
-| `DMEM_DEPTH` | 512 words (2 KB) | 8192 words (32 KB) | Same mechanism |
+| `IMEM_DEPTH` | 4096 words (16 KB) | 16384 words (64 KB) | Set via `.qsf` `set_parameter` for synthesis (ADR 046) |
+| `DMEM_DEPTH` | 1024 words (4 KB) | 8192 words (32 KB) | Same mechanism (ADR 047) |
 | Reset vector | `0x00000000` | `0x00000000` | ADR 012 |
 
 ---

@@ -261,11 +261,17 @@ without multi-cycle DIV/REM:
 - **load_use_stress**: Pipeline 1.99x slower (load-use stalls + branch flushes)
 - **branch_stress**: Pipeline 2.00x slower (branch flush dominates)
 
-The theoretical Fmax advantage of the pipeline (57.6 MHz vs 36.9 MHz = 1.56x)
-offsets the CPI penalty:
-- raw_stress: Pipeline throughput ≈ 57.6/1.43 = 40.3 MIPS vs SC 36.9/1.0 = 36.9 MIPS
-- load_use_stress: 57.6/1.54 = 37.4 MIPS vs SC 36.9/1.0 = 36.9 MIPS
-- branch_stress: 57.6/4.00 = 14.4 MIPS vs SC 36.9/1.0 = 36.9 MIPS
+The Fmax advantage of the pipeline (58.74 MHz vs 48.37 MHz, n = 5, = 1.21x;
+both from the current campaign with `IMEM_DEPTH = 4096`, `DMEM_DEPTH = 1024`)
+is smaller than the CPI penalty in every stress program:
+- raw_stress: Pipeline throughput ≈ 58.74/1.43 = 41.1 MIPS vs SC 48.37/1.0 = 48.4 MIPS
+- load_use_stress: 58.74/1.54 = 38.1 MIPS vs SC 48.37/1.0 = 48.4 MIPS
+- branch_stress: 58.74/4.00 = 14.7 MIPS vs SC 48.37/1.0 = 48.4 MIPS
+
+On the board the comparison is even more favourable to the single-cycle in
+raw terms, because the pipeline runs at 50 MHz and the single-cycle at 40 MHz
+(ADR 049) while the single-cycle's CPI is still 1: CoreMark is 40.0 MIPS
+against 50/1.4018 = 35.7 MIPS.
 
 The pipeline only wins on throughput for programs with significant RAW
 forwarding (no structural hazards). Branch-heavy code or load-use-heavy

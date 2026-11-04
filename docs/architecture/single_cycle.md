@@ -26,6 +26,7 @@ not exposed as ports.
 ```systemverilog
 module top_single_cycle (
     input  logic clk,       // 50 MHz oscillator from DE1-SoC (PIN_AF14)
+                            // processor clock: 40 MHz PLL output (ADR 049)
     input  logic rst_n,     // Active-low synchronous reset - connected to KEY[0]
     input  logic key_step,  // KEY[1] raw pin, active low: 0 while pressed
     input  logic step_mode  // SW[9], active high: freezes the processor
@@ -107,20 +108,19 @@ The processor contains five sequential elements:
 | Program counter | `pc_unit` | Register (FF) | 32 bits |
 | Register file | `register_file` | Register array (FF) | 32 x 32 bits |
 | Instruction memory | `instruction_memory` | M10K (registered read, ADR 046) | IMEM_DEPTH x 32 bits |
-| Data memory | `data_memory` | Logic cells (async read / sync write RAM) † | DMEM_DEPTH x 32 bits |
+| Data memory | `data_memory` | M10K (half-cycle read / sync write, ADR 048) | DMEM_DEPTH x 32 bits |
 | Divisor state machine | `alu_rv32im` | FSM + registers | ~70 bits internal |
 
-† The single-cycle microarchitecture requires combinational (asynchronous) read
-for the data memory: load data must be available for write-back in the same
-cycle in which the ALU produces the address. Intel Cyclone V M10K blocks always
-register the read operation internally (Intel Corporation, 2016); they cannot
-implement true combinational read. Quartus Prime therefore implements the data
-memory in logic cells (LUTs and flip-flops), ignoring the `ramstyle = "M10K"`
-attribute present in the RTL. The instruction memory has no such constraint
+† The single-cycle microarchitecture needs the load data inside the cycle in
+which the ALU produces the address. Intel Cyclone V M10K blocks always register
+the read operation internally (Intel Corporation, 2016), so the data memory
+uses both edges of the cycle: the read address is captured on the falling edge
+and the block output is combinational, which leaves the load the second half of
+the cycle and keeps CPI = 1. The instruction memory has no such constraint
 because it is addressed with the next PC (ADR 046). See
-[ADR 011](../decisions/011_instruction_memory_async_read.md),
-[ADR 046](../decisions/046_single_cycle_imem_next_pc.md) and the Memory
-Implementation section below.
+[ADR 046](../decisions/046_single_cycle_imem_next_pc.md),
+[ADR 047](../decisions/047_data_memory_window_and_split_images.md) and
+[ADR 048](../decisions/048_single_cycle_half_cycle_data_memory.md).
 
 The pipelined processor, in contrast, uses dedicated synchronous-read modules
 (`instruction_memory_pipe.sv`, `data_memory_pipe.sv`) that map to M10K blocks
@@ -386,26 +386,40 @@ Full per-instruction values: see `docs/architecture/control_signals.md`.
 
 ## Critical Path Analysis
 
-The longest combinational path determines Fmax after place-and-route. For
-RV32I instructions the critical path is the **load instruction path**
-(Patterson & Hennessy, 2017, Section 4.4; Harris & Harris, 2021, Section 7.4.1):
+The longest path is measured after place-and-route, not assumed. With the
+half-cycle data memory (ADR 048) and the dedicated adder (ADR 050) the
+critical path is the **multiply writeback**, a full cycle:
 
 ```
-PC register output
-  --> instruction_memory (combinational read, ADR 011)
+IMEM output register (M10K, registered read, ADR 046)
   --> control_unit (combinational decode on opcode/funct3/funct7)
   --> register_file (combinational read on rs1_addr)
-  --> alu_a_mux
-  --> alu_rv32im (ADD: combinational adder)
-  --> data_memory (combinational read + byte extraction, ADR 019, ADR 020)
-  --> wb_mux
-  --> register_file setup time
+  --> alu_rv32im (DSP multiply + result adder)
+  --> writeback mux
+  --> register file write data
 ```
 
-For MUL/MULH/MULHSU/MULHU, the DSP-block multiplication path may compete
-with the load path. This is determined empirically by the Timing Analyzer
-after place-and-route. The actual critical path is reported in
-`results/single_cycle/` after the first synthesis replica.
+Timing Analyzer, slow 1100 mV 85 °C, Standard Fit:
+
+| Path | Data delay | Budget | Fmax |
+|------|-----------|--------|------|
+| Multiply writeback (critical) | 17.4 ns posedge → posedge | 20 ns at 50 MHz | **48.37 MHz** (mean of 5 replicas, 47.58-48.79) |
+| Load address (half cycle) | 5.8 ns posedge → negedge | 12.5 ns at 40 MHz | ~70 MHz |
+
+The load address used to be timed through the shared ALU output mux, whose
+worst arc is the multiplier; that arc is a don't-care for an address (a load
+always uses the adder), and removing it from the path is what took the design
+from 29 MHz to 48.37 MHz (ADR 050).
+
+The multiply writeback is the reason the processor does not run from
+`CLOCK_50`: 17.4 ns of data inside a 20 ns period leaves no margin for the
+clock network. It runs from its own 40 MHz clock instead (ADR 049), where the
+25 ns period leaves 18 % of margin on the measured Fmax.
+
+For MUL/MULH/MULHSU/MULHU the DSP-block multiplication path *is* the
+critical path, which the Timing Analyzer confirms after place-and-route.
+The measured values are reported in `results/single_cycle/` after the
+synthesis campaign.
 
 The divisor path does **not** appear on the critical path because it is
 implemented as a multi-cycle FSM using a radix-2 restoring division algorithm
@@ -418,13 +432,15 @@ presented combinationally to `alu_res` only after `div_busy` de-asserts.
 
 | Parameter | Synthesis value | Simulation (cocotb) value | Notes |
 |-----------|-----------------|---------------------------|-------|
-| `IMEM_DEPTH` | 2048 words (8 KB) | 16384 words (64 KB) | Set via `.qsf` `set_parameter` for synthesis; exported as env var for cocotb |
-| `DMEM_DEPTH` | 512 words (2 KB) | 8192 words (32 KB) | Same mechanism |
+| `IMEM_DEPTH` | 4096 words (16 KB) | 16384 words (64 KB) | Set via `.qsf` `set_parameter` for synthesis; exported as env var for cocotb |
+| `DMEM_DEPTH` | 1024 words (4 KB) | 8192 words (32 KB) | Same mechanism; 4 KB is the window of every program (ADR 047) |
+| `TOHOST_ADDR` | `0x00000708` | RTL default | Address whose write of 1 freezes the counters. The Makefile exports it: CoreMark needs `0x6000` (ADR 047) |
 | Reset vector | `0x00000000` | `0x00000000` | First word of instruction memory (ADR 012) |
 
-Synthesis uses smaller depths to keep logic-cell utilisation low and reduce
-compilation time. Simulation uses larger depths to test the full address-decoding
-logic and accommodate larger programs (e.g. CoreMark) in CI.
+Synthesis uses the depth the program needs; simulation uses larger depths to
+test the full address-decoding logic in CI. The word index of both memories is
+derived from the depth parameter (`addr[$clog2(DEPTH)+1:2]`), so a simulation
+run at a larger depth exercises the same decoder as the hardware.
 
 ---
 
@@ -454,17 +470,29 @@ blocks. A 4096-word (16 KB) instruction memory occupies 13 M10K blocks of the
 The only cost is one fill cycle after reset, during which the processor holds
 the reset vector and executes a NOP; the performance counters do not count it.
 
-### Data memory: asynchronous read in logic cells
+### Data memory: half-cycle M10K read
 
 Load data must be available at the write-back mux in the same cycle in which the
 ALU produces the effective address. Deferring the read by one cycle would
-require a load-use interlock and break CPI = 1, so `data_memory.sv` keeps a
-combinational read. Quartus Prime implements the array in logic cells (LUTs and
-flip-flops) irrespective of the `ramstyle` attribute attached to the array
-declaration: for `DMEM_DEPTH = 512` the data memory alone costs about 9 000 of
-the 32 070 ALMs on the device. This is the binding constraint for running
-CoreMark on the single-cycle, and the reason the instruction-memory change alone
-does not make the benchmark fit.
+require a load-use interlock and break CPI = 1, and a 4 KB asynchronous array
+in logic cells does not route: at `DMEM_DEPTH = 1024` Quartus built it from
+32 768 registers and 19 236 ALUTs (79 % of the design's combinational logic)
+and routing did not converge (ADR 048).
+
+The module therefore reads on the second half of the cycle. It is four byte-lane
+M10K arrays; the write port is clocked by the rising edge as before, the read
+address is captured by the falling edge, and the output of the block is
+combinational. A load issued in cycle N presents its address after the rising
+edge, the address register samples it mid-cycle, and the word is stable at the
+block output comfortably before the rising edge that writes the register file,
+so the instruction still completes in one clock cycle. The half/byte selection
+and sign extension run after the block output, exactly as in the pipelined
+memory.
+
+The VGA console shadow is unaffected: it mirrors the byte enables and lane data
+exported by the module, not the array itself. The data window is still 4 KB
+(`DMEM_DEPTH = 1024`, ADR 047), the smallest depth that holds CoreMark's
+`.rodata`, `.data`, `.bss` and stack.
 
 ### How the pipeline uses M10K efficiently
 

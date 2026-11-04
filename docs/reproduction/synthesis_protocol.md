@@ -31,25 +31,29 @@ Las réplicas cuyo `meta.json` no coincide con la huella vigente del RTL se cons
 
 ### Monociclo
 
-- Fmax media: 52.92 MHz (desviación estándar 0.73 MHz, CV 1.38 %, n = 5)
-- Rango: 51.75 MHz a 53.75 MHz
+- Fmax media: 48.37 MHz (desviación estándar 0.47 MHz, CV 0.97 %, n = 5)
+- Rango: 47.58 MHz a 48.79 MHz
 
 ### Pipeline
 
-- Fmax media: 54.45 MHz (desviación estándar 0.78 MHz, CV 1.43 %, n = 5)
-- Rango: 53.41 MHz a 55.57 MHz
+- Fmax media: 58.74 MHz (desviación estándar 1.20 MHz, CV 2.05 %, n = 5)
+- Rango: 57.13 MHz a 60.28 MHz
+
+Ambas campañas usan `IMEM_DEPTH = 4096` y `DMEM_DEPTH = 1024`, la
+configuración que CoreMark necesita (ADR 047), y el Fmax del monociclo se lee
+en la salida del PLL de CPU (`u_cpu_pll...divclk`, ADR 049).
 
 ## 4. Trazabilidad
 
 | Réplica | Commit | Fecha |
 |---|---|---|
-| single_cycle / 1 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 2 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 3 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 4 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 5 | `5192f63f` | 2026-10-21 15:12:47 |
-| pipeline / 1 | `6d679357` | 2026-10-21 15:53:35 |
-| pipeline / 2 | `6d679357` | 2026-10-21 15:55:40 |
-| pipeline / 3 | `6d679357` | 2026-10-21 15:57:41 |
-| pipeline / 4 | `6d679357` | 2026-10-21 15:59:46 |
-| pipeline / 5 | `6d679357` | 2026-10-21 16:02:31 |
+| single_cycle / 1 | `7855b3c8` | 2026-11-03 18:24:38 |
+| single_cycle / 2 | `7855b3c8` | 2026-11-03 18:27:50 |
+| single_cycle / 3 | `7855b3c8` | 2026-11-03 18:31:08 |
+| single_cycle / 4 | `7855b3c8` | 2026-11-03 18:34:18 |
+| single_cycle / 5 | `7855b3c8` | 2026-11-03 18:37:17 |
+| pipeline / 1 | `7855b3c8` | 2026-11-03 18:24:43 |
+| pipeline / 2 | `7855b3c8` | 2026-11-03 18:28:41 |
+| pipeline / 3 | `7855b3c8` | 2026-11-03 18:32:46 |
+| pipeline / 4 | `7855b3c8` | 2026-11-03 18:36:41 |
+| pipeline / 5 | `7855b3c8` | 2026-11-03 18:40:15 |

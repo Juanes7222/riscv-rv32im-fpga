@@ -22,7 +22,7 @@ The program travels through two files:
 relative to the **Quartus project directory** (`synthesis/<arch>`), so the
 header has to be regenerated for every build - the simulation and the
 synthesis build use different memory images (16384/8192 words in simulation,
-2048/512 words in the FPGA), and the simulation must never overwrite the
+4096/1024 words in the FPGA), and the simulation must never overwrite the
 header that the Quartus build reads.
 
 ### 1.1 Automatic check of the bitstream contents
