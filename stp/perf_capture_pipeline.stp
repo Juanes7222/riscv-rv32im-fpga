@@ -25,6 +25,6 @@
       <assignment name="ram_type" value="auto"/>
     </storage>
   </tap_instance>
-  <display_tree/>
   <global_info/>
+  <display_tree/>
 </signal_tap>

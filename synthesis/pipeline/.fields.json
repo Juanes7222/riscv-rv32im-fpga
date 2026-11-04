@@ -582,6 +582,23 @@
       }
     },
     {
+      "name": "halted",
+      "label": "HALTED",
+      "row": 3,
+      "col": 52,
+      "width": 1,
+      "fmt": "bin",
+      "signal_bits": 1,
+      "display_min": 1,
+      "start_address": 532,
+      "end_address": 532,
+      "origin": "tagged after \"HALTED\" on row 4",
+      "attr": {
+        "fg": 9,
+        "bg": 0
+      }
+    },
+    {
       "name": "ru_data_wr_src",
       "label": "RUDataWrSrc",
       "row": 7,

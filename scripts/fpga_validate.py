@@ -3,7 +3,7 @@
 FPGA cross-validation workflow for RISC-V RV32IM.
 
 Prepares everything needed to validate the FPGA implementation against cocotb:
-  1. Generates .mem files with FPGA-compatible depths (IMEM_DEPTH=2048, DMEM_DEPTH=512).
+  1. Generates .mem files with FPGA-compatible depths (IMEM_DEPTH=4096, DMEM_DEPTH=1024).
   2. Generates mem_config.vh pointing to those files.
   3. Runs cocotb to get expected cycle_count, instr_retired.
   4. Writes a validation reference CSV.
@@ -46,8 +46,8 @@ SYNTH_PIPELINE = REPO_ROOT / "synthesis" / "pipeline"
 SYNTH_SC = REPO_ROOT / "synthesis" / "single_cycle"
 
 # FPGA synthesis defaults (must match .qsf)
-IMEM_DEPTH = 2048
-DMEM_DEPTH = 512
+IMEM_DEPTH = 4096
+DMEM_DEPTH = 1024
 
 # cocotb depths (used by test infrastructure)
 COCOTB_IMEM_DEPTH = 16384
@@ -69,28 +69,18 @@ def _get_tohost_addr(elf_path: pathlib.Path) -> int:
 
 
 def generate_fpga_mem(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path]:
-    """Generate .mem files for FPGA (small depths)."""
+    """Generate the instruction and data .mem images for the FPGA."""
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
-    bin_path = BUILD_DIR / "program.bin"
     imem_path = BUILD_DIR / "imem.mem"
     dmem_path = BUILD_DIR / "dmem.mem"
 
-    # Convert ELF to raw binary
+    # The two memories have separate address decoders, so each one gets its
+    # own image (ADR 047).
     subprocess.run(
-        ["riscv-none-elf-objcopy", "-O", "binary", str(elf_path), str(bin_path)],
-        check=True,
-    )
-
-    # Generate .mem files with FPGA depths
-    subprocess.run(
-        ["python3", str(SCRIPTS_DIR / "elf_to_mem.py"),
-         str(bin_path), str(IMEM_DEPTH), str(imem_path)],
-        check=True,
-    )
-    subprocess.run(
-        ["python3", str(SCRIPTS_DIR / "elf_to_mem.py"),
-         str(bin_path), str(DMEM_DEPTH), str(dmem_path)],
+        ["python3", str(SCRIPTS_DIR / "elf_to_mem_split.py"), str(elf_path),
+         "--imem-depth", str(IMEM_DEPTH), "--imem-out", str(imem_path),
+         "--dmem-depth", str(DMEM_DEPTH), "--dmem-out", str(dmem_path)],
         check=True,
     )
 
@@ -126,10 +116,16 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     verif_dir = REPO_ROOT / "verification" / "cocotb" / arch
     top = "top_pipeline" if arch == "pipeline" else "top_single_cycle"
 
+    # The DUT must watch the same address the program writes, otherwise the
+    # frozen-counter path is never exercised and the equality assertion is
+    # skipped (ADR 051).  Both values come from the ELF's tohost symbol.
+    tohost_addr = _get_tohost_addr(elf_path)
+
     env = os.environ.copy()
     env["VALIDATION_ELF"] = str(elf_path)
     env["VALIDATION_CSV"] = str(csv_path)
     env["VALIDATION_MAX_CYCLES"] = str(max_cycles)
+    env["VALIDATION_TOHOST_ADDR"] = hex(tohost_addr)
     env["PATH"] = f"{REPO_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
 
     # A stale CSV must never be mistaken for a fresh reference.
@@ -141,7 +137,8 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
          "SIM=icarus",
          f"COCOTB_TEST_MODULES=test_validation",
          "TEST=test_validation",
-         f"TOPLEVEL={top}"],
+         f"TOPLEVEL={top}",
+         f"TOHOST_ADDR={tohost_addr:#x}"],
         capture_output=True,
         text=True,
         env=env,
@@ -221,7 +218,11 @@ def print_fpga_instructions(elf_path: pathlib.Path, arch: str,
     print(f"  Program:       {elf_path.name}")
     print(f"  Architecture:  {arch}")
     print(f"  Tohost addr:   {tohost_addr:#x}")
-    print(f"  TOHOST_ADDR:   {tohost_addr:#x} (default matches)")
+    if tohost_addr == 0x708:
+        print("  TOHOST_ADDR:   0x708 (the RTL default)")
+    else:
+        print(f"  TOHOST_ADDR:   pass TOHOST_ADDR={tohost_addr:#x} to make "
+              "(the RTL default is 0x708)")
     print()
     print("  STEP 1 - Generate .mem files and mem_config.vh for FPGA:")
     print(f"    python scripts/fpga_validate.py --elf {elf_path} --fpga-only")

@@ -46,14 +46,16 @@ ARCHES = ["single_cycle", "pipeline"]
 def read_fmax(path=None) -> dict:
     """Mean Fmax per architecture, from the synthesis results.
 
-    The default source is the file written by the synthesis stage of the
-    experiment (the mean of the replicas); the legacy summary of the
-    collector is used as a fallback.
+    The default source is the file the synthesis stage of the experiment
+    writes (the mean of the replicas).  The legacy collector summary is only
+    a fallback: it is not refreshed by the campaign and would pair the new
+    CPI numbers with an old Fmax.
     """
     if path is None:
-        path = RESULTS_DIR / "results_fmax.csv"
-        if not path.exists():
-            path = RESULTS_DIR / "results_synthesis.csv"
+        path = RESULTS_DIR / "results_synthesis.csv"
+        header = path.read_text().splitlines()[:1] if path.exists() else []
+        if not header or "fmax_mean_mhz" not in header[0]:
+            path = RESULTS_DIR / "results_fmax.csv"
     fmax = {}
     with open(path) as fp:
         for row in csv.DictReader(fp):
@@ -180,11 +182,21 @@ def main() -> int:
     fields = ["architecture", "program", "result", "cycle_count",
               "instr_retired", "cpi", "fmax_mhz", "throughput_mips",
               "speedup_pipeline_over_single_cycle", "note"]
+
+    # A filtered run (--only) must not erase the benchmarks it did not
+    # measure: keep their rows and replace only the ones measured now.
+    measured = {(arch, name) for name, _ in benchmarks for arch in ARCHES}
+    previous = []
+    if args.only and args.output.exists():
+        with open(args.output) as fp:
+            previous = [row for row in csv.DictReader(fp)
+                        if (row["architecture"], row["program"]) not in measured]
+
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with open(args.output, "w", newline="") as fp:
         writer = csv.DictWriter(fp, fieldnames=fields, restval="")
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(previous + rows)
 
     print()
     print(f"Measurements written to: {args.output}")

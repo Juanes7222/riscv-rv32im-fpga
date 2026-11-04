@@ -149,7 +149,7 @@ make -C programs/coremark                 # performance run, 2000 iterations
 make -C programs/coremark ITERATIONS=3 TOTAL_DATA_SIZE=120   # simulation-sized run
 ```
 
-The CoreMark memory map and the reason its `.tohost` symbol has to sit at `0x5000`
+The CoreMark memory map and the reason its `.tohost` symbol sits at `0x6000`
 are documented in
 [`docs/coremark_integration.md`](coremark_integration.md).
 
@@ -175,18 +175,22 @@ hardware, or the reverse.
 | Value | Where it is set | Notes |
 |---|---|---|
 | Reset vector `0x00000000` | `rtl/*/pc_unit.sv`, every linker script | The instruction memory is mapped at address 0 |
-| `IMEM_DEPTH` / `DMEM_DEPTH` | `synthesis/*/*.qsf` (`set_parameter`), the root `Makefile`, `verification/cocotb/common.mk` | Synthesis uses small depths for fast compiles (2048/512); the simulation uses 16384/8192 |
+| `IMEM_DEPTH` / `DMEM_DEPTH` | `synthesis/de1soc_pins.tcl` (`set_parameter`, sourced last by both `setup.tcl`), the root `Makefile`, `verification/cocotb/common.mk` | Synthesis uses 4096/1024 words (ADR 046/047); the simulation uses 16384/8192 |
 | `tohost` address | linker script, `TOHOST_ADDR` parameter in both top levels | The testbench monitors writes to this address to decide pass or fail |
-| `TOHOST_ADDR` default | `0x708` in `top_single_cycle.sv` and `top_pipeline.sv` | Matches the `riscv-tests` layout |
+| `TOHOST_ADDR` default | `0x708` in `top_single_cycle.sv` and `top_pipeline.sv` | Matches the `riscv-tests` layout; the `Makefile` exports the same value and `build.tcl` applies it to the project, so CoreMark is built with `TOHOST_ADDR=0x6000` (ADR 047) |
 | CPU clock | `synthesis/*/constraints.sdc` | 10 ns target, so the analyzer reports the achievable Fmax rather than stopping at an artificial target |
+| Single-cycle CPU clock | `rtl/shared/cpu_pll.sv` | 40 MHz PLL output from the 50 MHz pin: the multiply writeback measures 48.37 MHz (ADR 049, ADR 050); the pipeline keeps the 50 MHz pin (58.74 MHz) |
 | VGA clock | `rtl/shared/vga_pll.sv`, `constraints.sdc` | 74.25 MHz PLL, declared as a false path against the processor clock |
 | Pin assignments | `synthesis/*/*.qsf` | `CLK_50` on `PIN_AF14`, `KEY[0]` on `PIN_AA14`, LEDs, six 7-segment displays and the VGA connector |
 | `SEED` | `synthesis/*/*.qsf`, or the argument to `build.tcl` | The fitter seed; each synthesis replica uses a different one |
 
 The `IMEM_DEPTH` / `DMEM_DEPTH` pair deserves particular attention: the synthesis
-build uses deliberately small memories so that Quartus compiles quickly, while the
-simulation uses the large defaults. Both the `.qsf` parameters and the `.mem` image
-depth have to match, or the image and the memory it is loaded into disagree.
+build uses the smallest memories that hold the program (4096 words of
+instructions and 1024 words of data), while the simulation uses the large
+defaults. Both the `.qsf` parameters and the `.mem` image depth have to match, or
+the image and the memory it is loaded into disagree. The two memories have
+separate images (`scripts/elf_to_mem_split.py`), so the instruction and the data
+`.mem` files are no longer interchangeable.
 
 ## 9. Regenerating the VGA console
 

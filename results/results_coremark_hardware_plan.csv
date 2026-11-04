@@ -1,0 +1,11 @@
+architecture,replica,fmax_mhz,sof,sof_path,halted,cycles_hex,instr_hex,cpi
+single_cycle,1,48.84,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/single_cycle/replica_1/rv32im_single_cycle.sof,,,,
+single_cycle,2,48.02,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/single_cycle/replica_2/rv32im_single_cycle.sof,,,,
+single_cycle,3,47.92,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/single_cycle/replica_3/rv32im_single_cycle.sof,,,,
+single_cycle,4,47.00,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/single_cycle/replica_4/rv32im_single_cycle.sof,,,,
+single_cycle,5,47.01,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/single_cycle/replica_5/rv32im_single_cycle.sof,,,,
+pipeline,1,61.27,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/pipeline/replica_1/rv32im_pipeline.sof,,,,
+pipeline,2,58.48,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/pipeline/replica_2/rv32im_pipeline.sof,,,,
+pipeline,3,60.83,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/pipeline/replica_3/rv32im_pipeline.sof,,,,
+pipeline,4,58.46,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/pipeline/replica_4/rv32im_pipeline.sof,,,,
+pipeline,5,58.46,OK,/home/juanb/.local/share/opencode/worktree/e6bd92/imem-next-pc/results/pipeline/replica_5/rv32im_pipeline.sof,,,,

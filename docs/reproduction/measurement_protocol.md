@@ -18,7 +18,7 @@ Los contadores están incrustados en el propio procesador (`rtl/shared/perf_coun
 | `cycle_count` | Ciclos de reloj desde el reinicio hasta que el programa escribe en `tohost`; el valor queda congelado en ese instante. |
 | `instr_retired` | Monociclo: un ciclo por instrucción ejecutada. Pipeline: ciclos en los que `valid_wb = 1`, es decir, instrucciones que se retiran sin burbuja. |
 
-El mismo valor congelado en el silicio es el que muestra la consola VGA, y una aserción del testbench comprueba que coincide con el que reporta la simulación (ADR 042). CoreMark es la excepción: señala el final de la corrida con su propia dirección de tohost (0x5000), distinta de la que vigila el RTL (0x708), y por tanto sus contadores congelados no son comparables con los de la simulación.
+El mismo valor congelado en el silicio es el que muestra la consola VGA, y una aserción del testbench comprueba que coincide con el que reporta la simulación (ADR 042). CoreMark señala el final de la corrida con su propia dirección de tohost (0x6000) y su bitstream se construye con `TOHOST_ADDR=0x6000` (ADR 047), de modo que el RTL vigila la misma dirección y sus contadores congelados también son comparables con los de la simulación.
 
 ## 3. Programas de prueba
 
@@ -57,12 +57,8 @@ Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo: no se aplica
 
 | Programa | CPI monociclo | CPI pipeline | Throughput monociclo (MIPS) | Throughput pipeline (MIPS) | Speedup | Resultado |
 |---|---|---|---|---|---|---|
-| `branch_stress` | 1.0000 | 1.9998 | 52.92 | 27.23 | 0.515 | H0 no descartada |
-| `coremark_iter1` | 1.0001 | 1.3984 | 52.91 | 38.94 | 0.736 | H0 no descartada |
-| `coremark_iter10` | 1.0000 | 1.4016 | 52.92 | 38.85 | 0.734 | H0 no descartada |
-| `load_use_stress` | 1.0000 | 1.9893 | 52.92 | 27.37 | 0.517 | H0 no descartada |
-| `m_ext_stress` | 7.5806 | 8.0260 | 6.98 | 6.78 | 0.972 | H0 no descartada |
-| `raw_stress` | 1.0000 | 1.2511 | 52.92 | 43.52 | 0.823 | H0 no descartada |
+| `coremark_iter1` | 1.0001 | 1.3996 | 47.75 | 42.51 | 0.890 | H0 no descartada |
+| `coremark_iter10` | 1.0000 | 1.4018 | 47.76 | 42.45 | 0.889 | H0 no descartada |
 
 ## 8. Réplicas
 

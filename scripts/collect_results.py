@@ -220,18 +220,24 @@ def parse_fmax_from_sta(sta_path: Path) -> Tuple[float, float]:
 
     # Pattern matches the Fmax table row:
     #   ; 389.86 MHz ; 389.86 MHz      ; clk        ;      ;
+    # The single-cycle processor runs from a PLL output (ADR 049), so its
+    # processor row is the cpu_pll divclk; the pin clock keeps no processor
+    # path.  Prefer the cpu_pll row when it exists.
+    cpu_pattern = r';\s*([\d.]+)\s*MHz\s*;\s*([\d.]+)\s*MHz\s*;\s*u_cpu_pll[^;]*;'
     pattern = r';\s*([\d.]+)\s*MHz\s*;\s*([\d.]+)\s*MHz\s*;\s*clk\s*;'
 
     # Split on the boxed section header (the one starting with ";")
     sections = text.split("; Slow 1100mV 85C Model Fmax Summary")
     if len(sections) > 1:
-        match = re.search(pattern, sections[1])
+        match = (re.search(cpu_pattern, sections[1])
+                 or re.search(pattern, sections[1]))
         if match:
             fmax_85c = float(match.group(1))
 
     sections = text.split("; Slow 1100mV 0C Model Fmax Summary")
     if len(sections) > 1:
-        match = re.search(pattern, sections[1])
+        match = (re.search(cpu_pattern, sections[1])
+                 or re.search(pattern, sections[1]))
         if match:
             fmax_0c = float(match.group(1))
 

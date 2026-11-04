@@ -52,14 +52,15 @@ module vga_mem_shadow #(
         `endif
     end
 
-    // The CPU's data memory indexes addr[14:2], whatever the depth of its
-    // array is, so the shadow takes the same 13-bit word index: an access
-    // beyond the array is dropped by both in simulation, and in synthesis
-    // the M10K truncates the address to the depth of the array in both.
-    logic [12:0] wr_word;
-    logic [12:0] rd_word;
-    assign wr_word = wr_addr[14:2];
-    assign rd_word = rd_addr[14:2];
+    // The shadow indexes with the same word address as the CPU's data
+    // memory, so both store the same bytes at the same index.  The width
+    // follows DEPTH (ADR 047): the hardcoded 13-bit slice pointed outside
+    // the array whenever DEPTH was smaller than 8 192 words.
+    localparam int unsigned ADDR_BITS = $clog2(DEPTH);
+    logic [ADDR_BITS-1:0] wr_word;
+    logic [ADDR_BITS-1:0] rd_word;
+    assign wr_word = wr_addr[ADDR_BITS+1:2];
+    assign rd_word = rd_addr[ADDR_BITS+1:2];
 
     always_ff @(posedge wr_clk) begin
         if (wr_en) begin

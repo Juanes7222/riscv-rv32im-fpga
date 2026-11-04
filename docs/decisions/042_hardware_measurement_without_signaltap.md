@@ -26,13 +26,27 @@ implementation of Activity 3.3 in ADR 026, but it never worked:
 1. The SignalTap Tcl API (`stp_open`, `stp_run`, `stp_export`) was removed in
    Quartus Prime 25.1: the `::quartus::stp` package loads but registers no
    command.
-2. The hand-written `.stp` files in `stp/` are not accepted by Quartus 25.1
-   (`Error (262006): File ... is not a valid Signal Tap File`), so a
+2. The hand-written `.stp` files in `stp/` are not accepted by Quartus 25.1.
+   `quartus_stp <project> --stp_file=<file> --enable` answers
+   `Error (262006): File "..." is not a valid Signal Tap File -- ignoring`,
+   including the version regenerated with the GUI's XML shape, so a
    "SignalTap build" silently produces a design **without** any capture logic.
+   A valid `.stp` needs one save from the SignalTap II GUI
+   (`quartus_stpw.exe`), which is a manual step.
 3. `scripts/run_capture.tcl` had a Tcl error (`lindex $argv 1 [default]`) and
    programmed device 1 of the chain (the MAX10) instead of the FPGA.
 4. The Logic Analyzer Interface, the API that is available, needs a `.lai`
    file that only the SignalTap II GUI can produce.
+5. `quartus_stp --create_signaltap_hdl_file --stp_file=<file>` answers
+   `Error (262017): Can't find Signal Tap megafunction in project ...`,
+   because the `.qsf` has no SignalTap instance to generate HDL from — a
+   chicken-and-egg problem: you need SignalTap compiled in the design to
+   generate the HDL, but you need the HDL to compile SignalTap.
+6. `package require ::quartus::insystem_source_probe` loads but registers no
+   commands (`start_insystem_source_probe`, `read_probe_data`,
+   `write_source_data`, `stop_insystem_source_probe` do not exist).
+7. There are no `.stp` example files in the Quartus 25.1 installation to
+   use as a template.
 
 ## Decision
 
@@ -82,12 +96,15 @@ state of the five stages on every clock cycle.
   counters is kept.
 * The program loaded in the FPGA must write to `tohost = 0x708`, the
   address the `TOHOST_ADDR` parameter defaults to. The synthetic programs
-  were moved to that address; CoreMark uses `0x5000` and needs a build with
-  that parameter.
-* CoreMark does not fit in the current FPGA instruction memory
+  were moved to that address; CoreMark uses `0x6000` and needs a build with
+  `TOHOST_ADDR=0x6000` (ADR 047).
+* CoreMark does not fit in the memory configuration of this campaign
   (`IMEM_DEPTH = 2048` words = 8 KB, and its text occupies 10.5 KB), and
-  neither does its stack fit in the 2 KB data memory: measuring CoreMark in
-  hardware needs a larger memory configuration, and therefore its own Fmax.
+  neither does its data image fit in the 2 KB data memory: measuring CoreMark
+  in hardware needs a larger memory configuration, and therefore its own Fmax.
+  ADR 046 raised the instruction memory to 4 096 words and ADR 047 the data
+  memory to 1 024 words; the numbers of this ADR correspond to the 2 048/512
+  configuration.
 
 ## Note on the assembler
 

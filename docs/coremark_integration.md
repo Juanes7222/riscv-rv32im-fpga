@@ -22,23 +22,31 @@ programs/coremark/
 ## Memory map
 
 CoreMark uses a Harvard architecture: instructions in IMEM, data in DMEM.
-The linker sees a single flat address space but sections are placed at
-non-overlapping addresses across the two physical memories.
+The linker sees a single flat address space but the two memories have
+independent address decoders, so each one gets its own image
+(`scripts/elf_to_mem_split.py`, ADR 047): the executable sections go to the
+instruction image at their own addresses, every other allocated section
+(including `.rodata`) goes to the data image relative to the base of the data
+window.
 
 | Section  | Address | Size (FPGA) | Notes                              |
 |----------|---------|-------------|------------------------------------|
-| .text    | 0x0000  | ~10 KB      | Instructions + read-only data      |
-| .rodata  | 0x2350  | ~1.4 KB     | String constants, read-only data   |
-| gap      | 0x28F5  |             | Zero-filled (not accessed as code) |
-| .tohost  | 0x5000  | 8 bytes     | Test completion signal             |
-| gap      | 0x5008  |             | Zero-filled                        |
-| .data    | 0x6000  | 12 bytes    | Initialized global data            |
-| .bss     | 0x600C  | 20 bytes    | Zero-initialized data              |
-| .stack   | 0x7000  | 4 KB        | Stack grows down toward 0x7000     |
+| .text    | 0x0000  | ~9 KB       | Instructions (instruction memory)  |
+| .tohost  | 0x6000  | 8 bytes     | Test completion signal             |
+| .rodata  | 0x6008  | ~1.4 KB     | CRC tables + strings (read as data)|
+| .data    | 0x6558  | 12 bytes    | Initialized global data            |
+| .bss     | 0x6564  | ~2 KB       | Zero-initialized data + working block |
+| .stack   | 0x6D50  | 688 bytes   | Grows down; `__stack_top = 0x7000` |
 
-**Critical**: `.text` ends at ~0x28F5 (10 KB). `.tohost` at 0x5000 must be
-placed AFTER `.text` ends to avoid overlap. The original riscv-tests value of
-0x708 is too low for CoreMark's ~9 KB `.text` section.
+**Critical**: the whole data image must fit in the 4 KB data memory
+(`DMEM_DEPTH = 1024`), and that includes `.rodata`: CoreMark reads its CRC
+tables with loads, and the instruction memory cannot be addressed by a load.
+The 2 000-byte working block lives in `.bss` because `MEM_METHOD` is
+`MEM_STATIC`; with `MEM_STACK` it would sit on the stack for the whole run and
+the image would not fit. The linker fails the build if fewer than 512 bytes of
+stack are left. `.tohost` is at the base of the window (0x6000), not at the
+riscv-tests value of 0x708, so the bitstream must be built with
+`TOHOST_ADDR=0x6000` for the on-board counters to freeze.
 
 ## Compilation
 
@@ -103,17 +111,21 @@ make TEST=test_coremark_smoke TOPLEVEL=top_pipeline SIM=icarus \
 Expected results (pipeline, 2000 cycles):
 - ~1100 instructions retired
 - CPI ≈ 1.76
-- First DM write at 0x600c (BSS clear)
+- First DM write at 0x6564 (BSS clear)
 - No PC stuck
 
 ## FPGA flow
 
-For FPGA, use the `make flash` target with IMEM_DEPTH=16384, DMEM_DEPTH=8192:
+For FPGA, flash the CoreMark build with its own `tohost` address (the memory
+depths of the flow are already 4096/1024 words, ADR 047):
 
 ```bash
-make flash ARCH=pipeline ELF=build/coremark/coremark.elf
+make -C programs/coremark            # ITERATIONS=2000: ~18 s at 50 MHz (pipeline), ~16 s at 40 MHz (single-cycle, ADR 049)
+make flash ARCH=single_cycle ELF=build/coremark/coremark.elf TOHOST_ADDR=0x6000
 ```
 
-The program writes 1 to `tohost` (0x5000) upon completion. Performance
-counters (`cycle_count`, `instr_retired`) are captured via SignalTap II using
-the `perf_counter` module.
+`make flash` regenerates both images from the ELF and applies `TOHOST_ADDR` to
+the project before compiling. The program writes 1 to `tohost` (0x6000) upon
+completion. Performance counters (`cycle_count`, `instr_retired`) are captured
+via SignalTap II using the `perf_counter` module, or read from the VGA console,
+whose counters freeze at that write.

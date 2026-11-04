@@ -31,25 +31,25 @@ Las réplicas cuyo `meta.json` no coincide con la huella vigente del RTL se cons
 
 ### Monociclo
 
-- Fmax media: 52.92 MHz (desviación estándar 0.73 MHz, CV 1.38 %, n = 5)
-- Rango: 51.75 MHz a 53.75 MHz
+- Fmax media: 47.76 MHz (desviación estándar 0.77 MHz, CV 1.62 %, n = 5)
+- Rango: 47.00 MHz a 48.84 MHz
 
 ### Pipeline
 
-- Fmax media: 54.45 MHz (desviación estándar 0.78 MHz, CV 1.43 %, n = 5)
-- Rango: 53.41 MHz a 55.57 MHz
+- Fmax media: 59.50 MHz (desviación estándar 1.42 MHz, CV 2.39 %, n = 5)
+- Rango: 58.46 MHz a 61.27 MHz
 
 ## 4. Trazabilidad
 
 | Réplica | Commit | Fecha |
 |---|---|---|
-| single_cycle / 1 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 2 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 3 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 4 | `5192f63f` | 2026-10-21 15:12:47 |
-| single_cycle / 5 | `5192f63f` | 2026-10-21 15:12:47 |
-| pipeline / 1 | `6d679357` | 2026-10-21 15:53:35 |
-| pipeline / 2 | `6d679357` | 2026-10-21 15:55:40 |
-| pipeline / 3 | `6d679357` | 2026-10-21 15:57:41 |
-| pipeline / 4 | `6d679357` | 2026-10-21 15:59:46 |
-| pipeline / 5 | `6d679357` | 2026-10-21 16:02:31 |
+| single_cycle / 1 | `44336a6e` | 2026-11-03 20:23:59 |
+| single_cycle / 2 | `44336a6e` | 2026-11-03 20:26:51 |
+| single_cycle / 3 | `44336a6e` | 2026-11-03 20:29:43 |
+| single_cycle / 4 | `44336a6e` | 2026-11-03 20:32:36 |
+| single_cycle / 5 | `` |  |
+| pipeline / 1 | `44336a6e` | 2026-11-03 20:38:31 |
+| pipeline / 2 | `44336a6e` | 2026-11-03 20:41:55 |
+| pipeline / 3 | `44336a6e` | 2026-11-03 20:45:06 |
+| pipeline / 4 | `44336a6e` | 2026-11-03 20:48:12 |
+| pipeline / 5 | `44336a6e` | 2026-11-03 20:51:56 |

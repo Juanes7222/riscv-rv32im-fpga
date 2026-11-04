@@ -3,7 +3,7 @@ module top_single_cycle #(
     parameter int DMEM_DEPTH = 8192,
     parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
 )(
-    input logic clk,     // 50 MHz - DE1-SoC PIN_AF14
+    input logic clk,     // 50 MHz - DE1-SoC PIN_AF14 (CPU runs at 40 MHz, ADR 049)
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
     input logic key_step, // KEY[1] raw pin, active low: 0 while pressed
     input logic step_mode,// SW[9], active high: freezes the processor
@@ -39,6 +39,26 @@ module top_single_cycle #(
     localparam [1:0] WB_MEM = 2'b01;
     localparam [1:0] WB_PC4 = 2'b10;
     localparam [1:0] WB_CSR = 2'b11;    // ADR 027
+
+    // Processor clock: 40 MHz from the 50 MHz oscillator.  The measured Fmax
+    // of this microarchitecture is 46.17 MHz (the multiply writeback, ADR
+    // 050), so CLOCK_50 would leave no margin (ADR 049).  The VGA pixel PLL
+    // below keeps taking the 50 MHz pin.
+    logic clk_cpu;
+    logic cpu_pll_locked;
+
+    // The CPU starts only once the PLL is locked: KEY[0] is a synchronous
+    // reset, so a power-up that skips the button would otherwise run the
+    // processor on an unlocked clock.
+    logic rst_n_cpu;
+    assign rst_n_cpu = rst_n & cpu_pll_locked;
+
+    cpu_pll u_cpu_pll (
+        .clk_in  (clk),
+        .rst_in  (~rst_n),
+        .clk_out (clk_cpu),
+        .locked  (cpu_pll_locked)
+    );
 
 
     // Fetch
@@ -96,6 +116,7 @@ module top_single_cycle #(
     logic [31:0] alu_a;
     logic [31:0] alu_b;
     logic [31:0] alu_res;
+    logic [31:0] alu_sum;   // adder result, free of the multiplier
     logic        div_busy;
     logic        div_done;
 
@@ -111,7 +132,7 @@ module top_single_cycle #(
     logic [31:0] dm_wdata /* synthesis keep */;
 
     // Alias internal signals to expected top-level names
-    assign dm_addr  = alu_res;
+    assign dm_addr  = alu_sum;
     assign dm_wdata = rs2_data;
 
     // Write-enable gate (ADR 023)
@@ -178,12 +199,12 @@ module top_single_cycle #(
     // itself: the counters are frozen in the cycle that carries the store
     // into the register file, which is the instant cocotb samples.
     logic program_done_pulse;
-    assign program_done_pulse = dm_wr && (alu_res == TOHOST_ADDR)
+    assign program_done_pulse = dm_wr && (alu_sum == TOHOST_ADDR)
                              && (rs2_data == 32'd1);
 
     // Registered copy for the console and the SignalTap II trigger.
-    always_ff @(posedge clk) begin
-        if (!rst_n) begin
+    always_ff @(posedge clk_cpu) begin
+        if (!rst_n_cpu) begin
             program_done <= 1'b0;
         end else if (program_done_pulse) begin
             program_done <= 1'b1;
@@ -213,8 +234,8 @@ module top_single_cycle #(
     logic step_hold;
 
     step_mode_ctrl u_step_mode (
-        .clk       (clk),
-        .rst_n     (rst_n),
+        .clk       (clk_cpu),
+        .rst_n     (rst_n_cpu),
         .key_step  (key_step),
         .step_mode (step_mode),
         .step_hold (step_hold)
@@ -223,8 +244,8 @@ module top_single_cycle #(
     perf_counters #(
         .PIPELINE_MODE (1'b0)
     ) u_perf (
-        .clk                  (clk),
-        .rst_n                (rst_n),
+        .clk                  (clk_cpu),
+        .rst_n                (rst_n_cpu),
         .enable               (~step_hold & fetch_valid),
         .div_busy             (div_busy),
         .valid_wb             (1'b0),
@@ -237,8 +258,8 @@ module top_single_cycle #(
     );
 
     pc u_pc (
-        .clk         (clk),
-        .rst_n       (rst_n),
+        .clk         (clk_cpu),
+        .rst_n       (rst_n_cpu),
         .branch      (branch),
         .mask_pc_lsb (mask_pc_lsb),
         .alu_res     (alu_res),
@@ -258,8 +279,8 @@ module top_single_cycle #(
     // address yet, so the processor holds the reset vector and executes a
     // NOP.  The cycle is excluded from the performance counters, so the
     // CPI=1 invariant keeps its meaning.
-    always_ff @(posedge clk) begin
-        if (!rst_n) fetch_valid <= 1'b0;
+    always_ff @(posedge clk_cpu) begin
+        if (!rst_n_cpu) fetch_valid <= 1'b0;
         else        fetch_valid <= 1'b1;
     end
 
@@ -270,7 +291,7 @@ module top_single_cycle #(
     instruction_memory #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
-        .clk         (clk),
+        .clk         (clk_cpu),
         .fetch_en    (~div_busy & ~step_hold),
         .next_pc     (imem_addr),
         .instruction (imem_instruction)
@@ -299,8 +320,8 @@ module top_single_cycle #(
     );
 
     register_file u_rf (
-        .clk      (clk),
-        .rst      (~rst_n),         // register_file uses active-high synchronous rst
+        .clk      (clk_cpu),
+        .rst      (~rst_n_cpu),     // register_file uses active-high synchronous rst
         .rs1_addr (rs1_addr),
         .rs2_addr (rs2_addr),
         .rd_addr  (rd_addr),
@@ -326,13 +347,14 @@ module top_single_cycle #(
     );
 
     alu_rv32im u_alu (
-        .clk      (clk),
-        .rst_n    (rst_n),
+        .clk      (clk_cpu),
+        .rst_n    (rst_n_cpu),
         .hold     (step_hold),   // the divider is frozen with the processor
         .a        (alu_a),
         .b        (alu_b),
         .alu_op   (alu_op),
         .alu_res  (alu_res),
+        .alu_sum  (alu_sum),
         .div_busy (div_busy),
         .div_done (div_done)
     );
@@ -343,8 +365,8 @@ module top_single_cycle #(
     data_memory #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
-        .clk        (clk),
-        .addr       (alu_res),
+        .clk        (clk_cpu),
+        .addr       (alu_sum),
         .wr_data    (rs2_data),
         .dm_wr      (dm_wr),
         .dm_ctrl    (dm_ctrl),
@@ -355,8 +377,8 @@ module top_single_cycle #(
 
     // ADR 027: CSR register file with trap logic
     csr_file u_csr (
-        .clk         (clk),
-        .rst_n       (rst_n),
+        .clk         (clk_cpu),
+        .rst_n       (rst_n_cpu),
         .csr_addr    (csr_addr),
         .csr_wdata   (csr_wdata),
         .csr_wr      (csr_wr & ~step_hold),
@@ -520,7 +542,7 @@ module top_single_cycle #(
         .alu_a        (alu_a),
         .alu_b        (alu_b),
         .alu_res      (alu_res),
-        .dm_addr      (alu_res),          // alias: dm_addr = alu_res
+        .dm_addr      (alu_sum),          // alias: dm_addr = alu_sum
         .dm_wdata     (dm_wdata),
         .dm_rdata     (dm_rd_data),
         .data_wr      (rd_data),          // alias for ru_data_wr_src display
@@ -552,9 +574,9 @@ module top_single_cycle #(
     logic [31:0] imem_shadow_rd_addr;
 
     vga_mem_shadow #(.DEPTH(DMEM_DEPTH)) u_dmem_shadow (
-        .wr_clk (clk),
+        .wr_clk (clk_cpu),
         .wr_en  (dm_wr),
-        .wr_addr(alu_res),
+        .wr_addr(alu_sum),
         .wr_data(dmem_dbg_wr_data),
         .wr_be  (dmem_dbg_wr_be),
         .rd_clk (vga_pixel_clk),
