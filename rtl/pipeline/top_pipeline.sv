@@ -873,6 +873,7 @@ module top_pipeline #(
         .instr_retired    (instr_retired),
         .cycles_at_done   (cycles_at_done),
         .instr_at_done    (instr_at_done),
+        .halted           (program_done),
 
         // Register file (whole file, for the register table)
         .reg_values       (rf_dbg_regs),
