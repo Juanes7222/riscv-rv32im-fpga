@@ -21,9 +21,27 @@ options exist for memory read behavior:
 
 ## Decision
 
-The `instruction_memory` module uses **asynchronous (combinational) read**.
-The module has no `clk` port. The instruction output is valid combinationally
-whenever the address input is stable.
+The single-cycle instruction memory (`rtl/single_cycle/instruction_memory.sv`)
+uses a **registered read addressed with the next PC** (ADR 046). The module has
+`clk` and `fetch_en` ports: the word read with `next_pc` at the end of cycle N
+is the instruction of cycle N+1, already available when it is executed, so the
+memory's own address register acts as the IF/ID boundary without adding a
+bubble and CPI stays 1. The out-of-range NOP mux sits after the output
+register, otherwise Quartus does not infer the M10K block.
+
+The pipelined processor keeps its own synchronous-read module
+(`rtl/pipeline/instruction_memory_pipe.sv`): its IF/ID register captures the
+instruction at the clock edge, so a clocked read is sufficient and Quartus maps
+it to M10K blocks (see ADR 011 §1-3 as originally written).
+
+ADR 011 §4 ("not feasible to convert single-cycle to synchronous read") is
+superseded by ADR 046: presenting the next PC instead of the current PC lets
+the registered read absorb the fetch without adding a stage or a stall.
+
+> **Superseded in part by ADR 046.** The single-cycle instruction memory now
+> uses a registered read addressed with the next PC and is inferred as M10K.
+> ADR 011 §1-3 (the pipeline still needs the synchronous read it already has)
+> remain valid.
 
 ## Rationale
 
@@ -67,8 +85,8 @@ logic cells.
 **4. Not feasible to convert single-cycle to synchronous read.**  
 Adding a register between the instruction memory output and the decode logic
 would change the microarchitecture from single-cycle to two-cycle for
-instruction fetch, which is structurally incompatible with the design.
-This would require adding an explicit pipeline stage (IF/ID) and an additional
+instruction fetch, which is structurally incompatible with the design. This
+would require adding an explicit pipeline stage (IF/ID) and an additional
 stall cycle on branches, negating the single-cycle advantage of CPI = 1.
 
 > **Superseded by ADR 046.** This argument assumes the address presented to the
@@ -80,12 +98,14 @@ stall cycle on branches, negating the single-cycle advantage of CPI = 1.
 
 ## Consequences
 
-- `instruction_memory.sv` has no `clk` port and no sequential logic.
-- Quartus synthesis must be configured to allow asynchronous ROM inference for
-  this module. This is documented in `docs/reproduction/synthesis_protocol.md`.
-- The critical path of the single-cycle processor passes through the
-  instruction memory combinational read delay. This is expected and reflected
-  in `docs/architecture/single_cycle.md` (Critical Path Analysis section).
-- `data_memory` uses **asynchronous read as well** for consistency and to avoid
-  a one-cycle load-use stall in the single-cycle design. The write path of
-  `data_memory` remains synchronous.
+- `rtl/single_cycle/instruction_memory.sv` has `clk` and `fetch_en` ports and
+  performs a registered read (ADR 046); `rtl/pipeline/instruction_memory_pipe.sv`
+  keeps its synchronous read (pipeline, unchanged).
+- The async-ROM configuration note in `docs/reproduction/synthesis_protocol.md`
+  no longer applies to the single-cycle instruction memory.
+- The single-cycle critical path no longer passes through a combinational
+  instruction-memory read; it passes through the M10K output register, the
+  next-PC mux and the M10K address setup (see `docs/architecture/single_cycle.md`,
+  Critical Path Analysis section).
+- `data_memory` is governed by ADR 020 and ADR 048 (half-cycle M10K read in the
+  single-cycle, synchronous read in the pipeline).

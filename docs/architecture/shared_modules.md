@@ -174,30 +174,37 @@ address). Writes take effect on the rising clock edge.
 
 ## instruction_memory
 
-**File:** `rtl/shared/instruction_memory.sv`  
-**Type:** Asynchronous read (combinational output)  
-**Description:** Read-only instruction memory. The instruction word is
-available combinationally in the same cycle as the PC address is presented.
-See [ADR 011](../decisions/011_instruction_memory_async_read.md) for rationale.
+**File:** `rtl/single_cycle/instruction_memory.sv`  
+**Type:** Registered read addressed with the next PC  
+**Description:** Read-only instruction memory used by the single-cycle
+processor. The word read with `next_pc` at the end of cycle N is the
+instruction of cycle N+1, so the memory's address register acts as the IF/ID
+boundary without adding a bubble (CPI stays 1). See
+[ADR 046](../decisions/046_single_cycle_imem_next_pc.md) for rationale.
+The pipelined processor uses `rtl/pipeline/instruction_memory_pipe.sv`
+(synchronous read, unchanged).
 
 ### Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `addr` | input | 32 | Byte address (PC value) |
+| `clk` | input | 1 | Clock |
+| `fetch_en` | input | 1 | Holds the output register during division / step mode |
+| `next_pc` | input | 32 | Byte address captured by the memory this cycle |
 | `instruction` | output | 32 | 32-bit instruction word |
 
 ### Behavioral Notes
 
-- No `clk` port. The module is purely combinational.
+- Registered read: `mem_q <= mem[word_index]` where `word_index` comes from
+  `next_pc`. The output register holds the instruction of the executing
+  cycle.
 - Byte-addressed interface; `addr[1:0]` are ignored internally.
   All RV32I instructions are 32-bit aligned.
-- Initialized from a `.mem` file via `$readmemh` at simulation time:
-  ```systemverilog
-  parameter MEM_FILE = "program.mem"
-  ```
-- Memory depth is set via module parameter `IMEM_DEPTH` (default: 16384 words
-  = 64 KB, see [ADR 013](../decisions/013_memory_sizes.md)).
+- Initialized from a `.mem` file via `$readmemh` at simulation time.
+- Memory depth is set via module parameter `IMEM_DEPTH` (4096 words = 16 KB
+  for synthesis, 16384 words = 64 KB for simulation; see
+  [ADR 013](../decisions/013_memory_sizes.md) and
+  [ADR 046](../decisions/046_single_cycle_imem_next_pc.md)).
 
 ---
 
@@ -253,8 +260,9 @@ for loads and is irrelevant for stores; bits [1:0] encode access width.
   memory array; byte enables select which lanes are written (ADR 020).
 - Natural alignment is assumed. Misaligned accesses produce undefined results;
   no exception is raised (ADR 020).
-- Memory depth is set via parameter `DMEM_DEPTH` (default: 8192 words = 32 KB,
-  see [ADR 013](../decisions/013_memory_sizes.md)).
+- Memory depth is set via parameter `DMEM_DEPTH` (1024 words = 4 KB for
+  synthesis, 8192 words = 32 KB for simulation; see
+  [ADR 013](../decisions/013_memory_sizes.md)).
 
 ---
 

@@ -18,16 +18,16 @@ the original, and both remain in the index.
 | [008](008_m_extension_implementation.md) | Combinational multiplier, multi-cycle divisor for extension M | Accepted | - |
 | [009](009_mulhsu_33bit_extension.md) | MULHSU implemented via 33-bit sign/zero extension | Accepted | - |
 | [010](010_systemverilog_style.md) | Unified SystemVerilog style: logic + always_comb | Accepted | - |
-| [011](011_instruction_memory_async_read.md) | Instruction memory asynchronous read | Accepted | - |
+| [011](011_instruction_memory_async_read.md) | Instruction memory asynchronous read | Superseded in part by ADR 046 | - |
 | [012](012_reset_vector.md) | Reset vector `0x00000000` | Accepted | - |
-| [013](013_memory_sizes.md) | Instruction memory 64 KB, data memory 32 KB | Accepted | - |
+| [013](013_memory_sizes.md) | Instruction and data memory sizes | Accepted | - |
 | [014](014_memory_initialize_format.md) | Memory Initialization Format | Accepted | - |
 | [015](015_register_file_ff_array.md) | Register File: FF Array Implementation | Accepted | - |
 | [016](016_register_file_reset_zero.md) | Register File: All Registers Reset to Zero | Accepted | - |
 | [017](017_imm_gen_interface.md) | Immediate Generator: Interface and Implementation | Accepted | - |
 | [018](018_branch_unit.md) | Branch Unit: Interface and Implementation | Accepted | - |
 | [019](019_alu_rv32im.md) | ALU RV32IM: Interface, MULHSU, and Division Strategy | Accepted | - |
-| [020](020_data_memory_async_read.md) | Data Memory: Asynchronous Read | Accepted | - |
+| [020](020_data_memory_async_read.md) | Data Memory: Asynchronous Read | Superseded in part by ADR 048 | - |
 | [021](021_data_memory_organization.md) | Data Memory: Word-Addressed Organization with Byte Enables | Accepted | - |
 | [022](022_control_unit.md) | Control Unit: Interface and Implementation | Accepted | - |
 | [023](023_wr_en_gated.md) | Register File Write Inhibit During Division | Accepted | - |

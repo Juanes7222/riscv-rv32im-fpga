@@ -1,7 +1,7 @@
 # ADR 013 - Instruction and Data Memory Sizes
 
 **Status:** Accepted  
-**Date:** 2026-04-24
+**Date:** 2026-04-24  
 
 ## Context
 
@@ -13,13 +13,17 @@ budget of the Cyclone V 5CSEMA5F31C6.
 
 ## Decision
 
-| Memory | Parameter | Words | Byte size | M10K usage (approx.) |
-|--------|-----------|-------|-----------|----------------------|
-| `instruction_memory` | `IMEM_DEPTH = 16384` | 16 384 | 64 KB | ~5 M10K blocks |
-| `data_memory` | `DMEM_DEPTH = 8192` | 8 192 | 32 KB | ~3 M10K blocks |
+| Memory | Parameter | Words (synthesis / simulation) | Byte size | M10K usage (approx., synthesis) |
+|--------|-----------|--------------------------------|-----------|---------------------------------|
+| `instruction_memory` | `IMEM_DEPTH` | 4 096 / 16 384 | 16 KB / 64 KB | ~13 M10K blocks |
+| `data_memory` | `DMEM_DEPTH` | 1 024 / 8 192 | 4 KB / 32 KB | ~4 M10K blocks |
 
-Total: approximately **8 M10K blocks** out of the 308 available on the
-Cyclone V 5CSEMA5F31C6.
+The synthesis depths (4 096 words of instructions and 1 024 words of data) are
+the smallest that hold CoreMark's image (ADR 046, ADR 047). The simulation
+depths (16 384 and 8 192 words) exercise the full address-decoding logic in
+CI. The word index of both memories is derived from the depth parameter,
+`addr[$clog2(DEPTH)+1:2]`, so a simulation run at a larger depth exercises the
+same decoder as the hardware (ADR 047).
 
 ## Rationale
 
@@ -27,37 +31,28 @@ Cyclone V 5CSEMA5F31C6.
 A CoreMark binary compiled for RV32IM with no OS support (newlib-nano,
 `-march=rv32im -mabi=ilp32`) produces a text segment of approximately 15–25 KB
 and a data/BSS segment of approximately 2–5 KB. A stack of 4–8 KB is
-additionally required in data memory. The 64 KB instruction memory and 32 KB
-data memory provide comfortable margins above these requirements.
+additionally required in data memory. The synthesis depths provide comfortable
+margins above these requirements within the 4 KB data window (ADR 047).
 
-**riscv-tests individual test sizes:**  
-Each individual riscv-tests binary is under 4 KB. The 64 KB instruction memory
-fits any individual test with no concern.
+**riscv-tests individual test sizes:**    
+Each individual riscv-tests binary is under 4 KB. The synthesis instruction
+memory fits any individual test with no concern.
 
 **M10K budget:**  
 The Cyclone V 5CSEMA5F31C6 has 4 450 Kbits of embedded memory = ~556 KB total
-across all M10K blocks. The 96 KB used by the two memories represents ~17% of
-the total, leaving substantial capacity for the pipelined implementation and
-the visualization module. This does not trigger the synthesis overflow
+across all M10K blocks. The two memories at synthesis depth use well under 10%
+of the total, leaving substantial capacity for the pipelined implementation
+and the visualization module. This does not trigger the synthesis overflow
 suspension criterion.
-
-**Address bus width:**  
-- Instruction memory: `IMEM_DEPTH = 16384` --> word address requires 14 bits
-  --> byte address range `0x00000000 – 0x0000FFFF` (16-bit address space).
-  The PC presents a 32-bit address; the instruction memory uses `addr[15:2]`
-  internally and ignores `addr[1:0]` (always zero for aligned instructions)
-  and `addr[31:16]` (out-of-range accesses are undefined behavior).
-- Data memory: `DMEM_DEPTH = 8192` --> word address requires 13 bits --> byte
-  address range `0x00000000 – 0x00007FFF`. The data memory uses `addr[14:2]`
-  internally.
 
 ## Consequences
 
-- The linker script must fit `.text` + `.rodata` within 64 KB and `.data` +
-  `.bss` + stack within 32 KB.
-- If CoreMark with full iterations does not fit, `IMEM_DEPTH` can be doubled
-  to 32768 (128 KB, ~10 M10K blocks) without affecting any other design
-  decision. This does not require an ADR revision; `DEPTH` is a module
-  parameter.
+- The linker script must fit `.text` + `.rodata` within the instruction
+  memory depth and `.data` + `.bss` + stack within the 4 KB data window
+  (ADR 047).
+- `IMEM_DEPTH` can be doubled to 8192 (32 KB) without affecting any other
+  design decision; `DEPTH` is a module parameter and the index width follows
+  it automatically.
 - Both depths are powers of two, which simplifies address decoding and ensures
   clean M10K inference in Quartus.
+

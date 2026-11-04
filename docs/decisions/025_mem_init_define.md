@@ -65,7 +65,7 @@ placeholder paths is committed as `mem_config.vh.template`.
 `include "mem_config.vh"
 
 module instruction_memory #(
-    parameter integer IMEM_DEPTH = 16384  // 64 KB (ADR 013)
+    parameter int unsigned IMEM_DEPTH = 4096  // 16 KB synthesis / 64 KB simulation (ADR 013, ADR 046)
 ) (
     input  logic [31:0] addr,
     output logic [31:0] instruction
@@ -87,7 +87,7 @@ endmodule
 `include "mem_config.vh"
 
 module data_memory #(
-    parameter integer DMEM_DEPTH = 8192   // 32 KB (ADR 013)
+    parameter int unsigned DMEM_DEPTH = 1024   // 4 KB synthesis / 32 KB simulation (ADR 013, ADR 047)
 ) (
     input  logic        clk,
     input  logic [31:0] addr,
@@ -209,7 +209,7 @@ defined here only configures where those already-generated `.mem` files are loca
 - `data_memory.sv` uses a conditional `$readmemh`: if `DMEM_FILE` is empty,
   the memory initializes to zero (Quartus and Icarus both zero-initialize
   uninitialized `logic` arrays).
-- `parameter integer IMEM_DEPTH` and `DMEM_DEPTH` remain proper integer parameters
+- `IMEM_DEPTH` and `DMEM_DEPTH` remain proper module parameters
   and are not affected by this mechanism.
 - This ADR is orthogonal to ADR 014. All scripts and Makefiles that produce `.mem`
   artifacts must follow ADR 014's pipeline; this ADR only governs how those
