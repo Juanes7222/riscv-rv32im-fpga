@@ -37,6 +37,16 @@ implementation of Activity 3.3 in ADR 026, but it never worked:
    programmed device 1 of the chain (the MAX10) instead of the FPGA.
 4. The Logic Analyzer Interface, the API that is available, needs a `.lai`
    file that only the SignalTap II GUI can produce.
+5. `quartus_stp --create_signaltap_hdl_file --stp_file=<file>` answers
+   `Error (262017): Can't find Signal Tap megafunction in project ...`,
+   because the `.qsf` has no SignalTap instance to generate HDL from — a
+   chicken-and-egg problem: you need SignalTap compiled in the design to
+   generate the HDL, but you need the HDL to compile SignalTap.
+6. `package require ::quartus::insystem_source_probe` loads but registers no
+   commands (`start_insystem_source_probe`, `read_probe_data`,
+   `write_source_data`, `stop_insystem_source_probe` do not exist).
+7. There are no `.stp` example files in the Quartus 25.1 installation to
+   use as a template.
 
 ## Decision
 
