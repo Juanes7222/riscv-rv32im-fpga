@@ -197,6 +197,23 @@ module top_pipeline #(
     // registers, never into the clock itself.
     logic step_hold;
 
+    // Power-on pause: hold the processor for a few cycles after reset releases,
+    // so the initial state (PC=0, first instruction fetch) is visible on the
+    // console before execution begins.  Independent of step_mode/SW[9].
+    logic [3:0] power_on_pause_cnt;
+    logic       power_on_pause;
+    logic       step_hold_effective;
+
+    always_ff @(posedge clk) begin
+        if (!rst_n)
+            power_on_pause_cnt <= 4'd0;
+        else if (power_on_pause_cnt != 4'd15)
+            power_on_pause_cnt <= power_on_pause_cnt + 4'd1;
+    end
+
+    assign power_on_pause = (power_on_pause_cnt < 4'd4);
+    assign step_hold_effective = step_hold | power_on_pause;
+
     step_mode_ctrl u_step_mode (
         .clk       (clk),
         .rst_n     (rst_n),
@@ -209,14 +226,14 @@ module top_pipeline #(
     // A pending trap still overrides the hazard stall, but not the freeze:
     // the pipeline must not move until the user releases it.
     logic pipe_stall;
-    assign pipe_stall = (stall && !trap_flush) || step_hold;
+    assign pipe_stall = (stall && !trap_flush) || step_hold_effective;
 
     // While the pipeline is frozen no flush may be applied: the flush
     // signals are combinational functions of the held state, so they would
     // destroy the frozen instructions.  The pending flush is applied on the
     // release cycle, when the pipeline advances again.
     logic flush_eff;
-    assign flush_eff = flush & ~step_hold;
+    assign flush_eff = flush & ~step_hold_effective;
 
     // Performance counters                                                 //
     logic [63:0] cycle_count;
@@ -262,7 +279,7 @@ module top_pipeline #(
     ) u_perf (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .enable               (~step_hold),
+        .enable               (~step_hold_effective),
         .div_busy             (ex_div_busy),
         .valid_wb             (valid_wb),
         .program_done         (program_done_pulse),
@@ -357,7 +374,7 @@ module top_pipeline #(
         .rs2_addr (id_rs2_addr),
         .rd_addr  (wb_rd_addr),
         .rd_data  (wb_rd_data),
-        .wr_en    (wb_wr_en_gated & ~step_hold),
+        .wr_en    (wb_wr_en_gated & ~step_hold_effective),
         .rs1_data (id_rs1_data),
         .rs2_data (id_rs2_data),
         .dbg_regs (rf_dbg_regs)
@@ -431,7 +448,7 @@ module top_pipeline #(
     // The step freeze suppresses the bubbles: they are combinational
     // functions of the held state and would destroy the frozen instruction.
     logic id_ex_flush;
-    assign id_ex_flush = (flush || load_use_hazard || mem_raw_hazard) & ~step_hold;
+    assign id_ex_flush = (flush || load_use_hazard || mem_raw_hazard) & ~step_hold_effective;
 
     // ID/EX register                                                       //
     // flush: id_ex_flush (branch/trap/load-use). stall: only on div_busy
@@ -441,7 +458,7 @@ module top_pipeline #(
         .clk               (clk),
         .rst               (rst),
         .flush             (id_ex_flush),
-        .stall             (ex_div_busy || step_hold),
+        .stall             (ex_div_busy || step_hold_effective),
         .id_pc             (id_pc),
         .id_instruction    (id_instruction),
         .id_rs1_data       (id_rs1_data_wb_fwd),
@@ -564,8 +581,8 @@ module top_pipeline #(
     ex_mem_register u_ex_mem (
         .clk                (clk),
         .rst                (rst),
-        .stall              (ex_div_busy || step_hold),
-        .flush              (trap_flush & ~step_hold),
+        .stall              (ex_div_busy || step_hold_effective),
+        .flush              (trap_flush & ~step_hold_effective),
         .ex_alu_result      (ex_alu_result),
         .ex_rs2_data_fwd    (ex_rs2_fwd),
         .ex_rs1_data_fwd    (ex_rs1_fwd),
@@ -632,7 +649,7 @@ module top_pipeline #(
     mem_wb_register u_mem_wb (
         .clk                (clk),
         .rst                (rst),
-        .stall              (ex_div_busy || step_hold),
+        .stall              (ex_div_busy || step_hold_effective),
         .mem_alu_result     (mem_alu_result),
         .mem_dm_rd_data     ('0),
         .mem_rs1_data       (mem_rs1_data),
@@ -696,7 +713,7 @@ module top_pipeline #(
         .rst_n      (rst_n),
         .csr_addr   (wb_csr_addr),
         .csr_wdata  (wb_csr_wdata),
-        .csr_wr     (wb_csr_wr_gated & ~step_hold),
+        .csr_wr     (wb_csr_wr_gated & ~step_hold_effective),
         .csr_op     (wb_csr_op),
         .csr_rdata  (csr_rdata),
         .trap_entry (wb_trap_entry),

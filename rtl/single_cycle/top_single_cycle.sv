@@ -233,6 +233,23 @@ module top_single_cycle #(
     // write, and gating it alone would break the mirror.
     logic step_hold;
 
+    // Power-on pause: hold the processor for a few cycles after reset releases,
+    // so the initial state (PC=0, first instruction fetch) is visible on the
+    // console before execution begins.  Independent of step_mode/SW[9].
+    logic [3:0] power_on_pause_cnt;
+    logic       power_on_pause;
+    logic       step_hold_effective;
+
+    always_ff @(posedge clk_cpu) begin
+        if (!rst_n_cpu)
+            power_on_pause_cnt <= 4'd0;
+        else if (power_on_pause_cnt != 4'd15)
+            power_on_pause_cnt <= power_on_pause_cnt + 4'd1;
+    end
+
+    assign power_on_pause = (power_on_pause_cnt < 4'd4);
+    assign step_hold_effective = step_hold | power_on_pause;
+
     step_mode_ctrl u_step_mode (
         .clk       (clk_cpu),
         .rst_n     (rst_n_cpu),
@@ -246,7 +263,7 @@ module top_single_cycle #(
     ) u_perf (
         .clk                  (clk_cpu),
         .rst_n                (rst_n_cpu),
-        .enable               (~step_hold & fetch_valid),
+        .enable               (~step_hold_effective & fetch_valid),
         .div_busy             (div_busy),
         .valid_wb             (1'b0),
         .program_done         (program_done_pulse),
@@ -268,7 +285,7 @@ module top_single_cycle #(
         .mret_exec   (mret_exec),
         .trap_target (trap_target),
         .mepc_value  (mepc_value),
-        .step_hold   (step_hold),
+        .step_hold   (step_hold_effective),
         .fetch_valid (fetch_valid),
         .pc          (pc),
         .pc_plus4    (pc_plus4),
@@ -292,7 +309,7 @@ module top_single_cycle #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
         .clk         (clk_cpu),
-        .fetch_en    (~div_busy & ~step_hold),
+        .fetch_en    (~div_busy & ~step_hold_effective),
         .next_pc     (imem_addr),
         .instruction (imem_instruction)
     );
@@ -326,7 +343,7 @@ module top_single_cycle #(
         .rs2_addr (rs2_addr),
         .rd_addr  (rd_addr),
         .rd_data  (rd_data),
-        .wr_en    (wr_en_gated & ~step_hold),  // gated - not ru_wr directly (ADR 023)
+        .wr_en    (wr_en_gated & ~step_hold_effective),  // gated - not ru_wr directly (ADR 023)
         .rs1_data (rs1_data),
         .rs2_data (rs2_data),
         .dbg_regs (rf_dbg_regs)
@@ -349,7 +366,7 @@ module top_single_cycle #(
     alu_rv32im u_alu (
         .clk      (clk_cpu),
         .rst_n    (rst_n_cpu),
-        .hold     (step_hold),   // the divider is frozen with the processor
+        .hold     (step_hold_effective),   // the divider is frozen with the processor
         .a        (alu_a),
         .b        (alu_b),
         .alu_op   (alu_op),
@@ -381,7 +398,7 @@ module top_single_cycle #(
         .rst_n       (rst_n_cpu),
         .csr_addr    (csr_addr),
         .csr_wdata   (csr_wdata),
-        .csr_wr      (csr_wr & ~step_hold),
+        .csr_wr      (csr_wr & ~step_hold_effective),
         .csr_op      (csr_op),
         .csr_rdata   (csr_rdata),
         .trap_entry  (trap_entry),
