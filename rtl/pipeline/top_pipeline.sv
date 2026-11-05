@@ -663,11 +663,13 @@ module top_pipeline #(
     logic [31:0] dmem_addr_eff;
     logic [31:0] dmem_wdata_eff;
     logic [3:0]  dmem_be_eff;
+    logic [2:0]  dm_ctrl_eff;
 
     assign dmem_wr_eff   = mem_dm_wr | loader_dmem_wr_en;
     assign dmem_addr_eff = loader_dmem_wr_en ? loader_dmem_wr_addr : mem_alu_result;
     assign dmem_wdata_eff= loader_dmem_wr_en ? loader_dmem_wr_data : mem_rs2_data;
     assign dmem_be_eff   = loader_dmem_wr_en ? 4'b1111 : dmem_dbg_wr_be;
+    assign dm_ctrl_eff   = loader_dmem_wr_en ? 3'b100 : mem_dm_ctrl;  // word write
 
     data_memory_pipe #(
         .DMEM_DEPTH (DMEM_DEPTH)
@@ -676,7 +678,7 @@ module top_pipeline #(
         .addr       (dmem_addr_eff),
         .wr_data    (dmem_wdata_eff),
         .dm_wr      (dmem_wr_eff),
-        .dm_ctrl    (mem_dm_ctrl),
+        .dm_ctrl    (dm_ctrl_eff),
         .rd_data    (dmem_rd_data),
         .dbg_wr_be  (dmem_be_eff),
         .dbg_wr_data(dmem_wdata_eff)

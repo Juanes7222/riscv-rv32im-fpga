@@ -1,7 +1,5 @@
-// Program loader: loads one of up to 16 test programs into imem/dmem
-// without recompiling. Select with SW[0:3], load with KEY[2] (active low).
-// Writes only when the CPU is halted (rst_n == 0 or step_hold == 1), never
-// during normal execution, so no logic is added to the fetch critical path.
+// Program loader: loads test programs into imem/dmem at runtime.
+// Select with SW[0:3], load with KEY[2]. Writes only when CPU is halted.
 
 module program_loader #(
     parameter int IMEM_DEPTH = 16384,
@@ -70,7 +68,10 @@ module program_loader #(
 
         unique case (state)
             S_IDLE: begin
-                if (key_press && (rst_n == 1'b0 || step_hold == 1'b1))
+                // Escribe solo con el CPU detenido (step_hold == 1).
+                // El usuario pone SW[9]=1 (step mode), selecciona con
+                // SW[0:3] y pulsa KEY[2] para cargar el programa.
+                if (key_press && step_hold == 1'b1)
                     state_n = S_COPY;
             end
 
