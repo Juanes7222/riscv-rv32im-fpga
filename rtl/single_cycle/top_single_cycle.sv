@@ -238,19 +238,27 @@ module top_single_cycle #(
     // Power-on pause: hold the processor for a few cycles after reset releases,
     // so the initial state (PC=0, first instruction fetch) is visible on the
     // console before execution begins.  Independent of step_mode/SW[9].
-    logic [3:0] power_on_pause_cnt;
-    logic       power_on_pause;
-    logic       step_hold_effective;
+    // En simulación (`SIMULATION`, definido para iverilog por el modelo de
+    // PLL de la CPU) no hay consola VGA que calentar: el PC arranca
+    // inmediatamente al salir del reset, como esperan los tests de un solo
+    // paso (cocotb).  En síntesis Quartus SIMULATION no está definido y se
+    // conserva la pausa.
+    `ifdef SIMULATION
+        assign step_hold_effective = step_hold;
+    `else
+        logic [3:0] power_on_pause_cnt;
+        logic       power_on_pause;
 
-    always_ff @(posedge clk_cpu) begin
-        if (!rst_n_cpu)
-            power_on_pause_cnt <= 4'd0;
-        else if (power_on_pause_cnt != 4'd15)
-            power_on_pause_cnt <= power_on_pause_cnt + 4'd1;
-    end
+        always_ff @(posedge clk_cpu) begin
+            if (!rst_n_cpu)
+                power_on_pause_cnt <= 4'd0;
+            else if (power_on_pause_cnt != 4'd15)
+                power_on_pause_cnt <= power_on_pause_cnt + 4'd1;
+        end
 
-    assign power_on_pause = (power_on_pause_cnt < 4'd4);
-    assign step_hold_effective = step_hold | power_on_pause;
+        assign power_on_pause = (power_on_pause_cnt < 4'd4);
+        assign step_hold_effective = step_hold | power_on_pause;
+    `endif
 
     step_mode_ctrl u_step_mode (
         .clk       (clk_cpu),
