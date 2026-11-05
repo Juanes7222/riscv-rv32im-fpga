@@ -83,7 +83,13 @@ async def step_clock(dut) -> None:
 
 
 async def reset_dut(dut, hold_cycles: int = 2) -> None:
-    """Assert reset for `hold_cycles` cycles. Does NOT step after deassert."""
+    """Assert reset for `hold_cycles` cycles, deassert and wait out the
+    power-on pause.
+
+    The processor is frozen for a few cycles after the reset releases, so the
+    initial state is visible on the console.  The instruction-level tests
+    count cycles from the first executing cycle, so the pause is consumed
+    here and the test itself starts with the pipeline free."""
     init_board_inputs(dut)
     dut.rst_n.value = 0
     await Timer(2, unit="ns")
@@ -91,3 +97,7 @@ async def reset_dut(dut, hold_cycles: int = 2) -> None:
         await step_clock(dut)
     await Timer(2, unit="ns")
     dut.rst_n.value = 1
+    for _ in range(16):
+        if not int(dut.power_on_pause.value):
+            break
+        await step_clock(dut)

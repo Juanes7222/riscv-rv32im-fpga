@@ -160,7 +160,7 @@ async def test_load_use_stall_keeps_load_in_ex(dut):
         await step_clock(dut)
         cocotb.log.info(
             f"cycle {cycle+1}: "
-            f"if_id={int(dut.u_if_id.id_instruction.value):#010x} "
+            f"if_id={int(dut.id_instruction.value):#010x} "
             f"id_ex={int(dut.u_id_ex.ex_instruction.value):#010x} "
             f"ex_mem={int(dut.u_ex_mem.mem_instruction.value):#010x} "
             f"mem_wb={int(dut.u_mem_wb.wb_instruction.value):#010x} "

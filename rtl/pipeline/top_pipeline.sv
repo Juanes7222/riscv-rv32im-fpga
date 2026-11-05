@@ -35,7 +35,23 @@ module top_pipeline #(
     // Internal reset (active-high for modules that require it)            //
 
     logic rst;
-    assign rst = ~rst_n;  // register_file, pipeline registers use active-high rst
+    // Pulse the CPU reset right after the loader finishes copying a program,
+    // so the PC restarts at 0 and the newly loaded program executes.  The
+    // loader itself resets on the board reset (rst_n), so the pulse only
+    // restarts the pipeline, not the loader state machine.
+    logic        loader_load_done;
+    logic        load_done_q;
+    logic        loader_reset_pulse;
+
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            load_done_q <= 1'b0;
+        end else begin
+            load_done_q <= loader_load_done;
+        end
+    end
+    assign loader_reset_pulse = loader_load_done & ~load_done_q;
+    assign rst = ~rst_n | loader_reset_pulse;
 
     // ALU operation localparams (for div gate)                            //
 
@@ -54,10 +70,11 @@ module top_pipeline #(
     logic [31:0] if_pc;
     logic [31:0] if_instruction;
 
-    // IMEM address mux: bypass PC register on flush to capture redirect
-    // target immediately (sync IMEM captures at posedge - must see target
-    // during the flush cycle, not one cycle later).
+    // Address the instruction memory captures this cycle, and the fill flag
+    // that keeps the ID stage empty until the first word is available.
     logic [31:0] imem_addr;
+    logic [31:0] next_if_pc;
+    logic        fetch_valid;
 
     // IF/ID register outputs                                               //
 
@@ -234,8 +251,6 @@ module top_pipeline #(
     // signals are combinational functions of the held state, so they would
     // destroy the frozen instructions.  The pending flush is applied on the
     // release cycle, when the pipeline advances again.
-    logic flush_eff;
-    assign flush_eff = flush & ~step_hold_effective;
 
     // Performance counters                                                 //
     logic [63:0] cycle_count;
@@ -332,16 +347,19 @@ module top_pipeline #(
         .clk           (clk),
         .rst           (rst),
         .stall         (pipe_stall),
+        .fetch_valid   (fetch_valid),
         .branch_taken  (branch_flush || trap_flush),
         .mask_pc_lsb   (1'b0),              // masking already applied above
         .branch_target (pc_redirect_target),
-        .pc            (if_pc)
+        .pc            (if_pc),
+        .next_pc       (next_if_pc)
     );
 
-    // IMEM address: during a flush, feed the redirect target directly
-    // so the synchronous IMEM captures the correct instruction at posedge.
-    // IMEM address: during a flush, feed the redirect target directly.
-    assign imem_addr = flush_eff ? pc_redirect_target : if_pc;
+    // IMEM address: the word read with next_if_pc at the end of this cycle is
+    // the instruction of the pc the datapath executes next cycle.  Until the
+    // first word is captured the PC is held at the reset vector, so the
+    // address presented is the vector itself.
+    assign imem_addr = fetch_valid ? next_if_pc : if_pc;
 
     // Program loader: escribe en imem/dmem sólo con CPU detenido
     logic        loader_imem_wr_en;
@@ -360,7 +378,7 @@ module top_pipeline #(
         .step_hold    (step_hold_effective),
         .prog_sel     (sw[3:0]),
         .key_load     (key_load),
-        .load_done    (),
+        .load_done    (loader_load_done),
         .imem_wr_addr (loader_imem_wr_addr),
         .imem_wr_data (loader_imem_wr_data),
         .imem_wr_en   (loader_imem_wr_en),
@@ -373,25 +391,30 @@ module top_pipeline #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
         .clk         (clk),
-        .addr        (imem_addr),
+        .fetch_en    (~pipe_stall),
+        .next_pc     (imem_addr),
         .instruction (if_instruction),
         .wr_en       (loader_imem_wr_en),
         .wr_addr     (loader_imem_wr_addr),
         .wr_data     (loader_imem_wr_data)
     );
 
-    // IF/ID register: captures from if_pc and IMEM combinational output,
-    // both aligned to the same fetch.
-    if_id_register u_if_id (
-        .clk            (clk),
-        .rst            (rst),
-        .stall          (pipe_stall),
-        .flush          (flush_eff),
-        .if_pc          (if_pc),
-        .if_instruction (if_instruction),
-        .id_pc          (id_pc),
-        .id_instruction (id_instruction)
-    );
+    // IF/ID boundary: the output register of the instruction memory is the
+    // instruction of the pc that ID decodes, and id_pc is registered with the
+    // same address, so both describe the same word.  There is no extra
+    // register here: the branch redirect is resolved through next_if_pc, so a
+    // taken branch costs one cycle (the wrong-path word in ID) instead of two.
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            fetch_valid <= 1'b0;
+            id_pc       <= '0;
+        end else if (!pipe_stall) begin
+            fetch_valid <= 1'b1;
+            id_pc       <= imem_addr;
+        end
+    end
+
+    assign id_instruction = fetch_valid ? if_instruction : 32'h00000013;
 
     // ID stage                                                             //
     assign id_rs1_addr = id_instruction[19:15];
@@ -658,18 +681,16 @@ module top_pipeline #(
     logic [3:0]  dmem_dbg_wr_be;
     logic [31:0] dmem_dbg_wr_data;
 
-    // Mux de escritura en DMEM: CPU durante ejecución, loader con CPU detenido.
+    // DMEM write mux: CPU during execution, loader when CPU is halted.
     logic        dmem_wr_eff;
     logic [31:0] dmem_addr_eff;
     logic [31:0] dmem_wdata_eff;
-    logic [3:0]  dmem_be_eff;
     logic [2:0]  dm_ctrl_eff;
 
     assign dmem_wr_eff   = mem_dm_wr | loader_dmem_wr_en;
     assign dmem_addr_eff = loader_dmem_wr_en ? loader_dmem_wr_addr : mem_alu_result;
     assign dmem_wdata_eff= loader_dmem_wr_en ? loader_dmem_wr_data : mem_rs2_data;
-    assign dmem_be_eff   = loader_dmem_wr_en ? 4'b1111 : dmem_dbg_wr_be;
-    assign dm_ctrl_eff   = loader_dmem_wr_en ? 3'b100 : mem_dm_ctrl;  // word write
+    assign dm_ctrl_eff   = loader_dmem_wr_en ? 3'b100 : mem_dm_ctrl;
 
     data_memory_pipe #(
         .DMEM_DEPTH (DMEM_DEPTH)
@@ -680,9 +701,19 @@ module top_pipeline #(
         .dm_wr      (dmem_wr_eff),
         .dm_ctrl    (dm_ctrl_eff),
         .rd_data    (dmem_rd_data),
-        .dbg_wr_be  (dmem_be_eff),
-        .dbg_wr_data(dmem_wdata_eff)
+        .dbg_wr_be  (dmem_dbg_wr_be),
+        .dbg_wr_data(dmem_dbg_wr_data)
     );
+
+    // VGA shadow: mirrors both CPU and loader writes.
+    logic        shadow_wr_en;
+    logic [31:0] shadow_wr_addr;
+    logic [3:0]  shadow_wr_be;
+    logic [31:0] shadow_wr_data;
+    assign shadow_wr_en   = mem_dm_wr | loader_dmem_wr_en;
+    assign shadow_wr_addr = loader_dmem_wr_en ? loader_dmem_wr_addr : mem_alu_result;
+    assign shadow_wr_be   = loader_dmem_wr_en ? 4'b1111 : dmem_dbg_wr_be;
+    assign shadow_wr_data = loader_dmem_wr_en ? loader_dmem_wr_data : dmem_dbg_wr_data;
 
     // MEM/WB register                                                      //
     // stall: holds current contents during div stall. The trap itself
@@ -973,16 +1004,20 @@ module top_pipeline #(
 
     vga_mem_shadow #(.DEPTH(DMEM_DEPTH)) u_dmem_shadow (
         .wr_clk (clk),
-        .wr_en  (mem_dm_wr),
-        .wr_addr(mem_alu_result),
-        .wr_data(dmem_dbg_wr_data),
-        .wr_be  (dmem_dbg_wr_be),
+        .wr_en  (shadow_wr_en),
+        .wr_addr(shadow_wr_addr),
+        .wr_data(shadow_wr_data),
+        .wr_be  (shadow_wr_be),
         .rd_clk (vga_pixel_clk),
         .rd_addr(dmem_shadow_rd_addr),
         .rd_data(dmem_shadow_rd_data)
     );
 
     vga_rom_shadow #(.DEPTH(IMEM_DEPTH)) u_imem_shadow (
+        .wr_clk (clk),
+        .wr_en  (loader_imem_wr_en),
+        .wr_addr(loader_imem_wr_addr),
+        .wr_data(loader_imem_wr_data),
         .rd_clk (vga_pixel_clk),
         .rd_addr(imem_shadow_rd_addr),
         .rd_data(imem_shadow_rd_data)

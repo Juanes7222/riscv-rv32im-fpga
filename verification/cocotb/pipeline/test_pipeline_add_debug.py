@@ -18,8 +18,8 @@ _STAGE_SIGNALS = {
     "if_imem_addr": "imem_addr",
     "if_instr":  "u_imem.instruction",
     "if_delayed_pc": "if_pc_delayed",
-    "id_pc":     "u_if_id.id_pc",
-    "id_instr":  "u_if_id.id_instruction",
+    "id_pc":     "id_pc",
+    "id_instr":  "id_instruction",
     "ex_pc":     "u_id_ex.ex_pc",
     "ex_instr":  "u_id_ex.ex_instruction",
     "mem_pc":    "u_ex_mem.mem_pc",
@@ -79,8 +79,8 @@ async def _dump_pipeline_state(dut, cycle):
     pc = await _read_hex(dut, "u_pcunit.pc")
     imem_addr = await _read_hex(dut, "imem_addr")
     imem_instr = await _read_hex(dut, "u_imem.instruction")
-    id_pc = await _read_hex(dut, "u_if_id.id_pc")
-    id_instr = await _read_hex(dut, "u_if_id.id_instruction")
+    id_pc = await _read_hex(dut, "id_pc")
+    id_instr = await _read_hex(dut, "id_instruction")
     ex_pc = await _read_hex(dut, "u_id_ex.ex_pc")
     ex_instr = await _read_hex(dut, "u_id_ex.ex_instruction")
     mem_pc = await _read_hex(dut, "u_ex_mem.mem_pc")

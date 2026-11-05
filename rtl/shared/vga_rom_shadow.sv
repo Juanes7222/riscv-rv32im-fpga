@@ -1,11 +1,14 @@
-// Read-only copy of the program image for the VGA console.
+// Copy of the program image for the VGA console.
 //
-// The program is a ROM, so the copy never changes: it is initialised from
-// the same image the processor's instruction memory uses and read from the
-// VGA clock domain.
+// The console reads it in its own clock domain.  The program loader writes
+// whole words through the write port, which lives in the processor clock
+// domain and is driven by the very same signals as the instruction memory,
+// so the listing shows the program that is actually loaded.  Without the
+// write port the console would keep showing the image synthesised into the
+// bitstream.
 //
 // The shadow returns the word of the array for every address, while the
-// processor's instruction memories return a NOP beyond the image: the
+// processor's instruction memory returns a NOP beyond the image: the
 // difference is accepted, because the multiplexer that would produce the
 // NOP keeps Quartus from inferring the M10K, and the Fmax it costs is
 // worth more than that corner case.
@@ -14,6 +17,10 @@
 module vga_rom_shadow #(
     parameter int DEPTH = 2048
 )(
+    input  logic        wr_clk,
+    input  logic        wr_en,
+    input  logic [31:0] wr_addr,
+    input  logic [31:0] wr_data,
     input  logic        rd_clk,
     input  logic [31:0] rd_addr,
     output logic [31:0] rd_data
@@ -29,10 +36,17 @@ module vga_rom_shadow #(
     end
 
     // Word index extraction - keep outside always_ff for Icarus compat
-    logic [ADDR_BITS-1:0] word_index;
-    assign word_index = rd_addr[ADDR_BITS+1:2];
+    logic [ADDR_BITS-1:0] wr_word;
+    logic [ADDR_BITS-1:0] rd_word;
+    assign wr_word = wr_addr[ADDR_BITS+1:2];
+    assign rd_word = rd_addr[ADDR_BITS+1:2];
+
+    always_ff @(posedge wr_clk) begin
+        if (wr_en)
+            mem[wr_word] <= wr_data;
+    end
 
     always_ff @(posedge rd_clk) begin
-        rd_data <= mem[word_index];
+        rd_data <= mem[rd_word];
     end
 endmodule

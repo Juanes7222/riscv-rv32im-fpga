@@ -3,12 +3,16 @@ module pc_unit (
     input  logic        clk,
     input  logic        rst,
     input  logic        stall,
+    // 0 until the instruction memory has captured its first address: the PC
+    // must not advance, or the reset vector would be skipped.
+    input  logic        fetch_valid,
     input  logic        branch_taken,
     input  logic        mask_pc_lsb,
     input  logic [31:0] branch_target,
-    output logic [31:0] pc
+    output logic [31:0] pc,
+    // Address the instruction memory must capture this cycle.
+    output logic [31:0] next_pc
 );
-    logic [31:0] next_pc;
     logic [31:0] effective_target;
 
     // JALR requires bit 0 of target forced to zero (ADR 006)
@@ -24,7 +28,7 @@ module pc_unit (
     always_ff @(posedge clk) begin
         if (rst)
             pc <= '0;
-        else if (!stall)
+        else if (!stall && fetch_valid)
             pc <= next_pc;
     end
 endmodule

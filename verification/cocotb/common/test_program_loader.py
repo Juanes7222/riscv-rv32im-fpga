@@ -27,11 +27,14 @@ PROG_LEN = {0: 2, 1: 13, 2: 22, 3: 14, 4: 8, 5: 8}
 
 
 async def _press_key_load(dut):
-    """Pulse KEY[2] active low for a few ns between clock edges."""
+    """Press KEY[2] (active low) across one rising clock edge, then release.
+
+    The loader detects the press through a two-flop synchroniser, so the
+    button must be low when a clock edge samples it."""
     dut.key_load.value = 0
-    await Timer(5, unit="ns")
+    await step_clock(dut)
     dut.key_load.value = 1
-    await Timer(5, unit="ns")
+    await Timer(2, unit="ns")
 
 
 @cocotb.test()
@@ -57,6 +60,12 @@ async def test_loader_writes_fibonacci(dut):
     dut.sw.value = 1              # program 1 (fibonacci)
     dut.step_mode.value = 1       # SW[9] = step_mode = 1, CPU frozen
     dut.key_load.value = 1        # released (active low)
+    # The switch goes through a synchroniser: wait for the freeze to engage,
+    # otherwise the loader ignores the request.
+    for _ in range(6):
+        if int(dut.step_hold_effective.value):
+            break
+        await step_clock(dut)
     await Timer(2, unit="ns")
 
     await _press_key_load(dut)

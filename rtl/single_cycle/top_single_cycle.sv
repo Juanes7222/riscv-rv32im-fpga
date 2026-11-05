@@ -635,6 +635,10 @@ module top_single_cycle #(
     );
 
     vga_rom_shadow #(.DEPTH(IMEM_DEPTH)) u_imem_shadow (
+        .wr_clk (clk_cpu),
+        .wr_en  (loader_imem_wr_en),
+        .wr_addr(loader_imem_wr_addr),
+        .wr_data(loader_imem_wr_data),
         .rd_clk (vga_pixel_clk),
         .rd_addr(imem_shadow_rd_addr),
         .rd_data(imem_shadow_rd_data)

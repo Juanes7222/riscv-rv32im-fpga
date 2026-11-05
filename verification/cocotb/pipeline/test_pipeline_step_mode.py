@@ -107,7 +107,7 @@ def stage_state(dut) -> dict:
     return {
         "pc": int(dut.u_pcunit.pc.value),
         "if_pc": int(dut.if_pc.value),
-        "id_pc": int(dut.u_if_id.id_pc.value),
+        "id_pc": int(dut.id_pc.value),
         "ex_pc": int(dut.u_id_ex.ex_pc.value),
         "mem_pc": int(dut.u_ex_mem.mem_pc.value),
         "wb_pc": int(dut.u_mem_wb.wb_pc.value),
@@ -158,7 +158,11 @@ async def test_pipeline_step_mode_freezes_the_pipeline(dut):
             f"the press did not advance the PC by one instruction: "
             f"{frozen['pc']:#010x} -> {after['pc']:#010x}"
         )
-        assert after["id_pc"] == frozen["if_pc"], "the IF/ID register did not take the IF stage"
+        # The fetch address register latched the word of the next pc, so the
+        # ID stage now decodes the instruction of the new program counter.
+        assert after["id_pc"] == frozen["if_pc"] + 4, (
+            "the ID stage does not decode the word captured by the fetch stage"
+        )
         assert after["ex_pc"] == frozen["id_pc"], "the ID/EX register did not take the ID stage"
         assert after["mem_pc"] == frozen["ex_pc"], "the EX/MEM register did not take the EX stage"
         assert after["wb_pc"] == frozen["mem_pc"], "the MEM/WB register did not take the MEM stage"
@@ -211,10 +215,10 @@ async def test_pipeline_step_mode_keeps_a_taken_branch(dut):
             f"the pipeline advanced while frozen: {frozen} -> {stage_state(dut)}"
         )
 
-        # The IF stage keeps showing the frozen instruction - the one at
-        # the program counter - and not the redirect target of the pending
-        # branch.
-        assert int(dut.if_instruction.value) == encode_i(11, 0, 0, 4), (
+        # The IF stage keeps showing the instruction of the program counter
+        # (the fall-through one, which the branch discards) and not the
+        # redirect target of the pending branch.
+        assert int(dut.if_instruction.value) == encode_i(9, 0, 0, 3), (
             f"the IF stage does not show the frozen instruction: "
             f"{int(dut.if_instruction.value):#010x}"
         )

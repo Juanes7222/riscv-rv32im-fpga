@@ -38,7 +38,7 @@ async def test_pipeline_add_deep_debug(dut):
         await Timer(1, unit="ns")  # small delay for combinational settling
 
         pc = await _r(dut, "u_pcunit.pc")
-        id_instr = await _r(dut, "u_if_id.id_instruction")
+        id_instr = await _r(dut, "id_instruction")
         ex_instr = await _r(dut, "u_id_ex.ex_instruction")
         mem_instr = await _r(dut, "u_ex_mem.mem_instruction")
         wb_instr = await _r(dut, "u_mem_wb.wb_instruction")
@@ -46,12 +46,12 @@ async def test_pipeline_add_deep_debug(dut):
         load_use = await _r(dut, "u_hdu.load_use")
         mem_ru_wr_hdu = await _r(dut, "u_ex_mem.mem_ru_wr")
         mem_rd_addr_hdu = await _r(dut, "u_ex_mem.mem_rd_addr")
-        id_rs1 = await _r(dut, "u_if_id.id_instruction")  # need to extract
+        id_rs1 = await _r(dut, "id_instruction")  # need to extract
         ex_ru_data_wr_src = await _r(dut, "u_id_ex.ex_ru_data_wr_src")
         mem_ru_data_wr_src = await _r(dut, "u_ex_mem.mem_ru_data_wr_src")
         div_busy = await _r(dut, "ex_div_busy")
         ex_rd_addr = await _r(dut, "u_id_ex.ex_rd_addr")
-        id_pc = await _r(dut, "u_if_id.id_pc")
+        id_pc = await _r(dut, "id_pc")
         ex_pc = await _r(dut, "u_id_ex.ex_pc")
         mem_pc = await _r(dut, "u_ex_mem.mem_pc")
         wb_pc = await _r(dut, "u_mem_wb.wb_pc")

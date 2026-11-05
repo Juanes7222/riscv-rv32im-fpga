@@ -1,18 +1,22 @@
-// Synchronous-read instruction memory for pipelined processor.
-// Provides COMBINATIONAL output so IF/ID captures the current value.
-// The always_ff block is retained purely for M10K ROM inference;
-// Quartus implements the ROM output as UNREGISTERED.
+// Instruction memory of the pipelined processor: M10K block RAM with a
+// registered read (ADR 011 §3) and a write port for the program loader.
+//
+// The output register is the IF/ID boundary: the word read with the address
+// presented in cycle N is the instruction decoded in cycle N+1, so the fetch
+// costs no extra cycle and a redirect only loses the word that was being
+// fetched.  The out-of-range mux sits after the output register, otherwise
+// Quartus does not infer the block (same pattern as the single-cycle memory).
 `include "../shared/mem_config.vh"
 
 module instruction_memory_pipe #(
     parameter int unsigned IMEM_DEPTH = 16384
 )(
     input  logic        clk,
-    input  logic [31:0] addr,
+    input  logic        fetch_en,   // 0 holds the output register (stall, step)
+    input  logic [31:0] next_pc,    // PC of the instruction fetched this cycle
     output logic [31:0] instruction,
-    // Puerto de escritura para el program loader.  Sólo activo cuando el
-    // CPU está detenido (reset o step_hold); durante ejecución normal
-    // wr_en = 0 y la ruta de fetch no se toca.
+    // Write port of the program loader.  Only enabled while the CPU is
+    // halted; wr_en is 0 during normal execution.
     input  logic        wr_en,
     input  logic [31:0] wr_addr,
     input  logic [31:0] wr_data
@@ -28,39 +32,27 @@ module instruction_memory_pipe #(
         `endif
     end
 
-    // Escritura síncrona en el mismo clock de lectura.  Cuando wr_en=0 la
-    // memoria se comporta como ROM pura; Quartus sigue infiriendo M10K.
     always_ff @(posedge clk) begin
         if (wr_en)
             mem[wr_addr[ADDR_BITS+1:2]] <= wr_data;
     end
 
-    // Word index extraction - keep outside always_ff for Icarus compat
+    // Indices kept out of the always_ff for Icarus compatibility.
     logic [ADDR_BITS-1:0] word_index;
-    assign word_index = addr[ADDR_BITS+1:2];
+    logic                 addr_out_of_bounds;
+    assign word_index         = next_pc[ADDR_BITS+1:2];
+    assign addr_out_of_bounds = (next_pc[31:ADDR_BITS+2] != 0);
 
-    // Out-of-bounds detection
-    logic addr_out_of_bounds;
-    assign addr_out_of_bounds = (addr[31:ADDR_BITS+2] != 0);
+    logic [31:0] mem_q;
+    logic        oob_q;
 
-    // ── Combinational output (what IF/ID captures) ────────────────
-    // The array read is combinational; Quartus infers M10K ROM with
-    // unregistered output.  This is the path IF/ID samples at posedge.
-
-    assign instruction = addr_out_of_bounds ? 32'h00000013 : mem[word_index];
-
-    // ── Registered read (triggers M10K inference) ─────────────────
-    // The always_ff tells Quartus "memory read pattern here", which
-    // causes M10K ROM inference.  The registered value itself is not
-    // used - it exists solely to satisfy the synthesis pattern.
-    // Quartus implements OUTDATA_REG_A = UNREGISTERED, so the M10K
-    // output is combinational anyway.
-    localparam logic [31:0] BUBBLE = 32'h00000013;
-    logic [31:0] mem_read /* synthesis keep */ = BUBBLE;
-    logic        oob_reg  /* synthesis keep */ = 1'b0;
     always_ff @(posedge clk) begin
-        mem_read <= mem[word_index];
-        oob_reg  <= addr_out_of_bounds;
+        if (fetch_en) begin
+            mem_q <= mem[word_index];
+            oob_q <= addr_out_of_bounds;
+        end
     end
+
+    assign instruction = oob_q ? 32'h00000013 : mem_q;
 
 endmodule
