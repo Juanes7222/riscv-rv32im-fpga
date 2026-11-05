@@ -516,7 +516,7 @@ help:
 	@echo "Synthesis & Flash"
 	@echo "  flash ELF=<path>   Full pipeline: ELF --> .mem --> synthesis --> program FPGA"
 	@echo "  setup              Create Quartus project (run once per arch)"
-	@echo "  sync               Re-register RTL source files after adding new modules"
+	@echo "  sync               Sync RTL source files and DE1-SoC pin assignments"
 	@echo "  sync-all           Sync both architectures"
 	@echo "  build              Single synthesis run (requires .mem files)"
 	@echo "  build-fpga         Build with SignalTap II for FPGA validation"

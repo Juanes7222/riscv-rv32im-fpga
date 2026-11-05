@@ -1,5 +1,7 @@
-# Synchronizes RTL source files in an existing Quartus project.
-# Use this whenever a new .sv file is added to rtl/shared/ or rtl/single_cycle/.
+# Synchronizes an existing Quartus project: RTL source files, pin
+# assignments, I/O standards and memory sizes.
+# Use this whenever a new .sv file is added to rtl/shared/ or rtl/single_cycle/,
+# or whenever synthesis/de1soc_pins.tcl changes.
 # Usage: quartus_sh -t sync.tcl
 
 load_package flow
@@ -34,6 +36,11 @@ foreach sv_file [glob -nocomplain "$rtl_arch/*.sv"] {
     set_global_assignment -name SYSTEMVERILOG_FILE $sv_file
     puts "  added: $sv_file"
 }
+
+# Pin assignments, I/O standards and memory sizes are versioned in the
+# shared pinout file; re-apply them here so 'make sync' converges the
+# project to de1soc_pins.tcl too (by itself it only re-registers .sv files).
+source ../de1soc_pins.tcl
 
 project_close
 
