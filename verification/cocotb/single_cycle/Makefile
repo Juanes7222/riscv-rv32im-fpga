@@ -6,11 +6,12 @@
 #     the processor is frozen.
 
 TOPLEVEL             = top_single_cycle
-COCOTB_TEST_MODULES  = test_cpi_one,test_step_mode
+COCOTB_TEST_MODULES  = test_cpi_one,test_step_mode,test_program_loader
 
 VERILOG_SOURCES = \
     $(SHARED_SRCS) \
     $(SHARED_VGA_SRCS) \
+    $(RTL_ROOT)/shared/program_loader.sv \
     $(RTL_ROOT)/single_cycle/instruction_memory.sv \
     $(RTL_ROOT)/single_cycle/data_memory.sv \
     $(RTL_ROOT)/single_cycle/control_unit.sv \

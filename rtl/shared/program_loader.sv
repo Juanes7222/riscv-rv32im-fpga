@@ -68,9 +68,9 @@ module program_loader #(
 
         unique case (state)
             S_IDLE: begin
-                // Escribe solo con el CPU detenido (step_hold == 1).
-                // El usuario pone SW[9]=1 (step mode), selecciona con
-                // SW[0:3] y pulsa KEY[2] para cargar el programa.
+                // Perform writes only when the CPU is halted (step_hold == 1).
+                // The user sets SW[9]=1 (step mode), makes a selection using
+                // SW[0:3], and presses KEY[2] to load the program.
                 if (key_press && step_hold == 1'b1)
                     state_n = S_COPY;
             end

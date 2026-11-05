@@ -1,9 +1,10 @@
 TOPLEVEL            ?= top_pipeline
-COCOTB_TEST_MODULES  = test_pipeline_smoke,test_pipeline_debug,test_pipeline_rv32i,test_pipeline_rv32m,test_pipeline_rv32mi,test_pipeline_hazards,test_pipeline_control,test_pipeline_cpi,test_pipeline_step_mode
+COCOTB_TEST_MODULES  = test_pipeline_smoke,test_pipeline_debug,test_pipeline_rv32i,test_pipeline_rv32m,test_pipeline_rv32mi,test_pipeline_hazards,test_pipeline_control,test_pipeline_cpi,test_pipeline_step_mode,test_program_loader
 
 VERILOG_SOURCES = \
     $(SHARED_SRCS) \
     $(SHARED_VGA_SRCS) \
+    $(RTL_ROOT)/shared/program_loader.sv \
     $(RTL_ROOT)/pipeline/instruction_memory_pipe.sv \
     $(RTL_ROOT)/pipeline/data_memory_pipe.sv \
     $(RTL_ROOT)/pipeline/control_unit.sv \
