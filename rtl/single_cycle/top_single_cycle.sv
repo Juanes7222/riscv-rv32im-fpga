@@ -6,6 +6,8 @@ module top_single_cycle #(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14 (CPU runs at 40 MHz, ADR 049)
     input logic rst_n,    // Active-low synchronous reset - KEY[0]
     input logic key_step, // KEY[1] raw pin, active low: 0 while pressed
+    input logic key_load, // KEY[2] raw pin, active low: 0 while pressed (program load)
+    input logic [3:0] sw, // SW[0:3]: program selector for the loader
     input logic step_mode,// SW[9], active high: freezes the processor
     output logic [9:0] ledr,       // pc[9:0]
     output logic [6:0] seven_seg_display0, // Connect to your 7-segment display output
@@ -305,13 +307,41 @@ module top_single_cycle #(
     assign imem_addr  = fetch_valid ? next_pc : pc;
     assign instruction = fetch_valid ? imem_instruction : 32'h0000_0013;
 
+    logic        loader_imem_wr_en;
+    logic [31:0] loader_imem_wr_addr;
+    logic [31:0] loader_imem_wr_data;
+    logic        loader_dmem_wr_en;
+    logic [31:0] loader_dmem_wr_addr;
+    logic [31:0] loader_dmem_wr_data;
+
+    program_loader #(
+        .IMEM_DEPTH (IMEM_DEPTH),
+        .DMEM_DEPTH (DMEM_DEPTH)
+    ) u_loader (
+        .clk          (clk_cpu),
+        .rst_n        (rst_n_cpu),
+        .step_hold    (step_hold_effective),
+        .prog_sel     (sw[3:0]),
+        .key_load     (key_load),
+        .load_done    (),
+        .imem_wr_addr (loader_imem_wr_addr),
+        .imem_wr_data (loader_imem_wr_data),
+        .imem_wr_en   (loader_imem_wr_en),
+        .dmem_wr_addr (loader_dmem_wr_addr),
+        .dmem_wr_data (loader_dmem_wr_data),
+        .dmem_wr_en   (loader_dmem_wr_en)
+    );
+
     instruction_memory #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
         .clk         (clk_cpu),
         .fetch_en    (~div_busy & ~step_hold_effective),
         .next_pc     (imem_addr),
-        .instruction (imem_instruction)
+        .instruction (imem_instruction),
+        .wr_en       (loader_imem_wr_en),
+        .wr_addr     (loader_imem_wr_addr),
+        .wr_data     (loader_imem_wr_data)
     );
 
     control_unit u_cu (
@@ -382,14 +412,17 @@ module top_single_cycle #(
     data_memory #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
-        .clk        (clk_cpu),
-        .addr       (alu_sum),
-        .wr_data    (rs2_data),
-        .dm_wr      (dm_wr),
-        .dm_ctrl    (dm_ctrl),
-        .rd_data    (dm_rd_data),
-        .dbg_wr_be  (dmem_dbg_wr_be),
-        .dbg_wr_data(dmem_dbg_wr_data)
+        .clk           (clk_cpu),
+        .addr          (alu_sum),
+        .wr_data       (rs2_data),
+        .dm_wr         (dm_wr),
+        .dm_ctrl       (dm_ctrl),
+        .rd_data       (dm_rd_data),
+        .dbg_wr_be     (dmem_dbg_wr_be),
+        .dbg_wr_data   (dmem_dbg_wr_data),
+        .wr_en_loader  (loader_dmem_wr_en),
+        .wr_addr_loader(loader_dmem_wr_addr),
+        .wr_data_loader(loader_dmem_wr_data)
     );
 
     // ADR 027: CSR register file with trap logic

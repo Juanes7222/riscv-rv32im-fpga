@@ -19,7 +19,13 @@ module instruction_memory #(
     input  logic        clk,
     input  logic        fetch_en,   // 0 holds the output register (DIV, step mode)
     input  logic [31:0] next_pc,
-    output logic [31:0] instruction
+    output logic [31:0] instruction,
+    // Puerto de escritura para el program loader.  Sólo activo con CPU
+    // detenido; durante ejecución normal wr_en = 0 y la ruta de fetch no
+    // se toca.
+    input  logic        wr_en,
+    input  logic [31:0] wr_addr,
+    input  logic [31:0] wr_data
 );
 
     localparam ADDR_BITS = $clog2(IMEM_DEPTH);
@@ -30,6 +36,12 @@ module instruction_memory #(
         `ifdef IMEM_FILE
             $readmemh(`IMEM_FILE, mem);
         `endif
+    end
+
+    // Escritura síncrona en el mismo clock de lectura.
+    always_ff @(posedge clk) begin
+        if (wr_en)
+            mem[wr_addr[ADDR_BITS+1:2]] <= wr_data;
     end
 
     // Extract index outside always_ff to avoid Icarus constant-select bug

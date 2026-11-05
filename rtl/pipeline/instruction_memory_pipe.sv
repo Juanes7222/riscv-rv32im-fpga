@@ -9,7 +9,13 @@ module instruction_memory_pipe #(
 )(
     input  logic        clk,
     input  logic [31:0] addr,
-    output logic [31:0] instruction
+    output logic [31:0] instruction,
+    // Puerto de escritura para el program loader.  Sólo activo cuando el
+    // CPU está detenido (reset o step_hold); durante ejecución normal
+    // wr_en = 0 y la ruta de fetch no se toca.
+    input  logic        wr_en,
+    input  logic [31:0] wr_addr,
+    input  logic [31:0] wr_data
 );
 
     localparam ADDR_BITS = $clog2(IMEM_DEPTH);
@@ -20,6 +26,13 @@ module instruction_memory_pipe #(
         `ifdef IMEM_FILE
             $readmemh(`IMEM_FILE, mem);
         `endif
+    end
+
+    // Escritura síncrona en el mismo clock de lectura.  Cuando wr_en=0 la
+    // memoria se comporta como ROM pura; Quartus sigue infiriendo M10K.
+    always_ff @(posedge clk) begin
+        if (wr_en)
+            mem[wr_addr[ADDR_BITS+1:2]] <= wr_data;
     end
 
     // Word index extraction - keep outside always_ff for Icarus compat

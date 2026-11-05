@@ -10,6 +10,8 @@ module top_pipeline #(
     input  logic        clk,        // 50 MHz - DE1-SoC PIN_AF14
     input  logic        rst_n,      // Active-low synchronous reset - KEY[0]
     input  logic        key_step,   // KEY[1] raw pin, active low: 0 while pressed
+    input  logic        key_load,   // KEY[2] raw pin, active low: 0 while pressed (program load)
+    input  logic [3:0]  sw,         // SW[0:3]: program selector for the loader
     input  logic        step_mode,  // SW[9], active high: freezes the processor
     output logic [9:0]  ledr,       // if_pc[9:0] - same convention as single-cycle
     output logic [6:0]  seven_seg_display0,
@@ -341,12 +343,41 @@ module top_pipeline #(
     // IMEM address: during a flush, feed the redirect target directly.
     assign imem_addr = flush_eff ? pc_redirect_target : if_pc;
 
+    // Program loader: escribe en imem/dmem sólo con CPU detenido
+    logic        loader_imem_wr_en;
+    logic [31:0] loader_imem_wr_addr;
+    logic [31:0] loader_imem_wr_data;
+    logic        loader_dmem_wr_en;
+    logic [31:0] loader_dmem_wr_addr;
+    logic [31:0] loader_dmem_wr_data;
+
+    program_loader #(
+        .IMEM_DEPTH (IMEM_DEPTH),
+        .DMEM_DEPTH (DMEM_DEPTH)
+    ) u_loader (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .step_hold    (step_hold_effective),
+        .prog_sel     (sw[3:0]),
+        .key_load     (key_load),
+        .load_done    (),
+        .imem_wr_addr (loader_imem_wr_addr),
+        .imem_wr_data (loader_imem_wr_data),
+        .imem_wr_en   (loader_imem_wr_en),
+        .dmem_wr_addr (loader_dmem_wr_addr),
+        .dmem_wr_data (loader_dmem_wr_data),
+        .dmem_wr_en   (loader_dmem_wr_en)
+    );
+
     instruction_memory_pipe #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
         .clk         (clk),
         .addr        (imem_addr),
-        .instruction (if_instruction)
+        .instruction (if_instruction),
+        .wr_en       (loader_imem_wr_en),
+        .wr_addr     (loader_imem_wr_addr),
+        .wr_data     (loader_imem_wr_data)
     );
 
     // IF/ID register: captures from if_pc and IMEM combinational output,
@@ -627,17 +658,28 @@ module top_pipeline #(
     logic [3:0]  dmem_dbg_wr_be;
     logic [31:0] dmem_dbg_wr_data;
 
+    // Mux de escritura en DMEM: CPU durante ejecución, loader con CPU detenido.
+    logic        dmem_wr_eff;
+    logic [31:0] dmem_addr_eff;
+    logic [31:0] dmem_wdata_eff;
+    logic [3:0]  dmem_be_eff;
+
+    assign dmem_wr_eff   = mem_dm_wr | loader_dmem_wr_en;
+    assign dmem_addr_eff = loader_dmem_wr_en ? loader_dmem_wr_addr : mem_alu_result;
+    assign dmem_wdata_eff= loader_dmem_wr_en ? loader_dmem_wr_data : mem_rs2_data;
+    assign dmem_be_eff   = loader_dmem_wr_en ? 4'b1111 : dmem_dbg_wr_be;
+
     data_memory_pipe #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
         .clk        (clk),
-        .addr       (mem_alu_result),
-        .wr_data    (mem_rs2_data),
-        .dm_wr      (mem_dm_wr),
+        .addr       (dmem_addr_eff),
+        .wr_data    (dmem_wdata_eff),
+        .dm_wr      (dmem_wr_eff),
         .dm_ctrl    (mem_dm_ctrl),
         .rd_data    (dmem_rd_data),
-        .dbg_wr_be  (dmem_dbg_wr_be),
-        .dbg_wr_data(dmem_dbg_wr_data)
+        .dbg_wr_be  (dmem_be_eff),
+        .dbg_wr_data(dmem_wdata_eff)
     );
 
     // MEM/WB register                                                      //

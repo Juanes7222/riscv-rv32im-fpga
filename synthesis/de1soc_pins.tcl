@@ -14,6 +14,13 @@ set_location_assignment PIN_AF14 -to clk
 set_location_assignment PIN_AA14 -to rst_n
 # KEY[1] releases the processor for one cycle in step mode.
 set_location_assignment PIN_AA15 -to key_step
+# KEY[2] loads the program selected by SW[0:3] into imem/dmem.
+set_location_assignment PIN_W15  -to key_load
+# SW[0:3] select the program to load.
+set_location_assignment PIN_AB12 -to sw[0]
+set_location_assignment PIN_AC12 -to sw[1]
+set_location_assignment PIN_AF9  -to sw[2]
+set_location_assignment PIN_AF10 -to sw[3]
 # SW[9] freezes the processor in step mode.
 set_location_assignment PIN_AE12 -to step_mode
 
@@ -109,6 +116,11 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to seven_seg_display*
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ledr*
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to rst_n
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to key_step
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to key_load
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sw[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sw[1]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sw[2]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sw[3]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to step_mode
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to vga_clock
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to vga_hsync

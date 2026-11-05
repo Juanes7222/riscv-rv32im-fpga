@@ -24,7 +24,11 @@ module data_memory #(
     // Byte enables and per-lane write data of the pending write, exported
     // for the VGA console shadow so it mirrors this memory exactly.
     output logic [3:0]  dbg_wr_be,
-    output logic [31:0] dbg_wr_data
+    output logic [31:0] dbg_wr_data,
+    // Program loader write port: full-word write, priority over CPU store.
+    input  logic        wr_en_loader,
+    input  logic [31:0] wr_addr_loader,
+    input  logic [31:0] wr_data_loader
 );
 
     (* ramstyle = "M10K" *) logic [7:0] mem_b0 [0:DMEM_DEPTH-1];
@@ -102,6 +106,9 @@ module data_memory #(
         endcase
     end
 
+    logic [ADDR_BITS-1:0] word_addr_loader;
+    assign word_addr_loader = wr_addr_loader[ADDR_BITS+1:2];
+
     logic [7:0] wr_rep_b0, wr_rep_b1, wr_rep_b2, wr_rep_b3;
     assign wr_rep_b0 = wr_data_rep[7:0];
     assign wr_rep_b1 = wr_data_rep[15:8];
@@ -110,15 +117,22 @@ module data_memory #(
 
     // The console shadow writes what this memory writes, so it takes the
     // enables and the lane data from here instead of recomputing them.
-    assign dbg_wr_be   = be;
-    assign dbg_wr_data = wr_data_rep;
+    assign dbg_wr_be   = wr_en_loader ? 4'b1111 : be;
+    assign dbg_wr_data = wr_en_loader ? wr_data_loader : wr_data_rep;
 
-    // Synchronous write, only the enabled byte lanes.
+    // Synchronous write: loader has priority and writes all four lanes.
     always_ff @(posedge clk) begin
-        if (dm_wr && be[0]) mem_b0[word_addr] <= wr_rep_b0;
-        if (dm_wr && be[1]) mem_b1[word_addr] <= wr_rep_b1;
-        if (dm_wr && be[2]) mem_b2[word_addr] <= wr_rep_b2;
-        if (dm_wr && be[3]) mem_b3[word_addr] <= wr_rep_b3;
+        if (wr_en_loader) begin
+            mem_b0[word_addr_loader] <= wr_data_loader[7:0];
+            mem_b1[word_addr_loader] <= wr_data_loader[15:8];
+            mem_b2[word_addr_loader] <= wr_data_loader[23:16];
+            mem_b3[word_addr_loader] <= wr_data_loader[31:24];
+        end else begin
+            if (dm_wr && be[0]) mem_b0[word_addr] <= wr_rep_b0;
+            if (dm_wr && be[1]) mem_b1[word_addr] <= wr_rep_b1;
+            if (dm_wr && be[2]) mem_b2[word_addr] <= wr_rep_b2;
+            if (dm_wr && be[3]) mem_b3[word_addr] <= wr_rep_b3;
+        end
     end
 
     // Half-cycle read: the address is captured on the falling edge, so the
