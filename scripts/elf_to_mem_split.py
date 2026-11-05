@@ -76,8 +76,8 @@ def load_sections(elf_path: Path) -> tuple[list, list]:
             target = (instruction if section["sh_flags"] & SHF_EXECINSTR
                       else data)
             target.append((section.name, address, section.data()))
-    if not instruction or not data:
-        raise ValueError(f"{elf_path}: expected both code and data sections")
+    if not instruction:
+        raise ValueError(f"{elf_path}: expected a code section")
     return instruction, data
 
 
@@ -128,8 +128,11 @@ def main() -> int:
     # starts at 0x708, 0x6000 for CoreMark's window.
     base = args.dmem_base
     if base is None:
-        lowest = min(address for _, address, _ in data)
-        base = (lowest // 4096) * 4096
+        if data:
+            lowest = min(address for _, address, _ in data)
+            base = (lowest // 4096) * 4096
+        else:
+            base = 0
 
     write_mem(build_image(instruction, 0, args.imem_depth, NOP_WORD,
                           "instruction memory"), args.imem_out)
