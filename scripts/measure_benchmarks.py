@@ -9,6 +9,11 @@ both.
 The script runs the cocotb validation test once per (architecture, program)
 and merges the result with the Fmax collected in results/results_synthesis.csv.
 
+A single simulation run per (architecture, program) is enough: the CPI is
+deterministic in simulation, so the only source of experimental variability is
+the place-and-route process, which is covered by the five synthesis replicas
+and propagated to the throughput through their Fmax (anteproyecto §7.1.3).
+
 Usage:
     python3 scripts/measure_benchmarks.py
     python3 scripts/measure_benchmarks.py --riscv-tests

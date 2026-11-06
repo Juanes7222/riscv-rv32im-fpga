@@ -131,12 +131,20 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     # A stale CSV must never be mistaken for a fresh reference.
     csv_path.unlink(missing_ok=True)
 
+    # Cocotb writes results.xml into its working directory by default, which is
+    # verification/cocotb/<arch>/.  That file holds the XML evidence of the ISA
+    # suites collected by `make verify`, so a validation run must write its own
+    # file under results/ instead of overwriting it (issues C1 and C9).
+    results_xml = RESULTS_DIR / f"validation_{arch}_{elf_path.stem}.xml"
+    results_xml.parent.mkdir(parents=True, exist_ok=True)
+
     result = subprocess.run(
         ["make", "-C", str(verif_dir),
          "TOPLEVEL_LANG=verilog",
          "SIM=icarus",
          f"COCOTB_TEST_MODULES=test_validation",
          "TEST=test_validation",
+         f"COCOTB_RESULTS_FILE={results_xml}",
          f"TOPLEVEL={top}",
          f"TOHOST_ADDR={tohost_addr:#x}"],
         capture_output=True,

@@ -490,6 +490,7 @@ check-project:
 thesis:
 	@echo "[thesis] Experimental campaign: preflight, synthesis, verification, benchmarks, artifacts"
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py
+	@$(MAKE) --no-print-directory check-artifacts
 
 # Same campaign without the synthesis replicas: it reuses the replicas that
 # are already in results/ and refreshes everything else.
@@ -498,6 +499,16 @@ thesis-quick:
 	@echo "[thesis] Experimental campaign without the synthesis replicas"
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py \
 		--stages preflight verify benchmarks artifacts
+	@$(MAKE) --no-print-directory check-artifacts
+
+
+# Fails the campaign when a generated table no longer matches the CSV it
+# summarises (stale artifacts, or a collector that drifted from the table
+# writer).  It runs after the artifacts stage, never before.
+.PHONY: check-artifacts
+check-artifacts:
+	@echo "[thesis] Checking generated tables against the results CSVs..."
+	@$(VENV_PY) scripts/thesis_artifacts.py --check
 
 # Programs the DE1-SoC with every benchmark and prints the values that the
 # console must show, for the photographs of the hardware evidence.
@@ -563,4 +574,5 @@ help:
 	@echo "                     benchmarks, tables, figures, protocol, chapter)"
 	@echo "  thesis-quick       Same campaign reusing the existing replicas"
 	@echo "  thesis-hardware    Program the DE1-SoC and print the photo checklist"
+	@echo "  check-artifacts    Verify generated tables against the results CSVs"
 	@echo ""

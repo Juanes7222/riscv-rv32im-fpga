@@ -6,7 +6,8 @@ benchmark CSV) and writes the statistics, the LaTeX tables, the pgfplots
 figures, the protocol documents and the results chapter.
 
 Usage:
-    python3 scripts/thesis_artifacts.py
+    python3 scripts/thesis_artifacts.py            # regenerate every artifact
+    python3 scripts/thesis_artifacts.py --check    # tables vs CSV check
 """
 
 import csv
@@ -142,6 +143,22 @@ def read_verification() -> list:
                 "total": summary.total,
             })
     return rows
+
+
+def read_verification_csv(path: Path) -> list:
+    """Rows of results/results_verification.csv as integer counts."""
+    with path.open(newline="") as fp:
+        return [
+            {
+                "suite": row["suite"],
+                "arch": row["arch"],
+                "passed": int(row["passed"]),
+                "failed": int(row["failed"]),
+                "errors": int(row.get("errors") or 0),
+                "total": int(row["total"]),
+            }
+            for row in csv.DictReader(fp)
+        ]
 
 
 def describe(values) -> dict:
@@ -488,6 +505,10 @@ def table_benchmarks(metrics: list) -> str:
 
 
 COREMARK_CSV = RESULTS / "results_coremark.csv"
+COREMARK_PROVENANCE = (
+    "git_commit", "rtl_fingerprint", "date_utc", "sof_sha256",
+    "fmax_mhz", "tohost_addr",
+)
 
 
 def read_coremark_hardware() -> list:
@@ -508,7 +529,7 @@ def read_coremark_hardware() -> list:
             clock = float(row["clock_mhz"])
             seconds = cycles / (clock * 1e6)
             score = iterations / seconds
-            rows.append({
+            record = {
                 "arch": row["architecture"],
                 "iterations": iterations,
                 "cycles": cycles,
@@ -518,7 +539,10 @@ def read_coremark_hardware() -> list:
                 "score": score,
                 "per_mhz": score / clock,
                 "cpi": cycles / instructions if instructions else 0.0,
-            })
+            }
+            for key in COREMARK_PROVENANCE:
+                record[key] = row.get(key, "")
+            rows.append(record)
     return rows
 
 
@@ -531,13 +555,13 @@ def write_coremark_csv() -> Path:
         writer.writerow([
             "architecture", "iterations", "cycles", "instructions",
             "clock_mhz", "seconds", "score", "score_per_mhz",
-        ])
+        ] + list(COREMARK_PROVENANCE))
         for row in rows:
             writer.writerow([
                 row["arch"], row["iterations"], row["cycles"],
                 row["instructions"], row["clock_mhz"], row["seconds"],
                 row["score"], row["per_mhz"],
-            ])
+            ] + [row.get(key, "") for key in COREMARK_PROVENANCE])
     print(f"  {path.relative_to(REPO_ROOT)}")
     return path
 
@@ -666,6 +690,30 @@ def table_efficiency(metrics: list, stats: dict, efficiency: list) -> str:
     return "\n".join(lines)
 
 
+def verification_table_rows(rows: list) -> list:
+    """Rows of the verification table: (label, counts per architecture).
+
+    ``counts[arch]`` is ``(passed, failed + errors, total)`` or None when the
+    architecture does not run that suite. Suites keep the order of ``rows``.
+    """
+    by_suite = {}
+    for row in rows:
+        by_suite.setdefault(row["suite"], {})[row["arch"]] = row
+    table = []
+    for suite, per_arch in by_suite.items():
+        counts = {}
+        for arch in ARCHES:
+            row = per_arch.get(arch)
+            if not row:
+                counts[arch] = None
+                continue
+            counts[arch] = (int(row["passed"]),
+                            int(row["failed"]) + int(row.get("errors", 0)),
+                            int(row["total"]))
+        table.append((TEST_SUITE_NAMES.get(suite, suite), counts))
+    return table
+
+
 def table_verification(rows: list) -> str:
     """Verification table, reusing the collector of the verification results."""
     if not rows:
@@ -684,23 +732,501 @@ def table_verification(rows: list) -> str:
         r"& Aprobadas & Fallidas & Total & Aprobadas & Fallidas & Total \\",
         r"\midrule",
     ]
-    by_suite = {}
-    for row in rows:
-        by_suite.setdefault(row["suite"], {})[row["arch"]] = row
-    for suite, per_arch in by_suite.items():
+    for label, counts in verification_table_rows(rows):
         cells = []
         for arch in ARCHES:
-            row = per_arch.get(arch)
-            if not row:
+            values = counts[arch]
+            if values is None:
                 cells += [r"\textemdash"] * 3
                 continue
-            failed = int(row["failed"]) + int(row["errors"])
+            passed, failed, total = values
             failed_str = (r"\textcolor{red}{" + str(failed) + "}") if failed else "0"
-            cells += [str(row["passed"]), failed_str, str(row["total"])]
-        lines.append(f"{tex_escape(TEST_SUITE_NAMES.get(suite, suite))} & "
-                     + " & ".join(cells) + r" \\")
+            cells += [str(passed), failed_str, str(total)]
+        lines.append(f"{tex_escape(label)} & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
     return "\n".join(lines)
+
+
+def _latex_count(cell: str):
+    """Integer of a generated table cell: 0, 12, \\textcolor{red}{3} or dash."""
+    if cell == r"\textemdash":
+        return None
+    match = re.search(r"\d+", cell)
+    return int(match.group()) if match else None
+
+
+def parse_tex_rows(path: Path) -> list:
+    """Rows of a generated table as cell lists; header and rules skipped."""
+    rows = []
+    inside = False
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if stripped == r"\midrule":
+            inside = True
+            continue
+        if stripped == r"\bottomrule":
+            break
+        if not inside or not stripped.endswith(r"\\"):
+            continue
+        rows.append([cell.strip() for cell in stripped[:-2].split("&")])
+    return rows
+
+
+def parse_verification_table_tex(path: Path) -> dict:
+    """Map each row label of the LaTeX table to its six counts."""
+    return {row[0]: [_latex_count(cell) for cell in row[1:]]
+            for row in parse_tex_rows(path) if len(row) == 7}
+
+
+def _read_csv_rows(path: Path) -> list:
+    with path.open(newline="") as fp:
+        return list(csv.DictReader(fp))
+
+
+def _table_problems(name: str, expected: dict, actual: dict) -> list:
+    """Differences between expected and actual rows, keyed by label."""
+    problems = []
+    for label, cells in expected.items():
+        if label not in actual:
+            problems.append(f"{name}: falta la fila '{label}' en el .tex")
+        elif actual[label] != cells:
+            problems.append(f"{name}: '{label}' CSV {cells} != TeX {actual[label]}")
+    for label in actual:
+        if label not in expected:
+            problems.append(f"{name}: sobra la fila '{label}' en el .tex")
+    return problems
+
+
+def verification_table_problems() -> list:
+    """Compare results_verification.csv with verification_results.tex.
+
+    The CSV is written by collect_results.py from the results.xml files and
+    the table by this script: they must agree suite by suite.
+    """
+    csv_path = RESULTS / "results_verification.csv"
+    tex_path = TABLES / "verification_results.tex"
+    for path in (csv_path, tex_path):
+        if not path.exists():
+            raise FileNotFoundError(path)
+
+    expected = {}
+    for label, counts in verification_table_rows(read_verification_csv(csv_path)):
+        values = []
+        for arch in ARCHES:
+            values += list(counts[arch]) if counts[arch] else [None, None, None]
+        expected[tex_escape(label)] = values
+    return _table_problems("Verificación", expected,
+                           parse_verification_table_tex(tex_path))
+
+
+def fmax_table_problems() -> list:
+    """Compare results_fmax.csv and results_replicas.csv with the Fmax table."""
+    replicas = {
+        arch: [row for row in _read_csv_rows(RESULTS / "results_replicas.csv")
+               if row["arch"] == arch]
+        for arch in ARCHES
+    }
+    summary = {row["arch"]: row
+               for row in _read_csv_rows(RESULTS / "results_fmax.csv")}
+
+    expected = {}
+    for index in range(max(len(replicas[arch]) for arch in ARCHES)):
+        cells = []
+        for arch in ARCHES:
+            rows = replicas[arch]
+            cells.append(fmt(float(rows[index]["fmax_mhz"]))
+                         if index < len(rows) else r"\textemdash")
+        expected[str(index + 1)] = cells
+    for label, key in (("Media", "fmax_mean_mhz"),
+                       ("Desviación estándar", "fmax_std_mhz"),
+                       ("Mínimo", "fmax_min_mhz"),
+                       ("Máximo", "fmax_max_mhz")):
+        expected[label] = [
+            fmt(float(summary[arch][key]))
+            if summary.get(arch, {}).get(key) else r"\textemdash"
+            for arch in ARCHES]
+    expected["Número de réplicas (n)"] = [
+        str(int(summary[arch]["replicas"]))
+        if summary.get(arch, {}).get("replicas") else "0"
+        for arch in ARCHES]
+
+    actual = {row[0]: row[1:]
+              for row in parse_tex_rows(TABLES / "fmax_replicas.tex")}
+    return _table_problems("Fmax", expected, actual)
+
+
+def resources_table_problems() -> list:
+    """Compare the statistics and efficiency CSVs with the resources table."""
+    stats = {(row["arch"], row["metric"]): row
+             for row in _read_csv_rows(RESULTS / "results_statistics.csv")}
+    overhead = {row["resource"]: row["overhead_pct"]
+                for row in _read_csv_rows(RESULTS / "results_efficiency.csv")
+                if row["overhead_pct"].strip()}
+
+    expected = {}
+    for key, label in RESOURCE_LABELS.items():
+        cells = []
+        for arch in ARCHES:
+            row = stats.get((arch, key))
+            cells.append(f"{float(row['mean']):.0f} $\\pm$ "
+                         f"{float(row['std']):.0f}"
+                         if row else r"\textemdash")
+        pct = overhead.get(label)
+        cells.append(f"{float(pct):+.1f} \\%"
+                     if pct is not None else r"\textemdash")
+        expected[label] = cells
+
+    actual = {row[0]: row[1:]
+              for row in parse_tex_rows(TABLES / "resources.tex")}
+    return _table_problems("Recursos", expected, actual)
+
+
+def statistics_table_problems() -> list:
+    """Compare results_statistics.csv with the statistics table."""
+    expected = {}
+    problems = []
+    for row in _read_csv_rows(RESULTS / "results_statistics.csv"):
+        name = ("Fmax (MHz)" if row["metric"] == "fmax"
+                else RESOURCE_LABELS[row["metric"]])
+        key = f"{ARCH_LABELS[row['arch']]} / {name}"
+        mean = float(row["mean"])
+        std = float(row["std"])
+        # The table derives the CV from mean and standard deviation instead of
+        # reading the stored column, so the check must do the same.
+        cv = std / mean * 100 if mean else 0.0
+        # The stored CV comes from full-precision replicas: rounding mean and
+        # std to three decimals can move the recomputed value by ~0.001.
+        if abs(float(row["cv_pct"]) - cv) > 0.0015:
+            problems.append(f"Estadísticas: '{key}' cv_pct del CSV "
+                            f"{row['cv_pct']} no coincide con std/media "
+                            f"({cv:.3f})")
+        expected[key] = [
+            fmt(mean, 3), fmt(std, 3), fmt(cv, 2),
+            fmt(float(row["min"]), 3), fmt(float(row["max"]), 3),
+        ]
+
+    actual = {f"{row[0]} / {row[1]}": row[2:]
+              for row in parse_tex_rows(TABLES / "statistics.tex")}
+    return problems + _table_problems("Estadísticas", expected, actual)
+
+
+def efficiency_table_problems() -> list:
+    """Compare results_efficiency.csv and its sources with the efficiency table.
+
+    The throughput per resource is derived, so it is rebuilt from the mean
+    throughput of the summary and the mean resource count per architecture.
+    """
+    stats = {(row["arch"], row["metric"]): row
+             for row in _read_csv_rows(RESULTS / "results_statistics.csv")}
+    throughputs = {}
+    for row in _read_csv_rows(RESULTS / "results_benchmarks_summary.csv"):
+        if row["result"] != "pass" or not row["throughput_mean_mips"].strip():
+            continue
+        throughputs.setdefault(row["architecture"], []).append(
+            float(row["throughput_mean_mips"]))
+
+    def per_resource(arch: str, metric: str):
+        values = throughputs.get(arch)
+        stat = stats.get((arch, metric))
+        if not values or not stat:
+            return None
+        mean_throughput = sum(values) / len(values)
+        return mean_throughput / (float(stat["mean"]) / 1000.0)
+
+    expected = {}
+    for metric, label in (("alms", "Throughput por 1000 ALMs (MIPS)"),
+                          ("registers", "Throughput por 1000 registros (MIPS)")):
+        expected[label] = [
+            fmt(per_resource(arch, metric), 3)
+            if per_resource(arch, metric) is not None else r"\textemdash"
+            for arch in ARCHES]
+    for row in _read_csv_rows(RESULTS / "results_efficiency.csv"):
+        if not row["overhead_pct"].strip():
+            continue
+        expected[f"Overhead de {row['resource'].lower()} del pipeline"] = [
+            "---", f"{float(row['overhead_pct']):+.1f} \\%"]
+
+    actual = {row[0]: row[1:]
+              for row in parse_tex_rows(TABLES / "efficiency.tex")}
+    return _table_problems("Eficiencia", expected, actual)
+
+
+def _benchmark_cell_matches(expected: str, actual: str, column: int) -> bool:
+    """Throughput is stored with three decimals and shown with two."""
+    if expected == actual:
+        return True
+    if column != 6 or r"\textemdash" in (expected, actual):
+        return False
+    try:
+        return abs(float(expected) - float(actual)) <= 0.015
+    except ValueError:
+        return False
+
+
+def benchmarks_table_problems() -> list:
+    """Compare results_benchmarks_summary.csv with the benchmarks table."""
+    expected = []
+    for row in _read_csv_rows(RESULTS / "results_benchmarks_summary.csv"):
+        cells = [tex_escape(row["program"]), ARCH_LABELS[row["architecture"]],
+                 str(int(row["cycle_count"])), str(int(row["instr_retired"]))]
+        if row["result"] != "pass":
+            cells += [r"\textemdash"] * 3
+        else:
+            cells += [f"{float(row['cpi']):.4f}",
+                      f"{float(row['ipc']):.4f}",
+                      f"{float(row['throughput_mean_mips']):.2f}",
+                      f"{float(row['latency_ms']):.4f}"]
+        expected.append(cells)
+
+    actual = parse_tex_rows(TABLES / "benchmarks.tex")
+    problems = []
+    if len(expected) != len(actual):
+        problems.append(f"Benchmarks: {len(expected)} filas en el CSV y "
+                        f"{len(actual)} en el .tex")
+    for index, (exp, act) in enumerate(zip(expected, actual), start=1):
+        if len(exp) != len(act):
+            problems.append(f"Benchmarks fila {index}: {len(exp)} columnas en el "
+                            f"CSV y {len(act)} en el .tex")
+            continue
+        for column, (csv_cell, tex_cell) in enumerate(zip(exp, act)):
+            if not _benchmark_cell_matches(csv_cell, tex_cell, column):
+                problems.append(f"Benchmarks fila {index}, columna {column + 1}: "
+                                f"CSV {csv_cell} != TeX {tex_cell}")
+    return problems
+
+
+def _speedup_cell_matches(column: int, csv_cell: str, tex_cell: str) -> bool:
+    """The CSV keeps four decimals; the table derives the bound and rounds it."""
+    if csv_cell == tex_cell:
+        return True
+    if column == 3:
+        return False
+    tolerance = 0.0006 if column < 2 else 0.0015
+    try:
+        return abs(float(csv_cell) - float(tex_cell)) <= tolerance
+    except ValueError:
+        return False
+
+
+def speedup_table_problems() -> list:
+    """Compare results_benchmarks_summary.csv with the speedup table.
+
+    Both architectures share the paired speedup of a program, so the first
+    row of each program is enough: a disagreement between them means the
+    summary itself is inconsistent and is reported too.
+    """
+    expected = {}
+    problems = []
+    conflicts = set()
+    for row in _read_csv_rows(RESULTS / "results_benchmarks_summary.csv"):
+        if not row["speedup_mean"].strip():
+            continue
+        mean = float(row["speedup_mean"])
+        std = float(row["speedup_std"])
+        cells = [fmt(mean, 3), fmt(std, 3), fmt(mean - std, 3),
+                 "H1 sostenida" if row["verdict"] == "H1"
+                 else "H0 no descartada"]
+        label = tex_escape(row["program"])
+        previous = expected.get(label)
+        if label in conflicts:
+            continue
+        if previous is not None and previous != cells:
+            problems.append(f"Speedup: '{row['program']}' tiene speedups "
+                            f"distintos entre arquitecturas ({previous} y "
+                            f"{cells})")
+            conflicts.add(label)
+            del expected[label]
+            continue
+        expected[label] = cells
+
+    actual = {row[0]: row[1:]
+              for row in parse_tex_rows(TABLES / "speedup.tex")}
+    for label in conflicts:
+        actual.pop(label, None)
+
+    for label, cells in expected.items():
+        if label not in actual:
+            problems.append(f"Speedup: falta la fila '{label}' en el .tex")
+            continue
+        tex_cells = actual.pop(label)
+        if len(tex_cells) != len(cells):
+            problems.append(f"Speedup: '{label}' tiene {len(tex_cells)} "
+                            f"columnas en el .tex y {len(cells)} en el CSV")
+            continue
+        for column, (csv_cell, tex_cell) in enumerate(zip(cells, tex_cells)):
+            if not _speedup_cell_matches(column, csv_cell, tex_cell):
+                problems.append(f"Speedup: '{label}' columna {column + 1}: "
+                                f"CSV {csv_cell} != TeX {tex_cell}")
+    for label in actual:
+        problems.append(f"Speedup: sobra la fila '{label}' en el .tex")
+    return problems
+
+
+def coremark_table_problems() -> list:
+    """Compare results_coremark.csv with the CoreMark table."""
+    expected = {}
+    for row in _read_csv_rows(COREMARK_CSV):
+        expected[ARCH_LABELS[row["architecture"]]] = [
+            f"{float(row['clock_mhz']):.0f}",
+            str(int(row["cycles"])),
+            str(int(row["instructions"])),
+            f"{float(row['seconds']):.2f}",
+            f"{float(row['score']):.2f}",
+            f"{float(row['score_per_mhz']):.3f}",
+        ]
+
+    actual = {row[0]: row[1:]
+              for row in parse_tex_rows(TABLES / "coremark.tex")}
+    return _table_problems("CoreMark", expected, actual)
+
+
+def _figure_addplots(path: Path, error_bars: bool = False) -> list:
+    """Points of every ``\\addplot`` of a generated pgfplots figure."""
+    plots = []
+    text = path.read_text()
+    for match in re.finditer(r"\\addplot coordinates \{([^}]*)\};", text):
+        body = match.group(1)
+        if error_bars:
+            points = [(int(m.group(1)), float(m.group(2)), float(m.group(3)))
+                      for m in re.finditer(
+                          r"\((\d+),([\d.]+)\)\s*\+-\s*\(0,([\d.]+)\)", body)]
+        else:
+            points = [(int(m.group(1)), float(m.group(2)))
+                      for m in re.finditer(r"\((\d+),([\d.]+)\)", body)]
+        plots.append(points)
+    return plots
+
+
+def _grouped_figure_problems(name: str, filename: str, expected: list,
+                             tolerance: float = 0.0006) -> list:
+    """Compare the series of a grouped bar figure with the expected values."""
+    plots = _figure_addplots(FIGURES / filename)
+    if len(plots) != len(expected):
+        return [f"Figura {name}: {len(plots)} series en la figura y "
+                f"{len(expected)} esperadas"]
+    problems = []
+    for series, (wanted, points) in enumerate(zip(expected, plots), start=1):
+        if len(points) != len(wanted):
+            problems.append(f"Figura {name}: serie {series} tiene "
+                            f"{len(points)} puntos y se esperaban {len(wanted)}")
+            continue
+        for index, ((x, value), target) in enumerate(zip(points, wanted), start=1):
+            if x != index:
+                problems.append(f"Figura {name}: serie {series}, x={x} donde "
+                                f"se esperaba {index}")
+            if abs(value - target) > tolerance:
+                problems.append(f"Figura {name}: serie {series}, punto {index}: "
+                                f"CSV {target:.3f} != figura {value:.3f}")
+    return problems
+
+
+def fmax_figure_problems() -> list:
+    """Compare results_fmax.csv with the Fmax bar figure."""
+    summary = {row["arch"]: row
+               for row in _read_csv_rows(RESULTS / "results_fmax.csv")}
+    plots = _figure_addplots(FIGURES / "fmax_comparison.tex", error_bars=True)
+    if len(plots) != 1:
+        return [f"Figura Fmax: {len(plots)} series en la figura y 1 esperada"]
+    points = plots[0]
+    if len(points) != len(ARCHES):
+        return [f"Figura Fmax: {len(points)} barras en la figura y "
+                f"{len(ARCHES)} esperadas"]
+    problems = []
+    for index, arch in enumerate(ARCHES):
+        x, mean, std = points[index]
+        row = summary[arch]
+        if x != index + 1:
+            problems.append(f"Figura Fmax: '{ARCH_LABELS[arch]}' en x={x}")
+        # The figure shows two decimals of values stored with three.
+        if abs(mean - float(row["fmax_mean_mhz"])) > 0.0055:
+            problems.append(f"Figura Fmax: '{ARCH_LABELS[arch]}' media del "
+                            f"CSV {row['fmax_mean_mhz']} != figura {mean}")
+        if abs(std - float(row["fmax_std_mhz"])) > 0.0055:
+            problems.append(f"Figura Fmax: '{ARCH_LABELS[arch]}' desviación "
+                            f"del CSV {row['fmax_std_mhz']} != figura {std}")
+    return problems
+
+
+def _benchmark_figure_values(column: str) -> list:
+    """Per-architecture series of a benchmark figure, from the summary CSV."""
+    rows = _read_csv_rows(RESULTS / "results_benchmarks_summary.csv")
+    programs = sorted({row["program"] for row in rows})
+    expected = []
+    for arch in ARCHES:
+        by_program = {row["program"]: row for row in rows
+                      if row["architecture"] == arch}
+        values = []
+        for program in programs:
+            row = by_program.get(program)
+            if (row is None or row["result"] != "pass"
+                    or not row[column].strip()):
+                values.append(0.0)
+            else:
+                values.append(float(row[column]))
+        expected.append(values)
+    return expected
+
+
+def throughput_figure_problems() -> list:
+    """Compare results_benchmarks_summary.csv with the throughput figure."""
+    return _grouped_figure_problems(
+        "Throughput", "throughput_comparison.tex",
+        _benchmark_figure_values("throughput_mean_mips"))
+
+
+def cpi_figure_problems() -> list:
+    """Compare results_benchmarks_summary.csv with the CPI figure."""
+    return _grouped_figure_problems(
+        "CPI", "cpi_comparison.tex",
+        _benchmark_figure_values("cpi"))
+
+
+def resources_figure_problems() -> list:
+    """Compare results_statistics.csv with the resources figure."""
+    stats = {(row["arch"], row["metric"]): float(row["mean"])
+             for row in _read_csv_rows(RESULTS / "results_statistics.csv")}
+    expected = [[stats[(arch, key)] for key in
+                 ("alms", "registers", "ram_blocks", "dsp_blocks")]
+                for arch in ARCHES]
+    return _grouped_figure_problems("Recursos", "resources_comparison.tex",
+                                    expected)
+
+
+def check_artifacts() -> int:
+    """Compare the generated tables and figures with their source CSVs."""
+    tables = (
+        ("Verificación", verification_table_problems),
+        ("Fmax", fmax_table_problems),
+        ("Recursos", resources_table_problems),
+        ("Estadísticas", statistics_table_problems),
+        ("Eficiencia", efficiency_table_problems),
+        ("Benchmarks", benchmarks_table_problems),
+        ("Speedup", speedup_table_problems),
+        ("CoreMark", coremark_table_problems),
+    )
+    figures = (
+        ("Fmax", fmax_figure_problems),
+        ("Throughput", throughput_figure_problems),
+        ("CPI", cpi_figure_problems),
+        ("Recursos", resources_figure_problems),
+    )
+    problems = []
+    for name, check in tables + figures:
+        try:
+            problems += check()
+        except (OSError, KeyError, ValueError) as error:
+            problems.append(f"{name}: no se pudo comprobar ({error})")
+    if problems:
+        print("DIVERGENCIA entre los CSV de results/ y los artefactos de "
+              "thesis/:")
+        for problem in problems:
+            print(f"  - {problem}")
+        print("Ejecute 'python3 scripts/thesis_artifacts.py' para regenerar "
+              "las tablas y figuras.")
+        return 1
+    print(f"OK: {len(tables)} tablas y {len(figures)} figuras coinciden con "
+          "sus CSV.")
+    return 0
 
 
 # --------------------------------------------------------------------------
@@ -885,6 +1411,27 @@ def write_environment_doc(stats: dict, versions: dict, fingerprint: str) -> Path
         "```bash",
         "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt",
         "export PATH=\"$PWD/.venv/bin:$PATH\"   # cocotb-config y el intérprete del venv",
+        "```",
+        "",
+        "## Flujo de reproducción",
+        "",
+        "```bash",
+        "make thesis        # campaña completa: sintetiza las réplicas y regenera los artefactos",
+        "make thesis-quick  # reutiliza las réplicas de results/ y refresca el resto",
+        "```",
+        "",
+        "Ambas campañas terminan con `make check-artifacts`, que compara las tablas de "
+        "`thesis/tables/` y las figuras de `thesis/figures/diagrams/` con los CSV de "
+        "`results/` correspondientes (verificación, Fmax, recursos, estadísticas, "
+        "eficiencia, benchmarks, speedup y CoreMark). "
+        "Si un artefacto no coincide "
+        "con su CSV, el objetivo devuelve un código distinto de cero y la campaña "
+        "falla; el mensaje indica la fila y la columna divergentes. El chequeo "
+        "también puede ejecutarse por separado después de editar o regenerar "
+        "artefactos:",
+        "",
+        "```bash",
+        "make check-artifacts",
         "```",
         "",
     ]
@@ -1107,6 +1654,21 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
     ram_overhead = overhead.get("ram_blocks", 0.0)
     dsp_overhead = overhead.get("dsp_blocks", 0.0)
 
+    # CPI penalty of the pipeline per program: the quantity that has to be
+    # outweighed by the Fmax gain for the hypothesis to hold.
+    penalties = [m["arch"]["pipeline"]["cpi"] / m["arch"]["single_cycle"]["cpi"] - 1
+                 for m in measured
+                 if m["arch"].get("pipeline") and m["arch"].get("single_cycle")
+                 and m["arch"]["single_cycle"]["cpi"]]
+    fmax_gain = (pipe_fmax["mean"] / sc_fmax["mean"] - 1) * 100
+    coremark_note = ""
+    if coremark:
+        coremark_note = (
+            " En la carga estándar CoreMark el pipeline rinde "
+            f"{fmt(coremark[-1]['per_mhz'], 2)} CoreMark/MHz frente a "
+            f"{fmt(coremark[0]['per_mhz'], 2)} del monociclo, la métrica "
+            "normalizada por frecuencia que recomienda EEMBC (sección 9.2.13).")
+
     def mean_throughput(arch):
         values = [m["arch"][arch]["throughput"]["mean"] for m in metrics
                   if arch in m["arch"] and m["arch"][arch].get("throughput")]
@@ -1120,19 +1682,47 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
         per_alm_ratio = ((pipe_tp / (pipe_alms["mean"] / 1000.0))
                          / (sc_tp / (sc_alms["mean"] / 1000.0)))
 
+    def overhead_phrase(value, noun):
+        """Sign-aware phrase: '18 % más de ALMs', 'sin cambio en registros'."""
+        if abs(value) < 0.5:
+            return f"sin cambio en {noun}"
+        direction = "más" if value > 0 else "menos"
+        return f"un {fmt(abs(value), 1)} % {direction} de {noun}"
+
+    resource_changes = [
+        overhead_phrase(alm_overhead, "ALMs"),
+        overhead_phrase(reg_overhead, "registros"),
+        overhead_phrase(ram_overhead, "bloques RAM"),
+        overhead_phrase(dsp_overhead, "bloques DSP"),
+    ]
+    resource_text = ", ".join(resource_changes[:-1]) + " y " + resource_changes[-1]
+    if per_alm_ratio >= 1.0:
+        area_verdict = ("El intercambio es favorable: el pipeline entrega más "
+                        "throughput por unidad de lógica a pesar del área adicional.")
+    else:
+        area_verdict = ("El intercambio no compensa: el pipeline consume más área "
+                        "y entrega menos throughput, de modo que su eficiencia por "
+                        "ALM es inferior a la del monociclo.")
+
     def program_list(entries):
         return ", ".join(f"`{m['program']}`" for m in entries) if entries else "ninguno"
 
+    def program_list_tex(entries):
+        names = [r"\texttt{" + m["program"].replace("_", r"\_") + "}" for m in entries]
+        return ", ".join(names) if names else "ninguno"
+
     if winners and losers:
         discussion_md = (
-            "El resultado no es uniforme: el pipeline supera al monociclo en los "
-            f"programas {program_list(winners)} y no lo hace en {program_list(losers)}. "
-            "La ganancia de reloj se compensa con la penalización por hazards de "
-            "datos, por el vaciado de las ramas tomadas y por la latencia de la "
-            "división, de modo que la hipótesis de trabajo, enunciada de forma "
-            "general, queda confirmada solo bajo la condición de carga del programa "
-            "medido: es un resultado condicional, no una propiedad de la "
-            "microarquitectura.\n")
+            "El resultado es un rechazo parcial de la hipótesis de trabajo $H_1$: el "
+            f"pipeline supera al monociclo en {program_list(winners)} y pierde en "
+            f"{program_list(losers)}. La ganancia de frecuencia "
+            f"({fmt(fmax_gain, 1)} %) no compensa el aumento del CPI por hazard de "
+            "datos, vaciado de las ramas tomadas y latencia de la división, que va "
+            f"de {fmt(min(penalties) * 100, 0) if penalties else 0} % a "
+            f"{fmt(max(penalties) * 100, 0) if penalties else 0} % según el "
+            "programa. La ventaja se limita, por tanto, a las cargas intensivas en "
+            "multiplicación y división y con pocas dependencias; no es una "
+            "propiedad general de la microarquitectura." + coremark_note + "\n")
     elif winners:
         discussion_md = (
             "El pipeline supera al monociclo en todos los programas medidos "
@@ -1142,9 +1732,6 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
             "conjunto de programas medido y no generaliza a cargas con una densidad "
             "de hazards superior a la de estos programas.\n")
     else:
-        penalties = [m["arch"]["pipeline"]["cpi"] / m["arch"]["single_cycle"]["cpi"] - 1
-                     for m in measured
-                     if m["arch"]["pipeline"]["cpi"] and m["arch"]["single_cycle"]["cpi"]]
         discussion_md = (
             "El pipeline no supera al monociclo en ninguno de los programas "
             "medidos. La ganancia de frecuencia del pipeline es de "
@@ -1242,24 +1829,25 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
               "La tabla `\\ref{tab:statistics}` recoge la estadística completa.\n")
     md.append("## 7.6 Eficiencia relativa\n")
     md.append("La tabla `\\ref{tab:efficiency}` contrasta el throughput con el costo "
-              "en recursos. El pipeline es más barato en lógica y más caro en "
-              "memoria: usa un "
-              f"{fmt(abs(alm_overhead), 0)} % menos de ALMs y un "
-              f"{fmt(abs(reg_overhead), 0)} % menos de registros, a cambio de un "
-              f"{fmt(ram_overhead, 0)} % más de bloques RAM y un "
-              f"{fmt(dsp_overhead, 0)} % más de bloques DSP. Expresado en throughput "
-              f"por mil ALMs, el pipeline multiplica por {fmt(per_alm_ratio, 2)} la "
-              "eficiencia del monociclo. El intercambio entre rendimiento y área "
-              "no es, por tanto, un compromiso equilibrado: en este diseño el "
-              "pipeline gana en área y pierde en throughput.\n")
+              "en recursos. Respecto al monociclo, el pipeline usa "
+              f"{resource_text}. Expresado en throughput por mil ALMs, el pipeline "
+              f"multiplica por {fmt(per_alm_ratio, 2)} la eficiencia del monociclo. "
+              + area_verdict + "\n")
     md.append("## 7.7 Evaluación de la hipótesis\n")
-    if winners:
+    if winners and losers:
         md.append(
-            f"La hipótesis de trabajo $H_1$ se sostiene en los programas "
+            f"La hipótesis de trabajo $H_1$ se sostiene solo en los programas "
             f"{program_list(winners)} y no se descarta en los programas "
-            f"{program_list(losers)}. La tabla `\\ref{{tab:speedup}}` muestra el speedup "
-            "del pipeline respecto al monociclo y el extremo inferior de su "
-            "dispersión.\n")
+            f"{program_list(losers)}; en conjunto, el resultado es un rechazo "
+            "parcial de la hipótesis, no una confirmación. La tabla "
+            "`\\ref{tab:speedup}` muestra el speedup del pipeline respecto al "
+            "monociclo y el extremo inferior de su dispersión.\n")
+    elif winners:
+        md.append(
+            f"La hipótesis de trabajo $H_1$ se sostiene en todos los programas "
+            f"medidos ({program_list(winners)}). La tabla "
+            "`\\ref{tab:speedup}` muestra el speedup del pipeline respecto al "
+            "monociclo y el extremo inferior de su dispersión.\n")
     else:
         md.append(
             "La hipótesis de trabajo $H_1$ no se sostiene en ninguno de los "
@@ -1380,6 +1968,16 @@ def write_chapter(metrics: list, stats: dict, replicas: list, verification: list
     tex.append("")
     tex.append(r"\input{tables/speedup.tex}")
     tex.append("")
+    if winners and losers:
+        tex.append(
+            "La hipótesis de trabajo $H_1$ se sostiene solo en "
+            f"{program_list_tex(winners)} y no se descarta en "
+            f"{program_list_tex(losers)}: "
+            "en conjunto, el resultado es un rechazo parcial, no una confirmación. "
+            f"La ganancia de frecuencia ({fmt(fmax_gain, 1)} \\%) no compensa el "
+            "aumento del CPI por hazard de datos, vaciado de ramas y latencia de "
+            "la división." + coremark_note)
+        tex.append("")
     tex.append(r"\section{Limitaciones}")
     tex.append("")
     tex.append(r"\begin{itemize}")
@@ -1473,4 +2071,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if "--check" in sys.argv[1:]:
+        raise SystemExit(check_artifacts())
     raise SystemExit(main())

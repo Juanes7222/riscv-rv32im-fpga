@@ -1,5 +1,5 @@
 TOPLEVEL            ?= top_pipeline
-COCOTB_TEST_MODULES  = test_pipeline_smoke,test_pipeline_debug,test_pipeline_rv32i,test_pipeline_rv32m,test_pipeline_rv32mi,test_pipeline_hazards,test_pipeline_control,test_pipeline_cpi,test_pipeline_step_mode,test_program_loader,test_loader_executes
+COCOTB_TEST_MODULES  = test_pipeline_smoke,test_pipeline_debug,test_pipeline_rv32i,test_pipeline_rv32m,test_pipeline_rv32mi,test_pipeline_hazards,test_pipeline_control,test_pipeline_cpi,test_pipeline_step_mode,test_pipeline_tail_jump,test_program_loader,test_loader_executes
 
 VERILOG_SOURCES = \
     $(SHARED_SRCS) \

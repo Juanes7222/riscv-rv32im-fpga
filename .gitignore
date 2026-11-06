@@ -267,6 +267,9 @@ __pycache__/
 .pytest_cache/
 sim_build/
 results.xml
+# Cocotb XML of the validation runs (scripts/fpga_validate.py): kept out of
+# verification/cocotb/<arch>/ so they never overwrite the ISA-suite evidence.
+results/validation_*.xml
  
 # =============================================================================
 # RISC-V toolchain output

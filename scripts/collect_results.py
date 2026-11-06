@@ -75,9 +75,13 @@ TEST_SUITE_NAMES = {
     "test_pipeline_rv32i":   "Pipeline RV32I ISA (37 tests)",
     "test_pipeline_rv32m":   "Pipeline RV32M (8 tests)",
     "test_pipeline_rv32mi":  "Pipeline RV32MI (15 tests)",
-    "test_pipeline_hazards": "Pipeline Hazard/Forwarding (7 tests)",
-    "test_pipeline_control": "Pipeline Control Hazards (5 tests)",
+    "test_pipeline_hazards": "Pipeline Hazard/Forwarding (8 tests)",
+    "test_pipeline_control": "Pipeline Control Hazards (4 tests)",
     "test_pipeline_cpi":     "Pipeline CPI Counters (4 tests)",
+    "test_step_mode":        "Step Mode",
+    "test_pipeline_step_mode": "Pipeline Step Mode",
+    "test_program_loader":   "Program Loader",
+    "test_loader_executes":  "Loader Execution (1 test)",
 }
 
 
@@ -244,32 +248,78 @@ def parse_fmax_from_sta(sta_path: Path) -> Tuple[float, float]:
     return fmax_85c, fmax_0c
 
 
+def _parse_summary_rows(text: str, title: str) -> List[Tuple[str, float]]:
+    """Rows (clock name, slack) of a Quartus timing summary section.
+
+    The report opens with a table of contents that repeats every section
+    title, so searching for the title and then for a slack further on can
+    silently land in the next real table.  The real section header is the
+    only occurrence framed by semicolons, so anchor on that and stop at the
+    end of the box.
+    """
+    lines = text.splitlines()
+    start = None
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith(";") and stripped.endswith(";") and title in stripped:
+            start = index + 1
+            break
+
+    if start is None:
+        return []
+
+    rows: List[Tuple[str, float]] = []
+    for line in lines[start:]:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if (rows and stripped.startswith(";") and stripped.endswith(";")
+                and "Summary" in stripped):
+            break  # the next framed section header
+        if not stripped.startswith(";"):
+            continue  # box separators of the table frame
+        cells = [cell.strip() for cell in stripped.strip(";").split(";")]
+        if len(cells) < 2:
+            continue
+        try:
+            slack = float(cells[1])
+        except ValueError:
+            continue  # header row ("Clock ; Slack ; End Point TNS")
+        rows.append((cells[0], slack))
+
+    return rows
+
+
+def _processor_clock_slack(rows: List[Tuple[str, float]]) -> float:
+    """Slack of the processor clock out of a timing summary.
+
+    The single-cycle processor runs from the CPU PLL output (ADR 049), while
+    the pipeline runs from the 50 MHz input clock.  The VGA PLL is never the
+    processor clock, so its row must not be picked.
+    """
+    for clock, slack in rows:
+        if "u_cpu_pll" in clock:
+            return slack
+    for clock, slack in rows:
+        if clock == "clk":
+            return slack
+    for clock, slack in rows:
+        if "u_vga_pll" not in clock:
+            return slack
+    return 0.0
+
+
 def parse_slack_from_sta(sta_path: Path) -> Tuple[float, float]:
-    """Extract setup and hold slack (ns) from .sta.rpt."""
+    """Extract setup and hold slack (ns) of the processor clock from .sta.rpt."""
     if not sta_path.exists():
         return 0.0, 0.0
 
     text = sta_path.read_text()
-    setup_slack = 0.0
-    hold_slack = 0.0
 
-    # Setup slack
-    setup_match = re.search(
-        r'Slow 1100mV 85C Model Setup Summary.*?clk\s*;\s*([-\d.]+)\s*;\s*([-\d.]+)',
-        text, re.DOTALL
-    )
-    if setup_match:
-        setup_slack = float(setup_match.group(1))
+    setup_rows = _parse_summary_rows(text, "Slow 1100mV 85C Model Setup Summary")
+    hold_rows = _parse_summary_rows(text, "Slow 1100mV 85C Model Hold Summary")
 
-    # Hold slack
-    hold_match = re.search(
-        r'Slow 1100mV 85C Model Hold Summary.*?clk\s*;\s*([-\d.]+)\s*;',
-        text, re.DOTALL
-    )
-    if hold_match:
-        hold_slack = float(hold_match.group(1))
-
-    return setup_slack, hold_slack
+    return _processor_clock_slack(setup_rows), _processor_clock_slack(hold_rows)
 
 
 def parse_fit_summary(fit_path: Path) -> Dict[str, int]:
@@ -536,11 +586,12 @@ def generate_latex_verification_table(
         "test_rv32i", "test_rv32m", "test_rv32mi",
         "test_alu_rv32i", "test_branch", "test_model_vs_dut",
     ]
-    arch_suites_sc = ["test_cpi_one"]
+    arch_suites_sc = ["test_cpi_one", "test_step_mode"]
     arch_suites_pipe = [
         "test_pipeline_smoke", "test_pipeline_debug",
         "test_pipeline_rv32i", "test_pipeline_rv32m", "test_pipeline_rv32mi",
         "test_pipeline_hazards", "test_pipeline_control", "test_pipeline_cpi",
+        "test_pipeline_step_mode", "test_program_loader", "test_loader_executes",
     ]
 
     ordered = common_suites + arch_suites_sc + arch_suites_pipe
@@ -673,6 +724,13 @@ def generate_latex_synthesis_table(
         pipe_val = fmt.format(getattr(pipe.synthesis, attr, 0)) if pipe.synthesis else r"\textemdash"
         lines.append(f"{label} & {sc_val} & {pipe_val} \\\\")
 
+    lines.append(r"\midrule")
+    lines.append(r"\multicolumn{3}{p{0.92\linewidth}}{\footnotesize Setup and hold "
+                 r"values come from the reference build. The negative setup slack is "
+                 r"expected: the SDC declares a 10\,ns target, twice as aggressive as "
+                 r"the board clock on purpose, so that Quartus reports the true "
+                 r"achievable Fmax (ADR~049). At the 25\,ns (single-cycle) and "
+                 r"20\,ns (pipeline) operating periods both designs meet timing.} \\")
     lines.append(r"\bottomrule")
     lines.append(r"\end{tabular}")
     lines.append(r"\end{table}")
@@ -811,10 +869,11 @@ def generate_markdown_report(all_results: Dict[str, ArchitectureResults]) -> str
     ordered = [
         "test_rv32i", "test_rv32m", "test_rv32mi",
         "test_alu_rv32i", "test_branch", "test_model_vs_dut",
-        "test_cpi_one",
+        "test_cpi_one", "test_step_mode",
         "test_pipeline_smoke", "test_pipeline_debug",
         "test_pipeline_rv32i", "test_pipeline_rv32m", "test_pipeline_rv32mi",
         "test_pipeline_hazards", "test_pipeline_control", "test_pipeline_cpi",
+        "test_pipeline_step_mode", "test_program_loader", "test_loader_executes",
     ]
 
     for suite_name in ordered:
@@ -912,6 +971,43 @@ def generate_markdown_report(all_results: Dict[str, ArchitectureResults]) -> str
     lines.append(f"| Min | {sc_min} | {pipe_min} |")
     lines.append(f"| Max | {sc_max} | {pipe_max} |")
 
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # ── Interpretation notes ──
+    lines.append("## Notes on Interpretation")
+    lines.append("")
+    lines.append(
+        "- **The negative setup slack is expected.** The SDC declares a 10 ns "
+        "target (`synthesis/*/constraints.sdc`), twice as aggressive as the "
+        "board clock on purpose, so that Quartus reports the true achievable "
+        "Fmax after place-and-route instead of stopping at an artificially "
+        "relaxed target (ADR 049). At the operating periods (25 ns for the "
+        "single-cycle at 40 MHz and 20 ns for the pipeline at 50 MHz) both "
+        "designs meet timing with positive margin: the measured mean Fmax is "
+        "higher than the operating frequency in both cases."
+    )
+    lines.append(
+        "- **The two architectures run at different clock frequencies** "
+        "(40 MHz single-cycle, 50 MHz pipeline), by design (ADR 049: the "
+        "single-cycle critical path does not reach 50 MHz). Absolute "
+        "throughput is therefore computed with the Fmax of each architecture, "
+        "while architectural efficiency is compared with CPI and CoreMark/MHz, "
+        "which are independent of the clock."
+    )
+    lines.append(
+        "- **CPI = 1 holds only for the non-DIV subset of the single-cycle "
+        "design.** DIV/DIVU/REM/REMU run a 32-cycle radix-2 FSM (ADR 008, "
+        "ADR 031), so their CPI is greater than 1 in both architectures; the "
+        "comparison remains fair because the penalty applies to both."
+    )
+    lines.append(
+        "- **Benchmarks are measured once per (architecture, program).** The "
+        "CPI is deterministic in simulation, so the statistical variability "
+        "reported here is the one of the five synthesis replicas, propagated to "
+        "throughput through their Fmax (anteproyecto §7.1.3)."
+    )
     lines.append("")
     lines.append("---")
     lines.append("")
