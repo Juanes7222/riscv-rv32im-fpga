@@ -27,7 +27,7 @@ from pathlib import Path
 
 from elftools.elf.elffile import ELFFile
 
-NOP_WORD = 0x00002013
+NOP_WORD = 0x00000013  # canonical NOP: ADDI x0, x0, 0
 SHF_WRITE = 0x1
 SHF_ALLOC = 0x2
 SHF_EXECINSTR = 0x4

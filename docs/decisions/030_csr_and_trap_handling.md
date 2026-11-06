@@ -82,7 +82,8 @@ The module supports:
   For CSRRS/CSRRC with `rs1 = x0` the CSR is not written (RISC-V spec).
   The top-level muxes `csr_wdata` between `rs1_data` and the zero-extended
   5-bit immediate (zimm) from `instruction[19:15]`.
-- **Trap entry (ECALL/EBREAK)**: captures `mepc = trap_pc4` and
+- **Trap entry (ECALL/EBREAK)**: captures `mepc = trap_pc` (PC of the
+  trapping instruction, per the RISC-V spec) and
   `mcause = {1'b0, 26'b0, trap_cause}`. The cause is derived from
   `mstatus.MPP`: 8 for U-mode, 9 for S-mode, 11 for M-mode.
 - **Trap exit (MRET)**: `mstatus.MPP` is restored to `2'b00` (U-mode).
@@ -131,7 +132,8 @@ emitted by the riscv-tests `env/p/` boot code:
 3. `csrw mepc, t0`      --> CSRRW write to mepc.
 4. `mret`               --> must jump to mepc.
 5. `csrr t5, mcause`    --> CSRRS read with rs1=x0, read-only.
-6. `ecall`              --> must trap to mtvec with mcause=8, mepc=PC+4.
+6. `ecall`              --> must trap to mtvec with mcause=8, mepc=PC
+                          (PC of the trapping ECALL instruction).
 7. `sw TESTNUM, tohost` --> already implemented via standard store path.
 
 Any implementation that satisfies 1-7 is sufficient for the
@@ -157,7 +159,7 @@ module csr_file (
     output logic [31:0] csr_rdata,
 
     input  logic        trap_entry,
-    input  logic [31:0] trap_pc4,
+    input  logic [31:0] trap_pc,
 
     input  logic        mret_exec,
 

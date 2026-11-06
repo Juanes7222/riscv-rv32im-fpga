@@ -5,12 +5,9 @@ The reset values match the DUT exactly. The mtvec low-2-bit MODE
 field is forced to 0 (direct mode) per ADR 006, so trap_target is
 mtvec with the low 2 bits cleared.
 
-Note: the DUT stores mepc = pc + 4 of the trapping instruction
-(see csr_file.sv: `mepc <= trap_pc4`). This is the address AFTER
-the trap instruction, not the address of the trapping instruction.
-The RISC-V spec says mepc should be the trapping instruction's
-address, but the DUT (and the rv32mi tests written for it) use
-pc + 4. This model matches the DUT's behavior.
+`mepc` follows the RISC-V spec: on trap entry it holds the address of
+the trapping instruction (see csr_file.sv: `mepc <= trap_pc`). This is
+the address of the trap instruction itself, not the address after it.
 """
 
 
@@ -98,14 +95,13 @@ class CSRFile:
 
     # ── Trap handling ──
 
-    def trap_enter(self, trap_pc4, cause):
-        """Trap entry: save PC+4 to mepc, set mcause.
+    def trap_enter(self, trap_pc, cause):
+        """Trap entry: save the trapping instruction's PC to mepc, set mcause.
 
-        The DUT saves trap_pc4 (which is the trapping instruction's
-        pc + 4) to mepc. This is non-standard (the RISC-V spec
-        wants mepc = pc of trapping instruction) but matches what
-        the DUT and the rv32mi tests expect."""
-        self.mepc   = trap_pc4 & 0xFFFFFFFF
+        Per the RISC-V spec, mepc = PC of the trapping instruction
+        (not pc + 4). The handler is responsible for advancing mepc by
+        4 before MRET when it wants to resume after the trap."""
+        self.mepc   = trap_pc & 0xFFFFFFFF
         self.mcause = cause & 0xFFFFFFFF
         self.mtval  = 0
 

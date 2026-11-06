@@ -24,7 +24,7 @@ module csr_file (
 
     // Trap entry (ECALL)
     input  logic        trap_entry,   // ECALL decoded
-    input  logic [31:0] trap_pc4,     // pc+4 to save in mepc
+    input  logic [31:0] trap_pc,      // PC of the trapping instruction, saved into mepc
 
     // Trap exit (MRET)
     input  logic        mret_exec,    // MRET decoded
@@ -120,9 +120,10 @@ module csr_file (
             mimpid     <= 32'h00000000;
             mhartid    <= 32'h00000000;
         end else begin
-            // Trap entry: capture mepc and mcause
+            // Trap entry: capture mepc and mcause.
+            // RISC-V spec: mepc holds the address of the trapping instruction.
             if (trap_entry) begin
-                mepc   <= trap_pc4;
+                mepc   <= trap_pc;
                 mcause <= {1'b0, 26'b0, trap_cause};  // Bit 31 = 0 for exceptions
             end
 

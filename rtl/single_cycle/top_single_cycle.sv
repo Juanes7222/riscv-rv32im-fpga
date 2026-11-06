@@ -443,7 +443,7 @@ module top_single_cycle #(
         .csr_op      (csr_op),
         .csr_rdata   (csr_rdata),
         .trap_entry  (trap_entry),
-        .trap_pc4    (pc_plus4),
+        .trap_pc     (pc),            // mepc = PC of the trapping instruction
         .mret_exec   (mret_exec),
         .trap_target (trap_target),
         .mepc_value  (mepc_value)

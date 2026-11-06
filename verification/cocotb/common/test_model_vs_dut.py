@@ -211,7 +211,7 @@ async def test_model_matches_dut_for_ecall_trap(dut):
 
     Two instructions:
       1. CSRRW mtvec, x1  (sets mtvec=0x100)
-      2. ECALL            (traps to mtvec=0x100, sets mepc=8, mcause=11)
+      2. ECALL            (traps to mtvec=0x100, sets mepc=4, mcause=11)
     """
     model = CPU()
     model.regs[1] = 0x100
@@ -242,4 +242,4 @@ async def test_model_matches_dut_for_ecall_trap(dut):
     model.step()
     _check_states(dut, model, 0b1110011, 1)
     assert model.csrs.mcause == 11, f"mcause: model={model.csrs.mcause}"
-    assert model.csrs.mepc == 8, f"mepc: model={model.csrs.mepc}"
+    assert model.csrs.mepc == 4, f"mepc: model={model.csrs.mepc}"

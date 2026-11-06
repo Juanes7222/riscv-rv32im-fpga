@@ -304,12 +304,12 @@ def test_ecall_mret():
     cpu.store_instruction(4, 0b1110011)                       # ECALL
     cpu.store_instruction(0x100, (0x302 << 20) | (0b000 << 12) | (0 << 7) | 0b1110011)  # MRET
     cpu.step()  # CSRRW: mtvec=0x100, PC=4
-    cpu.step()  # ECALL: jumps to mtvec=0x100, sets mepc=8
+    cpu.step()  # ECALL: jumps to mtvec=0x100, sets mepc=4 (PC of the ECALL)
     check("ECALL trap_target = mtvec", cpu.pc, 0x100)
-    check("ECALL mepc = pc+4", cpu.csrs.mepc, 8)
+    check("ECALL mepc = pc (trapping instruction)", cpu.csrs.mepc, 4)
     check("ECALL mcause = 11 (M-mode)", cpu.csrs.mcause, 11)
-    cpu.step()  # MRET: jumps to mepc=8
-    check("MRET PC = mepc", cpu.pc, 8)
+    cpu.step()  # MRET: jumps to mepc=4 (back to the ECALL)
+    check("MRET PC = mepc", cpu.pc, 4)
     check("MRET MPP = 0 (U-mode)", (cpu.csrs.mstatus >> 11) & 0x3, 0)
 
 

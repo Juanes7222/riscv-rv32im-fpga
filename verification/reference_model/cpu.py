@@ -92,9 +92,11 @@ class CPU:
     # ── Trap handling ──
 
     def take_trap(self, cause):
-        """Trap entry: save pc+4 to mepc, set mcause, jump to mtvec."""
-        trap_pc4 = (self.pc + 4) & 0xFFFFFFFF
-        self.csrs.trap_enter(trap_pc4, cause)
+        """Trap entry: save pc to mepc, set mcause, jump to mtvec.
+
+        Per the RISC-V spec, mepc = pc of the trapping instruction."""
+        trap_pc = self.pc & 0xFFFFFFFF
+        self.csrs.trap_enter(trap_pc, cause)
         self.pc = self.csrs.trap_target
 
     # ── Step ──

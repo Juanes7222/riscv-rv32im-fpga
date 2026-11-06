@@ -21,7 +21,7 @@ introduced, was not built and not run. Adding it would:
    boot code (ecall --> trap --> tohost), but never checks the corner
    cases: which CSRs exist, whether CSRRS/CSRRC/CSRRSI/CSRRCWI
    honour the `rs1=x0` / `uimm=0` "no write" rule, whether mcause
-   captures the correct cause, whether mepc captures pc+4, etc.
+   captures the correct cause, whether mepc captures the PC of the trapping instruction, etc.
 
 2. **Catch CSR bugs that pass the riscv-tests RV32I/RV32M suite.**
    The RV32I/RV32M tests only use a small subset of CSRs (mstatus,

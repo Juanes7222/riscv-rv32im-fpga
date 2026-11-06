@@ -3,8 +3,8 @@ Python reference model for the RV32IM ISA.
 
 This package provides a functional model of the RV32IM CPU that can
 be used to verify the SystemVerilog DUTs in this project. The model
-matches the DUT's behavior exactly (including a few known non-standard
-choices in the DUT, like mepc = pc+4 on trap entry - see csr.py).
+matches the DUT's behavior exactly (including `mepc` = PC of the
+trapping instruction on trap entry, per the RISC-V spec).
 
 Main components:
   - CPU:           CPU state and step() method.

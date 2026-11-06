@@ -792,7 +792,7 @@ module top_pipeline #(
         .csr_op     (wb_csr_op),
         .csr_rdata  (csr_rdata),
         .trap_entry (wb_trap_entry),
-        .trap_pc4   (wb_pc + 32'd4),   // mepc = PC+4 of the ECALL instruction
+        .trap_pc    (wb_pc),           // mepc = PC of the trapping instruction (ECALL)
         .mret_exec  (wb_mret_exec),
         .trap_target(trap_target),
         .mepc_value (mepc_value)

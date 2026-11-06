@@ -127,23 +127,22 @@ give different results for negative operands.
 
 ### CSR file quirks
 
-The CSR file in the model matches the DUT exactly, including two
-non-standard choices that the DUT makes:
+The CSR file in the model matches the DUT exactly, including one
+implementation choice that diverges from a full-featured trap unit:
 
-1. **`mepc = pc + 4` on trap entry.** The RISC-V spec says
-   `mepc` should be the address of the trapping instruction.
-   The DUT sets `mepc <= trap_pc4` (which is `pc + 4` of the
-   trap instruction, i.e., the address AFTER the trap). The
-   `rv32mi/csrs.elf` test was written to match the DUT, so the
-   model follows the same convention.
+1. **`mepc` = PC of the trapping instruction on trap entry.** Per the
+   RISC-V spec, `mepc` holds the address of the trapping instruction.
+   The DUT sets `mepc <= trap_pc` (the PC of the ECALL/EBREAK that
+   triggered the trap), so both DUT and model are spec-compliant here.
+   Note: this means an exception handler that wants to resume *after*
+   the trapping instruction must advance `mepc` by 4 before `MRET`.
 
 2. **`mtvec` low 2 bits forced to 0 (direct mode).** Per ADR 006,
    the DUT does not support vectored trap handling. The model's
    `trap_target` property is `self.mtvec & ~0x3`.
 
-The model mirrors these because it is a verification artifact, not
-a fresh spec implementation. If the DUT is ever fixed, the model
-should be updated in lockstep.
+The model mirrors the DUT's CSR behavior. `mepc` is now spec-compliant;
+`mtvec` remains direct-mode only, which is a documented limitation.
 
 ### The model-vs-DUT cocotb test
 

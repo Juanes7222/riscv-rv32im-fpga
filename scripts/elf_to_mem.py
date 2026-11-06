@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 WORD_SIZE_BYTES = 4
-NOP_WORD = "00002013"  # ADDI x0, x0, 0 - fills memory beyond program end
+NOP_WORD = "00000013"  # ADDI x0, x0, 0 - fills memory beyond program end
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -33,6 +33,10 @@ def parse_arguments() -> argparse.Namespace:
         help="Path to the output .mem file.",
     )
     return parser.parse_args()
+
+# Words beyond the program are padded with the canonical NOP (0x00000013 =
+# ADDI x0, x0, 0). 0x00002013 (SLTI x0, x0, 0) also writes only x0 and is
+# architecturally a NOP, but it is not the canonical RISC-V NOP encoding.
 
 
 def validate_inputs(bin_path: Path, depth: int) -> None:
