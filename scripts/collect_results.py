@@ -248,26 +248,58 @@ def parse_fmax_from_sta(sta_path: Path) -> Tuple[float, float]:
     return fmax_85c, fmax_0c
 
 
-def _parse_summary_rows(text: str, title: str) -> List[Tuple[str, float]]:
-    """Rows (clock name, slack) of a Quartus timing summary section.
+def _find_section_start(text: str, title: str) -> int:
+    """Line index of the real Quartus timing section for *title*.
 
     The report opens with a table of contents that repeats every section
-    title, so searching for the title and then for a slack further on can
-    silently land in the next real table.  The real section header is the
-    only occurrence framed by semicolons, so anchor on that and stop at the
-    end of the box.
+    title, so the first framed occurrence is usually the index entry, not
+    the real data section.  Scan every framed occurrence and return the one
+    that is actually followed by data rows (a clock name and a numeric slack
+    before the next framed section header).
     """
     lines = text.splitlines()
-    start = None
+    candidates = []
     for index, line in enumerate(lines):
         stripped = line.strip()
         if stripped.startswith(";") and stripped.endswith(";") and title in stripped:
-            start = index + 1
-            break
+            candidates.append(index)
 
-    if start is None:
+    for start in candidates:
+        rows = 0
+        for line in lines[start + 1:]:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if (stripped.startswith(";") and stripped.endswith(";")
+                    and "Summary" in stripped):
+                break  # next framed section header
+            if not stripped.startswith(";"):
+                continue  # box separators of the table frame
+            cells = [cell.strip() for cell in stripped.strip(";").split(";")]
+            if len(cells) < 2:
+                continue
+            try:
+                float(cells[1])
+                rows += 1
+            except ValueError:
+                continue  # header row ("Clock ; Slack ; End Point TNS")
+        if rows > 0:
+            return start + 1
+
+    return -1
+
+
+def _parse_summary_rows(text: str, title: str) -> List[Tuple[str, float]]:
+    """Rows (clock name, slack) of a Quartus timing summary section.
+
+    Anchors on the real data section (not the table-of-contents index entry)
+    and stops at the next framed section header.
+    """
+    start = _find_section_start(text, title)
+    if start < 0:
         return []
 
+    lines = text.splitlines()
     rows: List[Tuple[str, float]] = []
     for line in lines[start:]:
         stripped = line.strip()
@@ -486,11 +518,30 @@ def run_all_tests(timeout_per_suite: int = 600) -> bool:
         print("  FAILED: pipeline tests")
         all_ok = False
 
+    # Preserve a copy of each architecture's results.xml so that a later
+    # validation run (e.g. from measure_benchmarks.py) cannot overwrite it
+    # with a single test_validation suite (issue C1/C9).
+    _archive_verification_xmls()
+
     print(f"\n{'─' * 60}")
     print(f"All tests {'PASSED' if all_ok else 'had SOME FAILURES'}")
     print(f"{'─' * 60}")
     return all_ok
 
+
+def _archive_verification_xmls() -> None:
+    """Copy each architecture's results.xml into results/ for safekeeping.
+
+    measure_benchmarks.py overwrites verification/cocotb/<arch>/results.xml
+    with a single test_validation suite (issue C1/C9).  Archiving here lets
+    collect_verification_results read the full ISA results even after that.
+    """
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    for arch in ARCHITECTURES:
+        src = VERIF_DIR / arch / "results.xml"
+        dst = RESULTS_DIR / f"verification_{arch}.xml"
+        if src.exists():
+            dst.write_text(src.read_text())
 
 
 def collect_verification_results(arch: str) -> Dict[str, SuiteSummary]:
@@ -502,6 +553,9 @@ def collect_verification_results(arch: str) -> Dict[str, SuiteSummary]:
     For pipeline: reads only arch/ results (which include adapted ISA tests,
     smoke, debug, hazards, control, CPI). The common/ results are generated
     with single_cycle as TOPLEVEL and do not apply to pipeline.
+
+    Reads from the archived copy under results/ when present, so a later
+    validation run cannot clobber the full ISA results (issue C1).
     """
     suites = {}
 
@@ -511,8 +565,11 @@ def collect_verification_results(arch: str) -> Dict[str, SuiteSummary]:
         common_suites = parse_results_xml(common_xml)
         suites.update(common_suites)
 
-    # Arch-specific tests (CPI for single_cycle; all pipeline tests)
-    arch_xml = VERIF_DIR / arch / "results.xml"
+    # Arch-specific tests (CPI for single_cycle; all pipeline tests).
+    # Prefer the archived copy under results/ (immune to overwrites).
+    arch_xml = RESULTS_DIR / f"verification_{arch}.xml"
+    if not arch_xml.exists():
+        arch_xml = VERIF_DIR / arch / "results.xml"
     arch_suites = parse_results_xml(arch_xml)
     suites.update(arch_suites)
 

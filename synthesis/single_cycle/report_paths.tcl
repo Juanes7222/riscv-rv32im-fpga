@@ -24,4 +24,16 @@ update_timing_netlist
 
 report_timing -setup -npaths 10 -detail summary
 
+# Half-cycle transfers. The single-cycle data memory captures its read address
+# on the falling edge (ADR 048), so these paths have half the period available
+# and are the ones that fix its Fmax; in the pipeline they are empty because
+# both memories read on the rising edge.
+set cpu_clocks [get_clocks -nowarn {clk *cpu_pll*divclk*}]
+puts "=== RISE -> FALL ==="
+report_timing -setup -rise_from $cpu_clocks -fall_to $cpu_clocks \
+    -npaths 3 -detail summary
+puts "=== FALL -> RISE ==="
+report_timing -setup -fall_from $cpu_clocks -rise_to $cpu_clocks \
+    -npaths 3 -detail summary
+
 project_close
