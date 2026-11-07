@@ -276,7 +276,7 @@ module top_single_cycle #(
         .enable               (~step_hold_effective & fetch_valid),
         .div_busy             (div_busy),
         .valid_wb             (1'b0),
-        .program_done         (program_done_pulse),
+        .program_done_pulse   (program_done_pulse),
         .cycle_count          (cycle_count),
         .instr_retired        (instr_retired),
         .program_done_synced  (),

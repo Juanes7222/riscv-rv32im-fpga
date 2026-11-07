@@ -13,9 +13,10 @@ module perf_counters #(
     // Pipeline: connect valid_wb. Tie to 1'b0 when PIPELINE_MODE = 0.
     input  logic        valid_wb,
 
-    // program_done: pulsed high when the benchmark writes to tohost.
-    // Registered inside and exposed for SignalTap II capture.
-    input  logic        program_done,
+    // program_done_pulse: pulsed high (one cycle) when the benchmark writes
+    // to tohost.  The registered sticky copy (program_done) lives in the
+    // top-level and drives HALTED / SignalTap II.
+    input  logic        program_done_pulse,
 
     // Outputs - observed by cocotb via DUT ports; tapped by SignalTap II (ADR 026)
     // (* keep *) prevents Quartus from pruning these signals when they are not
@@ -51,11 +52,11 @@ module perf_counters #(
         end else if (enable) begin
             cycle_count          <= cycle_count + 64'h1;
             instr_retired        <= instr_retired + {{63{1'b0}}, instr_retired_en};
-            program_done_synced  <= program_done_synced || program_done;
-            // Freeze the counters when the program terminates.  The stored
-            // value is the counter of the cycle in which the program wrote to
-            // tohost, which is the instant cocotb samples.
-            if (program_done) begin
+            program_done_synced  <= program_done_synced || program_done_pulse;
+            // Freeze the counters at the tohost write.  The value captured is
+            // the one cocotb reads one edge later, so the console and the
+            // simulation report the same numbers.
+            if (program_done_pulse) begin
                 cycles_at_done <= cycle_count;
                 instr_at_done  <= instr_retired;
             end

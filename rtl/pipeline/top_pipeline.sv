@@ -222,6 +222,7 @@ module top_pipeline #(
     logic [3:0] power_on_pause_cnt;
     logic       power_on_pause;
     logic       step_hold_effective;
+    logic       program_done;          // sticky HALTED flag, set at tohost write
 
     always_ff @(posedge clk) begin
         if (!rst_n)
@@ -231,7 +232,10 @@ module top_pipeline #(
     end
 
     assign power_on_pause = (power_on_pause_cnt < 4'd4);
-    assign step_hold_effective = step_hold | power_on_pause;
+    // Once the benchmark writes to tohost the pipeline must stop fetching and
+    // retiring, just like the single-cycle does when HALTED asserts.  program_done
+    // is sticky: once set the processor stays frozen for the rest of the run.
+    assign step_hold_effective = step_hold | power_on_pause | program_done;
 
     step_mode_ctrl u_step_mode (
         .clk       (clk),
@@ -257,7 +261,6 @@ module top_pipeline #(
     logic [63:0] instr_retired;
     logic [63:0] cycles_at_done;
     logic [63:0] instr_at_done;
-    logic        program_done;
 
     // valid_wb: a real instruction retires in WB when it is not a bubble
     // and the WB stage is advancing.
@@ -299,7 +302,7 @@ module top_pipeline #(
         .enable               (~step_hold_effective),
         .div_busy             (ex_div_busy),
         .valid_wb             (valid_wb),
-        .program_done         (program_done_pulse),
+        .program_done_pulse   (program_done_pulse),
         .cycle_count          (cycle_count),
         .instr_retired        (instr_retired),
         .program_done_synced  (),
