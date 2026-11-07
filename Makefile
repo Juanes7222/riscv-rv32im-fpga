@@ -1,5 +1,6 @@
 ARCH        ?= single_cycle
 N_REPLICAS  ?= 5
+PROGRAM     ?=
 
 # bash: SECONDS is a bash builtin, and it is not available in dash.
 SHELL       := /bin/bash
@@ -517,6 +518,43 @@ thesis-hardware:
 	@echo "[thesis] Hardware validation on the DE1-SoC"
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --stages hardware
 
+# Measure one program on the FPGA: automates memory images, synthesis and
+# programming, then asks the user for the two VGA console values
+# (CyclesToPass, InstrToPass) and saves them to results/hardware_<arch>_<program>.csv.
+# Usage: make measure-hardware ARCH=pipeline ELF=build/coremark/coremark.elf
+.PHONY: measure-hardware
+measure-hardware:
+	@if [ -z "$(ELF)" ]; then \
+		echo "Error: ELF is not set."; \
+		echo "Usage: make measure-hardware ARCH=$(ARCH) ELF=path/to/program.elf"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(ELF)" ]; then \
+		echo "Error: ELF file not found: $(ELF)"; \
+		exit 1; \
+	fi
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
+		--arch "$(ARCH)" --elf "$(ELF)" $(PROGRAM) $(if $(FORCE),--force,)
+
+# Measure every synthetic program for one architecture, one command.
+# Automates memory images, synthesis and programming for each program, and
+# pauses between them so you can read CyclesToPass / InstrToPass from the VGA.
+# Skips programs already measured and matching cocotb; use FORCE=1 to re-run all.
+# Usage: make measure-all ARCH=pipeline   (or ARCH=single_cycle)
+#        FORCE=1 make measure-all ARCH=pipeline   (re-measure everything)
+.PHONY: measure-all
+measure-all:
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
+		--arch "$(ARCH)" --all $(if $(FORCE),--force,)
+
+# Measure every synthetic program for both architectures, one command.
+# Skips programs already measured and matching cocotb; use FORCE=1 to re-run all.
+# Usage: make measure-all-both
+#        FORCE=1 make measure-all-both   (re-measure everything)
+.PHONY: measure-all-both
+measure-all-both:
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py --all-both $(if $(FORCE),--force,)
+
 .PHONY: help
 help:
 	@echo ""
@@ -538,6 +576,13 @@ help:
 	@echo "  capture            Capture SignalTap data from programmed FPGA"
 	@echo "  cross-validate     Parse captured data and compare vs cocotb"
 	@echo "                     (set COCOTB_CSV=path to cocotb results CSV)"
+	@echo "  measure-hardware   Measure one program on the FPGA (VGA console values)"
+	@echo "                     (set ARCH=pipeline|single_cycle, ELF=path/to/program.elf)"
+	@echo "  measure-all        Measure all synthetic programs for one ARCH, one command"
+	@echo "                     Skips programs already measured and matching cocotb."
+	@echo "                     Use FORCE=1 to re-measure everything."
+	@echo "  measure-all-both   Measure all synthetic programs for both architectures"
+	@echo "                     (same skip logic as measure-all)"
 	@echo ""
 	@echo "Programming"
 	@echo "  program            Program FPGA via TCL script (no rebuild)"
