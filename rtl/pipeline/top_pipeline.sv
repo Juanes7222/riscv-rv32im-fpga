@@ -51,7 +51,31 @@ module top_pipeline #(
         end
     end
     assign loader_reset_pulse = loader_load_done & ~load_done_q;
-    assign rst = ~rst_n | loader_reset_pulse;
+
+    // Power-on reset: the FPGA configures with KEY[0] released, so rst_n never
+    // pulses by itself.  Without this the pipeline registers power up to 0
+    // instead of the architectural bubble (0x13), and the retirement counter
+    // counts three phantom 0x00000000 words before the first real instruction.
+    // An external reset already leaves the CPU in a defined state, so it
+    // satisfies the POR immediately and adds no cycles to a testbench.
+    logic [4:0] por_cnt;
+    logic       por_done;
+    logic       rst_n_int;
+
+    always_ff @(posedge clk) begin
+        if (!rst_n) begin
+            por_cnt  <= '0;
+            por_done <= 1'b1;
+        end else if (!por_done) begin
+            por_cnt  <= por_cnt + 5'd1;
+            if (por_cnt == 5'h1F)
+                por_done <= 1'b1;
+        end
+    end
+
+    assign rst_n_int = rst_n & por_done;   // CPU-domain reset
+
+    assign rst = ~rst_n_int | loader_reset_pulse;
 
     // ALU operation localparams (for div gate)                            //
 
@@ -225,7 +249,7 @@ module top_pipeline #(
     logic       program_done;          // sticky HALTED flag, set at tohost write
 
     always_ff @(posedge clk) begin
-        if (!rst_n)
+        if (!rst_n_int)
             power_on_pause_cnt <= 4'd0;
         else if (power_on_pause_cnt != 4'd15)
             power_on_pause_cnt <= power_on_pause_cnt + 4'd1;
@@ -239,7 +263,7 @@ module top_pipeline #(
 
     step_mode_ctrl u_step_mode (
         .clk       (clk),
-        .rst_n     (rst_n),
+        .rst_n     (rst_n_int),
         .key_step  (key_step),
         .step_mode (step_mode),
         .step_hold (step_hold)
@@ -287,7 +311,7 @@ module top_pipeline #(
 
     // Registered copy for the console and the SignalTap II trigger.
     always_ff @(posedge clk) begin
-        if (!rst_n) begin
+        if (!rst_n_int) begin
             program_done <= 1'b0;
         end else if (program_done_pulse) begin
             program_done <= 1'b1;
@@ -298,7 +322,7 @@ module top_pipeline #(
         .PIPELINE_MODE (1'b1)
     ) u_perf (
         .clk                  (clk),
-        .rst_n                (rst_n),
+        .rst_n                (rst_n_int),
         .enable               (~step_hold_effective),
         .div_busy             (ex_div_busy),
         .valid_wb             (valid_wb),
@@ -610,7 +634,7 @@ module top_pipeline #(
 
     alu_rv32im u_alu (
         .clk     (clk),
-        .rst_n   (rst_n),          // alu_rv32im uses active-low rst_n directly
+        .rst_n   (rst_n_int),          // alu_rv32im uses active-low rst_n directly
         .hold    (1'b0),           // the divider is not part of the freeze
         .a       (ex_alu_a),
         .b       (ex_alu_b),
@@ -788,7 +812,7 @@ module top_pipeline #(
 
     csr_file u_csr (
         .clk        (clk),
-        .rst_n      (rst_n),
+        .rst_n      (rst_n_int),
         .csr_addr   (wb_csr_addr),
         .csr_wdata  (wb_csr_wdata),
         .csr_wr     (wb_csr_wr_gated & ~step_hold_effective),
