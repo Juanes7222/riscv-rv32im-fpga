@@ -107,8 +107,10 @@ The artifacts land in:
 | `results/results_benchmarks_summary.csv` | CPI, IPC, throughput and speedup per program |
 | `thesis/tables/*.tex` | `booktabs` tables, ready for `\input` |
 | `thesis/figures/diagrams/*.tex` | `pgfplots` figures |
-| `thesis/chapters/07_resultados.{tex,md}` | Draft of the results chapter with the measured numbers |
 | `docs/reproduction/*.md` | Measurement, synthesis and environment protocols |
+
+The generator writes tables, figures and protocol documents only: the chapter
+prose is written by hand around them.
 
 ## Documentation
 

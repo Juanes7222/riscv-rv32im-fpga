@@ -57,10 +57,15 @@ Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo: no se aplica
 
 | Programa | CPI monociclo | CPI pipeline | Throughput monociclo (MIPS) | Throughput pipeline (MIPS) | Speedup | Resultado |
 |---|---|---|---|---|---|---|
-| `coremark_iter1` | 1.0001 | 1.3996 | 47.75 | 42.51 | 0.890 | H0 no descartada |
-| `coremark_iter10` | 1.0000 | 1.4018 | 47.76 | 42.45 | 0.889 | H0 no descartada |
+| `branch_stress` | 1.0000 | 1.5004 | 49.10 | 41.42 | 0.844 | H0 no descartada |
+| `coremark_iter1` | 1.0001 | 1.2744 | 49.10 | 48.77 | 0.994 | H0 no descartada |
+| `coremark_iter10` | 1.0000 | 1.2780 | 49.10 | 48.63 | 0.991 | H0 no descartada |
+| `load_use_stress` | 1.0000 | 1.8915 | 49.10 | 32.86 | 0.670 | H0 no descartada |
+| `m_ext_stress` | 7.5806 | 7.8377 | 6.48 | 7.93 | 1.225 | H1 sostenida |
+| `raw_stress` | 1.0000 | 1.1273 | 49.10 | 55.13 | 1.124 | H1 sostenida |
 
 ## 8. Réplicas
 
 - Réplicas por arquitectura: 5 (monociclo) y 5 (pipeline).
 - La variabilidad experimental es la de la síntesis: el CPI es determinista en simulación, y el throughput de cada réplica usa el Fmax de esa réplica.
+- CoreMark se ejecuta una vez por arquitectura en la placa: el conteo de ciclos lo fija el RTL y no depende del seed de place-and-route, así que repetirlo por réplica solo cambiaría la hora de la medida, no el resultado. Las réplicas cubren la incertidumbre de la Fmax, que es la única cantidad que la síntesis puede alterar.
