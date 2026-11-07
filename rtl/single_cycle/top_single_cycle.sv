@@ -305,10 +305,12 @@ module top_single_cycle #(
     // One fill cycle after reset: the instruction memory has no captured
     // address yet, so the processor holds the reset vector and executes a
     // NOP.  The cycle is excluded from the performance counters, so the
-    // CPI=1 invariant keeps its meaning.
+    // CPI=1 invariant keeps its meaning.  fetch_valid also waits for the
+    // freeze to lift, so the fetch is not captured during the power-on pause
+    // (which would skip the instruction at the reset vector).
     always_ff @(posedge clk_cpu) begin
-        if (!rst_n_cpu) fetch_valid <= 1'b0;
-        else        fetch_valid <= 1'b1;
+        if (!rst_n_cpu)                fetch_valid <= 1'b0;
+        else if (!step_hold_effective) fetch_valid <= 1'b1;
     end
 
     // While filling, the address presented is the reset vector (pc is held).
