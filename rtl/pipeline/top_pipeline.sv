@@ -256,10 +256,11 @@ module top_pipeline #(
     end
 
     assign power_on_pause = (power_on_pause_cnt < 4'd4);
-    // Once the benchmark writes to tohost the pipeline must stop fetching and
-    // retiring, just like the single-cycle does when HALTED asserts.  program_done
-    // is sticky: once set the processor stays frozen for the rest of the run.
-    assign step_hold_effective = step_hold | power_on_pause | program_done;
+    // The pipeline keeps running after the tohost write, exactly like the
+    // single-cycle: freezing it in MEM would drop the instructions still in
+    // flight (and the benchmark's tail jump).  Only the performance counters
+    // stop, which is what program_done gates at the perf_counters instance.
+    assign step_hold_effective = step_hold | power_on_pause;
 
     step_mode_ctrl u_step_mode (
         .clk       (clk),
@@ -323,7 +324,7 @@ module top_pipeline #(
     ) u_perf (
         .clk                  (clk),
         .rst_n                (rst_n_int),
-        .enable               (~step_hold_effective),
+        .enable               (~step_hold_effective & ~program_done),
         .div_busy             (ex_div_busy),
         .valid_wb             (valid_wb),
         .program_done_pulse   (program_done_pulse),

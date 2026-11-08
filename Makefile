@@ -288,13 +288,13 @@ build-program: build program
 .PHONY: verify
 verify:
 	@echo "[$(ARCH)] Running architecture-specific cocotb tests..."
-	@$(MAKE) -C $(VERIF_ARCH_DIR)
+	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C $(VERIF_ARCH_DIR)
 
 
 .PHONY: verify-common
 verify-common:
 	@echo "Running shared RV32IM instruction tests (ARCH=[$(ARCH)])..."
-	@$(MAKE) -C $(VERIF_COMMON_DIR) TOPLEVEL=$(if $(filter pipeline,$(ARCH)),top_pipeline,top_single_cycle)
+	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C $(VERIF_COMMON_DIR) TOPLEVEL=$(if $(filter pipeline,$(ARCH)),top_pipeline,top_single_cycle)
 
 
 .PHONY: verify-all
@@ -312,6 +312,22 @@ verify-all-pipe:
 .PHONY: verify-full
 verify-full: verify-all-sc verify-all-pipe
 	@echo "All verification tests completed."
+
+# CoreMark smoke test (runs only when you have built the CoreMark ELF).
+# Build it first with:  make -C programs/coremark ITERATIONS=3 TOTAL_DATA_SIZE=120
+COREMARK_ELF = build/coremark/coremark.elf
+COREMARK_BUILD = $(MAKE) -C programs/coremark ITERATIONS=3 TOTAL_DATA_SIZE=120
+
+.PHONY: verify-coremark
+verify-coremark:
+	@if [ ! -f "$(COREMARK_ELF)" ]; then \
+		echo "CoreMark ELF no encontrado. Construyéndolo automáticamente..."; \
+		$(COREMARK_BUILD) || exit 1; \
+	fi
+	@echo "=== CoreMark smoke test (single_cycle) ==="
+	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/single_cycle COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_single_cycle VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000
+	@echo "=== CoreMark smoke test (pipeline) ==="
+	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/pipeline COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_pipeline VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000
 
 .PHONY: report
 report:
@@ -487,6 +503,11 @@ check-project:
 	fi
 
 
+.PHONY: preflight
+preflight:
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --stages preflight
+
+
 .PHONY: thesis
 thesis:
 	@echo "[thesis] Experimental campaign: preflight, synthesis, verification, benchmarks, artifacts"
@@ -501,6 +522,46 @@ thesis-quick:
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py \
 		--stages preflight verify benchmarks artifacts
 	@$(MAKE) --no-print-directory check-artifacts
+
+# Full campaign: everything that can be automated, plus a checklist for the
+# hardware measurements that require the physical DE1-SoC board.
+.PHONY: full-campaign
+full-campaign:
+	@echo "========================================================================"
+	@echo "  FULL CAMPAIGN - todo lo automatizable + checklist de hardware real"
+	@echo "========================================================================"
+	@echo ""
+	@echo "=== [1/7] Preflight ==="
+	@-$(MAKE) --no-print-directory preflight || echo "[FALLO] preflight"
+	@echo ""
+	@echo "=== [2/7] Verificación funcional (verify-full) ==="
+	@-$(MAKE) --no-print-directory verify-full || echo "[FALLO] verify-full (revisar results/ de cocotb)"
+	@echo ""
+	@echo "=== [3/7] CoreMark smoke test (simulación) ==="
+	@-$(MAKE) --no-print-directory verify-coremark || echo "[FALLO] verify-coremark"
+	@echo ""
+	@echo "=== [4/7] Síntesis: 5 réplicas por arquitectura (requiere Quartus) ==="
+	@-$(MAKE) --no-print-directory replicas ARCH=single_cycle N_REPLICAS=5 || \
+		echo "[AVISO] Síntesis single_cycle no completada (¿Quartus disponible?)."
+	@-$(MAKE) --no-print-directory replicas ARCH=pipeline N_REPLICAS=5 || \
+		echo "[AVISO] Síntesis pipeline no completada (¿Quartus disponible?)."
+	@echo ""
+	@echo "=== [5/7] Benchmarks: CPI efectivo por programa y arquitectura ==="
+	@-PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --stages benchmarks || \
+		echo "[FALLO] benchmarks"
+	@echo ""
+	@echo "=== [6/7] Artefactos y reportes ==="
+	@-PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --stages artifacts || \
+		echo "[FALLO] artifacts"
+	@echo ""
+	@echo "=== [7/7] Checklist de medición en hardware real (DE1-SoC) ==="
+	@-PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_checklist.py || \
+		echo "[FALLO] hardware_checklist"
+	@echo ""
+	@echo "========================================================================"
+	@echo "  CAMPAÑA COMPLETA - revise results/ y thesis/"
+	@echo "  Las etapas marcadas [FALLO] o [AVISO] necesitan atención manual."
+	@echo "========================================================================"
 
 
 # Fails the campaign when a generated table no longer matches the CSV it
