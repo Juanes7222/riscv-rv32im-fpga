@@ -37,10 +37,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from thesis_artifacts import (  # noqa: E402
-    collect_replicas, replica_stats, rtl_fingerprint, write_fmax_csv,
+    collect_replicas, replica_stats, write_fmax_csv,
 )
 from campaign_state import (  # noqa: E402
-    load_state, mark, matches, save_state, verification_fingerprint,
+    FINGERPRINT_VERSION, load_state, mark, matches, save_state,
+    source_fingerprint, verification_fingerprint,
 )
 
 VENV_BIN = REPO_ROOT / ".venv" / "bin"
@@ -184,7 +185,7 @@ def refresh_memory_artifacts() -> None:
 def stage_synthesis(args) -> int:
     banner(f"SYNTHESIS - {args.replicas} replicas per architecture")
     refresh_memory_artifacts()
-    fingerprint = rtl_fingerprint()
+    fingerprint = source_fingerprint()
     commit = git("rev-parse", "HEAD")
     print(f"  commit    : {commit}")
     print(f"  RTL hash  : {fingerprint}")
@@ -196,10 +197,26 @@ def stage_synthesis(args) -> int:
             replica_dir = replicas_dir / f"replica_{index}"
             if not replica_dir.exists():
                 continue
+            if args.force:
+                print(f"  [{arch}] replica {index}: forced regeneration")
+                shutil.rmtree(replica_dir)
+                continue
             meta_path = replica_dir / "meta.json"
             meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
-            if meta.get("fingerprint") == fingerprint:
+            if (meta.get("fingerprint_version") == FINGERPRINT_VERSION
+                    and meta.get("fingerprint") == fingerprint):
                 print(f"  [{arch}] replica {index}: current, kept")
+                kept.add(replica_dir)
+                continue
+            if meta and "fingerprint_version" not in meta:
+                # Version 1 hashed the generated program artifacts, so its
+                # value cannot be re-derived.  Adopt the replica instead of
+                # forcing a full re-synthesis; FORCE=1 or deleting the
+                # directory still rebuilds it.
+                meta["fingerprint_version"] = FINGERPRINT_VERSION
+                meta["fingerprint"] = fingerprint
+                meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+                print(f"  [{arch}] replica {index}: legacy metadata adopted, kept")
                 kept.add(replica_dir)
                 continue
             if args.keep_stale:
@@ -226,6 +243,7 @@ def stage_synthesis(args) -> int:
                 fmax = float(fmax_file.read_text().strip())
             meta = {
                 "git_commit": commit,
+                "fingerprint_version": FINGERPRINT_VERSION,
                 "fingerprint": fingerprint,
                 "seed": index,
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

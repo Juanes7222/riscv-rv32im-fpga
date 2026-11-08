@@ -18,11 +18,18 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 RESULTS = REPO_ROOT / "results"
 STATE_FILE = RESULTS / "campaign_state.json"
 
-# Artifacts generated from the loaded program: they change when another
-# program is flashed and say nothing about the design.
-GENERATED_RTL = {"mem_config.vh", "screen_writer_sc.sv",
-                 "screen_writer_pipeline.sv"}
+# mem_config.vh is generated from the loaded program and the absolute
+# checkout path, so it says nothing about the design and would hash
+# differently on every machine.  The VGA images (screen.mif) carry the
+# program and are not collected either; the screen writers are RTL and only
+# change when the console layout changes.
+GENERATED_RTL = {"mem_config.vh"}
 GENERATED_DIRS = {"__pycache__", "sim_build"}
+
+# Version of the replica fingerprint stored in meta.json.  Version 1 hashed
+# the generated program artifacts, so a meta without this marker was
+# produced by the old definition.
+FINGERPRINT_VERSION = 2
 
 
 def file_fingerprint(path: Path) -> str:
