@@ -247,6 +247,7 @@ module top_pipeline #(
     logic       power_on_pause;
     logic       step_hold_effective;
     logic       program_done;          // sticky HALTED flag, set at tohost write
+    logic       tail_loop_halt;        // sticky freeze once the final j . commits
 
     always_ff @(posedge clk) begin
         if (!rst_n_int)
@@ -256,11 +257,10 @@ module top_pipeline #(
     end
 
     assign power_on_pause = (power_on_pause_cnt < 4'd4);
-    // The pipeline keeps running after the tohost write, exactly like the
-    // single-cycle: freezing it in MEM would drop the instructions still in
-    // flight (and the benchmark's tail jump).  Only the performance counters
-    // stop, which is what program_done gates at the perf_counters instance.
-    assign step_hold_effective = step_hold | power_on_pause;
+    // The pipeline must not freeze in MEM of the tohost store: the instructions
+    // still in flight and the benchmark's tail jump would never execute.  It
+    // stops instead when the tail `j .` commits (see tail_loop_halt).
+    assign step_hold_effective = step_hold | power_on_pause | tail_loop_halt;
 
     step_mode_ctrl u_step_mode (
         .clk       (clk),
@@ -310,12 +310,31 @@ module top_pipeline #(
     assign program_done_pulse = mem_dm_wr && (mem_alu_result == TOHOST_ADDR)
                              && (mem_rs2_data == 32'd1);
 
-    // Registered copy for the console and the SignalTap II trigger.
+    // Registered copy for the console and the SignalTap II trigger.  `rst`
+    // also covers the loader reset pulse, so loading a new program clears the
+    // HALTED state instead of freezing the program that was just loaded.
     always_ff @(posedge clk) begin
-        if (!rst_n_int) begin
+        if (rst) begin
             program_done <= 1'b0;
         end else if (program_done_pulse) begin
             program_done <= 1'b1;
+        end
+    end
+
+    // The benchmark tail is `3: j 3b` (start.S), i.e. jal x0, 0 to its own PC.
+    // Once tohost has been written, committing that loop means the program is
+    // finished: freeze the pipeline with the PC parked on the loop instead of
+    // letting fetch run past the end of the image.  The comparison is on the
+    // WB instruction register, so it adds only a short flop-to-flop path and
+    // does not touch the ALU/branch critical path.
+    logic tail_loop_committed;
+    assign tail_loop_committed = program_done && (wb_instruction == 32'h0000006F);
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            tail_loop_halt <= 1'b0;
+        end else if (tail_loop_committed) begin
+            tail_loop_halt <= 1'b1;
         end
     end
 
