@@ -408,7 +408,7 @@ module top_pipeline #(
     // address presented is the vector itself.
     assign imem_addr = fetch_valid ? next_if_pc : if_pc;
 
-    // Program loader: escribe en imem/dmem sólo con CPU detenido
+    // Program loader: writes to imem/dmem only while the CPU is halted
     logic        loader_imem_wr_en;
     logic [31:0] loader_imem_wr_addr;
     logic [31:0] loader_imem_wr_data;

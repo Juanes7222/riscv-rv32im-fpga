@@ -270,6 +270,8 @@ results.xml
 # Cocotb XML of the validation runs (scripts/fpga_validate.py): kept out of
 # verification/cocotb/<arch>/ so they never overwrite the ISA-suite evidence.
 results/validation_*.xml
+# Local freshness cache of the experimental campaign (machine-specific hashes).
+results/campaign_state.json
  
 # =============================================================================
 # RISC-V toolchain output

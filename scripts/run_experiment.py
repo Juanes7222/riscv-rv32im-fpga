@@ -8,15 +8,20 @@ Stages, in order:
   verify      the cocotb suites of both architectures
   benchmarks  the effective CPI of every program on both architectures
   artifacts   statistics, LaTeX tables, figures, protocol docs, results chapter
-  hardware    program the board and print the list of photographs to take
+  hardware    measure the pending programs on the board (asks for the VGA
+              console values)
 
 Every stage is resumable: a synthesis replica whose fingerprint does not match
-the current RTL is regenerated, and the other stages simply re-run.
+the current RTL is regenerated, the cocotb suites are skipped when the RTL and
+the tests did not change, each benchmark is reused when its CSV came from the
+same RTL and ELF, and the hardware stage only asks for the measurements that
+are still pending.
 
 Usage:
     python3 scripts/run_experiment.py                     # every stage but hardware
     python3 scripts/run_experiment.py --stages verify,artifacts
     python3 scripts/run_experiment.py --stages hardware --arch pipeline
+    python3 scripts/run_experiment.py --force             # redo everything
 """
 
 import argparse
@@ -34,6 +39,9 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from thesis_artifacts import (  # noqa: E402
     collect_replicas, replica_stats, rtl_fingerprint, write_fmax_csv,
 )
+from campaign_state import (  # noqa: E402
+    load_state, mark, matches, save_state, verification_fingerprint,
+)
 
 VENV_BIN = REPO_ROOT / ".venv" / "bin"
 RESULTS = REPO_ROOT / "results"
@@ -49,6 +57,12 @@ HARDWARE_PROGRAMS = [
 ]
 
 ALL_STAGES = ["preflight", "synthesis", "verify", "benchmarks", "artifacts", "hardware"]
+
+VERIFY_RESULTS = [
+    REPO_ROOT / "verification" / "cocotb" / "common" / "results.xml",
+    REPO_ROOT / "verification" / "cocotb" / "single_cycle" / "results.xml",
+    REPO_ROOT / "verification" / "cocotb" / "pipeline" / "results.xml",
+]
 
 
 def venv_env() -> dict:
@@ -92,18 +106,18 @@ def banner(text: str) -> None:
 # --------------------------------------------------------------------------
 
 def stage_preflight(args) -> int:
-    banner("PREFLIGHT - herramientas, imágenes y proyectos")
+    banner("PREFLIGHT - tools, images and projects")
     problems = []
 
     def check(name, path, kind="file"):
         ok = path.exists()
-        print(f"  [{'ok' if ok else 'FALTA'}] {name}: {path}")
+        print(f"  [{'ok' if ok else 'MISSING'}] {name}: {path}")
         if not ok:
             problems.append(name)
         return ok
 
     python = VENV_BIN / "python3"
-    if check("intérprete del venv", python):
+    if check("venv interpreter", python):
         result = subprocess.run([str(python), "-c",
                                  "import cocotb; print(cocotb.__version__)"],
                                 capture_output=True, text=True)
@@ -117,22 +131,24 @@ def stage_preflight(args) -> int:
                           ("quartus_sh", ["quartus_sh.exe", "--version"])):
         result = subprocess.run(command, capture_output=True, text=True)
         first = (result.stdout or result.stderr).strip().splitlines()
-        print(f"  [{'ok' if first else 'FALTA'}] {name}: {first[0] if first else 'no encontrado'}")
+        print(f"  [{'ok' if first else 'MISSING'}] {name}: "
+              f"{first[0] if first else 'not found'}")
 
     for arch in ARCHES:
-        check(f"proyecto Quartus ({arch})", REPO_ROOT / "synthesis" / arch / f"{PROJECT[arch]}.qpf")
-    check("imagen de instrucciones", BUILD / "imem.mem")
-    check("imagen de datos", BUILD / "dmem.mem")
+        check(f"Quartus project ({arch})",
+              REPO_ROOT / "synthesis" / arch / f"{PROJECT[arch]}.qpf")
+    check("instruction image", BUILD / "imem.mem")
+    check("data image", BUILD / "dmem.mem")
 
     for name, elf in HARDWARE_PROGRAMS:
-        check(f"programa {name}", elf)
+        check(f"program {name}", elf)
     coremark = BUILD / "coremark_iter10" / "coremark.elf"
-    check("CoreMark (10 iteraciones)", coremark)
+    check("CoreMark (10 iterations)", coremark)
 
     if problems:
-        print(f"\nFaltan: {', '.join(problems)}")
+        print(f"\nMissing: {', '.join(problems)}")
         return 1
-    print("\nPreflight correcto.")
+    print("\nPreflight OK.")
     return 0
 
 
@@ -149,8 +165,8 @@ def refresh_memory_artifacts() -> None:
     imem = BUILD / "imem.mem"
     dmem = BUILD / "dmem.mem"
     if not imem.exists() or not dmem.exists():
-        raise SystemExit("Faltan build/imem.mem o build/dmem.mem. "
-                         "Genere las imagenes con: make mem ELF=<programa.elf>")
+        raise SystemExit("Missing build/imem.mem or build/dmem.mem. "
+                         "Generate them with: make mem ELF=<program.elf>")
 
     for arch in ARCHES:
         synth_dir = REPO_ROOT / "synthesis" / arch
@@ -166,12 +182,12 @@ def refresh_memory_artifacts() -> None:
 
 
 def stage_synthesis(args) -> int:
-    banner(f"SYNTHESIS - {args.replicas} replicas por arquitectura")
+    banner(f"SYNTHESIS - {args.replicas} replicas per architecture")
     refresh_memory_artifacts()
     fingerprint = rtl_fingerprint()
     commit = git("rev-parse", "HEAD")
     print(f"  commit    : {commit}")
-    print(f"  huella RTL: {fingerprint}")
+    print(f"  RTL hash  : {fingerprint}")
 
     for arch in ARCHES:
         replicas_dir = RESULTS / arch
@@ -183,15 +199,15 @@ def stage_synthesis(args) -> int:
             meta_path = replica_dir / "meta.json"
             meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
             if meta.get("fingerprint") == fingerprint:
-                print(f"  [{arch}] réplica {index}: vigente, se conserva")
+                print(f"  [{arch}] replica {index}: current, kept")
                 kept.add(replica_dir)
                 continue
             if args.keep_stale:
-                print(f"  [{arch}] réplica {index}: obsoleta, se conserva "
+                print(f"  [{arch}] replica {index}: stale, kept "
                       f"({replica_dir})")
                 kept.add(replica_dir)
                 continue
-            print(f"  [{arch}] réplica {index}: obsoleta, se regenera")
+            print(f"  [{arch}] replica {index}: stale, regenerated")
             shutil.rmtree(replica_dir)
 
         for index in range(1, args.replicas + 1):
@@ -216,7 +232,7 @@ def stage_synthesis(args) -> int:
                 "fmax_mhz": fmax,
             }
             (replica_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
-            print(f"  [{arch}] réplica {index}: Fmax {fmax} MHz")
+            print(f"  [{arch}] replica {index}: Fmax {fmax} MHz")
     return 0
 
 
@@ -225,13 +241,21 @@ def stage_synthesis(args) -> int:
 # --------------------------------------------------------------------------
 
 def stage_verify(args) -> int:
-    banner("VERIFY - suites cocotb de ambas arquitecturas")
+    banner("VERIFY - cocotb suites of both architectures")
+    fingerprint = verification_fingerprint()
+    state = load_state()
+    if (not args.force and all(path.exists() for path in VERIFY_RESULTS)
+            and matches(state, "verify", sources=fingerprint)):
+        print("  RTL and tests unchanged since the last successful run; skipped.")
+        return 0
     # The common suite is run with the single-cycle top level.  Running it
     # with the pipeline top level would overwrite common/results.xml with
     # pipeline data and corrupt the single-cycle verification table.
     run(["make", "verify-common", "ARCH=single_cycle"])
     run(["make", "verify", "ARCH=single_cycle"])
     run(["make", "verify", "ARCH=pipeline"])
+    mark(state, "verify", sources=fingerprint)
+    save_state(state)
     return 0
 
 
@@ -240,14 +264,16 @@ def stage_verify(args) -> int:
 # --------------------------------------------------------------------------
 
 def stage_benchmarks(args) -> int:
-    banner("BENCHMARKS - CPI efectivo por programa y arquitectura")
+    banner("BENCHMARKS - effective CPI per program and architecture")
     stats = replica_stats(collect_replicas())
     fmax_csv = write_fmax_csv(stats)
-    print(f"  Fmax de las réplicas -> {fmax_csv.relative_to(REPO_ROOT)}")
+    print(f"  Replica Fmax -> {fmax_csv.relative_to(REPO_ROOT)}")
     cmd = [sys.executable, "scripts/measure_benchmarks.py",
            "--fmax-csv", fmax_csv, "--output", RESULTS / "results_benchmarks.csv"]
     if args.benchmarks_from_csv:
         cmd.append("--from-csv")
+    if args.force:
+        cmd.append("--force")
     run(cmd)
     return 0
 
@@ -257,7 +283,7 @@ def stage_benchmarks(args) -> int:
 # --------------------------------------------------------------------------
 
 def stage_artifacts(args) -> int:
-    banner("ARTIFACTS - tablas, figuras, protocolo y capítulo")
+    banner("ARTIFACTS - statistics, tables, figures and protocol docs")
     # The collector refreshes the summary report and the CSV of the
     # verification results; the thesis artifacts read the same data.
     run([sys.executable, "scripts/collect_results.py", "--markdown", "--latex", "--csv"])
@@ -269,44 +295,16 @@ def stage_artifacts(args) -> int:
 # Stage: hardware
 # --------------------------------------------------------------------------
 
-def board_connected() -> bool:
-    result = subprocess.run(["quartus_pgm.exe", "--list"], capture_output=True,
-                            text=True, timeout=120)
-    return "DE-SoC" in (result.stdout + result.stderr)
-
-
 def stage_hardware(args) -> int:
-    banner("HARDWARE - programación de la tarjeta y lista de capturas")
-    if not board_connected():
-        print("  No se detectó la DE1-SoC. Conecte la tarjeta y el USB-Blaster, "
-              "y vuelva a ejecutar el objetivo.")
-        return 1
-
-    benchmarks = {}
-    path = RESULTS / "results_benchmarks.csv"
-    if path.exists():
-        import csv
-        with path.open() as fp:
-            for row in csv.DictReader(fp):
-                benchmarks[(row["architecture"], row["program"])] = row
-
-    for arch in args.arch:
-        for name, elf in HARDWARE_PROGRAMS:
-            if not elf.exists():
-                continue
-            print(f"\n  [{arch}] {name}")
-            run(["make", "flash", f"ELF={elf}", f"ARCH={arch}"])
-            run([sys.executable, "scripts/check_mem_init.py",
-                 "--project", f"synthesis/{arch}"])
-            row = benchmarks.get((arch, name))
-            if row:
-                cycles = int(row["cycle_count"])
-                instructions = int(row["instr_retired"])
-                print(f"  Valores esperados en la consola: "
-                      f"ciclos {cycles} (0x{cycles:X}), "
-                      f"instrucciones {instructions} (0x{instructions:X})")
-            print(f"  Fotografíe la consola VGA y compare con el valor anterior.")
-    return 0
+    banner("HARDWARE - pending measurements on the DE1-SoC")
+    cmd = [sys.executable, "scripts/hardware_measure.py"]
+    if len(args.arch) == 1:
+        cmd += ["--arch", args.arch[0], "--all"]
+    else:
+        cmd.append("--all-both")
+    if args.force:
+        cmd.append("--force")
+    return run(cmd, check=False)
 
 
 # --------------------------------------------------------------------------
@@ -327,6 +325,8 @@ def main() -> int:
                         help="keep the replicas that do not match the current RTL")
     parser.add_argument("--benchmarks-from-csv", action="store_true",
                         help="assemble the benchmark table from the saved CSVs")
+    parser.add_argument("--force", action="store_true",
+                        help="ignore the saved state and redo every stage")
     args = parser.parse_args()
 
     stages = args.stages or [stage for stage in ALL_STAGES if stage != "hardware"]
@@ -343,7 +343,7 @@ def main() -> int:
         code = handlers[stage](args)
         if code != 0:
             return code
-    banner("ETAPA FINALIZADA - revise los artefactos en results/ y thesis/")
+    banner("STAGE FINISHED - review the artifacts under results/ and thesis/")
     return 0
 
 

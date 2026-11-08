@@ -14,10 +14,14 @@ deterministic in simulation, so the only source of experimental variability is
 the place-and-route process, which is covered by the five synthesis replicas
 and propagated to the throughput through their Fmax (anteproyecto §7.1.3).
 
+A (program, architecture) pair whose CSV was produced from the same RTL and
+the same ELF is reused instead of simulated again; use --force to re-run it.
+
 Usage:
     python3 scripts/measure_benchmarks.py
     python3 scripts/measure_benchmarks.py --riscv-tests
     python3 scripts/measure_benchmarks.py --max-cycles 2000000
+    python3 scripts/measure_benchmarks.py --force
 """
 
 import argparse
@@ -30,6 +34,9 @@ RESULTS_DIR = REPO_ROOT / "results"
 
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from fpga_validate import run_cocotb_validation  # noqa: E402
+from campaign_state import (  # noqa: E402
+    file_fingerprint, load_state, mark, matches, save_state, source_fingerprint,
+)
 
 # The synthetic stress programs and CoreMark.  The CoreMark binary uses a
 # reduced iteration count (10): the instruction mix - and therefore the CPI -
@@ -90,6 +97,9 @@ def main() -> int:
     parser.add_argument("--from-csv", action="store_true",
                         help="Assemble the table from the saved per-benchmark "
                              "CSVs instead of running the simulations again")
+    parser.add_argument("--force", action="store_true",
+                        help="Simulate every benchmark again even when its "
+                             "saved CSV was produced from the same RTL and ELF")
     parser.add_argument("--fmax-csv", type=pathlib.Path, default=None,
                         help="CSV with the mean Fmax per architecture "
                              "(default: results/results_fmax.csv)")
@@ -102,6 +112,8 @@ def main() -> int:
         benchmarks += riscv_test_elfs()
 
     fmax = read_fmax(args.fmax_csv)
+    fingerprint = source_fingerprint()
+    state = load_state()
     rows = []
 
     for name, rel_path in benchmarks:
@@ -109,8 +121,11 @@ def main() -> int:
         if not elf_path.exists():
             print(f"  skip {name}: {rel_path} not found")
             continue
+        elf_fingerprint = file_fingerprint(elf_path)
         for arch in ARCHES:
             csv_path = RESULTS_DIR / f"benchmark_{name}_{arch}.csv"
+            key = f"benchmark:{arch}:{name}"
+            inputs = {"rtl": fingerprint, "elf": elf_fingerprint}
             if args.from_csv:
                 if not csv_path.exists():
                     print(f"[{arch}] {name}: no saved CSV, skipped")
@@ -119,13 +134,24 @@ def main() -> int:
                     data = next(csv.DictReader(fp))
                 print(f"[{arch}] {name} (from CSV)")
             else:
-                print(f"[{arch}] {name} ...", end="", flush=True)
-                try:
-                    data = run_cocotb_validation(elf_path, arch, csv_path,
-                                                 max_cycles=args.max_cycles)
-                except Exception as error:
-                    print(f" FAILED ({error})")
-                    continue
+                if csv_path.exists() and matches(state, key, **inputs):
+                    reused = True
+                else:
+                    reused = False
+                if reused and not args.force:
+                    with open(csv_path) as fp:
+                        data = next(csv.DictReader(fp))
+                    print(f"[{arch}] {name} (unchanged, reused CSV)")
+                else:
+                    print(f"[{arch}] {name} ...", end="", flush=True)
+                    try:
+                        data = run_cocotb_validation(elf_path, arch, csv_path,
+                                                     max_cycles=args.max_cycles)
+                    except Exception as error:
+                        print(f" FAILED ({error})")
+                        continue
+                    mark(state, key, **inputs)
+                    save_state(state)
             cycles = int(data["cycle_count"])
             instr = int(data["instr_retired"])
             cpi = cycles / max(instr, 1)

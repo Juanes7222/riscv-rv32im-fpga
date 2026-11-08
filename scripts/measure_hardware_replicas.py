@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Mide CoreMark en las 5 réplicas de síntesis de cada arquitectura.
+"""Measure CoreMark on the 5 synthesis replicas of each architecture.
 
-Para cada réplica imprime el comando de programación de su .sof, espera a que
-el usuario confirme que programó la FPGA, pulsó KEY[0] y leyó la consola VGA,
-y guarda los valores de CyclesToPass e InstrToPass.
+For each replica it prints the programming command of its .sof, waits for the
+user to confirm that the FPGA was programmed, KEY[0] was pressed and the VGA
+console was read, and saves the CyclesToPass and InstrToPass values.
 
-Uso:
-    python3 scripts/measure_hardware_replicas.py          # primera pasada: generar plan y capturar lecturas
-    python3 scripts/measure_hardware_replicas.py --apply  # segunda pasada: aplicar lecturas ya anotadas
+Usage:
+    python3 scripts/measure_hardware_replicas.py          # first pass: build plan and capture readings
+    python3 scripts/measure_hardware_replicas.py --apply  # second pass: apply readings already noted
 
-El resultado se acumula en results/results_coremark_hardware_replicas.csv.
+The result accumulates in results/results_coremark_hardware_replicas.csv.
 """
 
 import argparse
@@ -26,7 +26,7 @@ OUT_CSV = RESULTS / "results_coremark_hardware_replicas.csv"
 
 
 def replicas() -> list:
-    """Devuelve (arch, index, sof_path, fmax_mhz) para las 10 réplicas."""
+    """Return (arch, index, sof_path, fmax_mhz) for the 10 replicas."""
     out = []
     for arch in ("single_cycle", "pipeline"):
         for i in range(1, 6):
@@ -41,7 +41,7 @@ def replicas() -> list:
 
 
 def program(sof: Path) -> bool:
-    """Programa el .sof en el dispositivo 2 de la JTAG chain."""
+    """Program the .sof on device 2 of the JTAG chain."""
     cmd = [
         "quartus_pgm.exe", "-c", "DE-SoC", "-m", "JTAG",
         f"P;{sof}@2",
@@ -55,7 +55,7 @@ def program(sof: Path) -> bool:
 
 
 def load_existing() -> dict:
-    """Lee las lecturas ya guardadas, indexadas por (arch, replica)."""
+    """Read the already saved readings, indexed by (arch, replica)."""
     data = {}
     if not OUT_CSV.exists():
         return data
@@ -68,11 +68,11 @@ def load_existing() -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true",
-                    help="Marcar como completadas las réplicas ya leídas (modo no interactivo)")
+                    help="Mark the replicas already read as completed (non-interactive mode)")
     args = ap.parse_args()
 
     if not CORE_MARK_ELF.exists():
-        print(f"Falta {CORE_MARK_ELF}. Genérelo con: make -C programs/coremark ITERATIONS=2000")
+        print(f"Missing {CORE_MARK_ELF}. Generate it with: make -C programs/coremark ITERATIONS=2000")
         return 1
 
     existing = load_existing()
@@ -80,31 +80,31 @@ def main() -> int:
     for arch, idx, sof, fmax in replicas():
         key = (arch, idx)
         if key in existing and existing[key].get("cycles") and existing[key].get("instr"):
-            print(f"[{arch}] réplica {idx}: ya medida (ciclos {existing[key]['cycles']}, "
+            print(f"[{arch}] replica {idx}: already measured (cycles {existing[key]['cycles']}, "
                   f"instr {existing[key]['instr']})")
             continue
         if not sof.exists():
-            print(f"[{arch}] réplica {idx}: .sof FALTA, se omite")
+            print(f"[{arch}] replica {idx}: .sof MISSING, skipped")
             continue
         pending.append((arch, idx, sof, fmax))
 
     if not pending:
-        print("Todas las réplicas están medidas.")
+        print("All replicas are measured.")
         return 0
 
     rows = []
     for arch, idx, sof, fmax in pending:
-        print(f"\n=== [{arch}] réplica {idx} (Fmax {fmax} MHz) ===")
-        print(f"  Programa:   {CORE_MARK_ELF}")
+        print(f"\n=== [{arch}] replica {idx} (Fmax {fmax} MHz) ===")
+        print(f"  Program:    {CORE_MARK_ELF}")
         print(f"  Bitstream:  {sof}")
-        print(f"  Comando:    quartus_pgm.exe -c \"DE-SoC\" -m JTAG -o \"P;{sof}@2\"")
-        print(f"  Luego:      pulse KEY[0] para liberar reset")
-        print(f"  Espera:     unos 16-18 s hasta que la consola se congele")
-        print(f"  Lea:        HALTED, CyclesToPass, InstrToPass (hexadecimal)")
+        print(f"  Command:    quartus_pgm.exe -c \"DE-SoC\" -m JTAG -o \"P;{sof}@2\"")
+        print(f"  Then:       press KEY[0] to release reset")
+        print(f"  Wait:       about 16-18 s until the console freezes")
+        print(f"  Read:       HALTED, CyclesToPass, InstrToPass (hexadecimal)")
 
         if args.apply:
-            # Modo no interactivo: el usuario ya había anotado los valores y los
-            # pasa por variables de entorno o se le piden por línea.
+            # Non-interactive mode: the user had already noted the values and
+            # passes them through environment variables or is prompted for them.
             cycles = input("  CyclesToPass (hex): ").strip()
             instr = input("  InstrToPass  (hex): ").strip()
             halted = input("  HALTED (0/1): ").strip() or "1"
@@ -123,7 +123,7 @@ def main() -> int:
             "cpi": (int(cycles, 16) / int(instr, 16)) if cycles and instr else "",
         })
 
-    # Fusionar con lo ya existente y escribir
+    # Merge with the already existing rows and write
     all_rows = []
     seen = set()
     for key, row in existing.items():
@@ -153,7 +153,7 @@ def main() -> int:
             w.writerow({**r, "seconds_40mhz": seconds if arch == "single_cycle" else "",
                         "seconds_50mhz": seconds if arch == "pipeline" else ""})
 
-    print(f"\nResultado guardado en {OUT_CSV}")
+    print(f"\nResult saved to {OUT_CSV}")
     return 0
 
 

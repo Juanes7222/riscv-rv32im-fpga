@@ -321,7 +321,7 @@ COREMARK_BUILD = $(MAKE) -C programs/coremark ITERATIONS=3 TOTAL_DATA_SIZE=120
 .PHONY: verify-coremark
 verify-coremark:
 	@if [ ! -f "$(COREMARK_ELF)" ]; then \
-		echo "CoreMark ELF no encontrado. Construyéndolo automáticamente..."; \
+		echo "CoreMark ELF not found, building it..."; \
 		$(COREMARK_BUILD) || exit 1; \
 	fi
 	@echo "=== CoreMark smoke test (single_cycle) ==="
@@ -511,7 +511,7 @@ preflight:
 .PHONY: thesis
 thesis:
 	@echo "[thesis] Experimental campaign: preflight, synthesis, verification, benchmarks, artifacts"
-	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py $(if $(FORCE),--force,)
 	@$(MAKE) --no-print-directory check-artifacts
 
 # Same campaign without the synthesis replicas: it reuses the replicas that
@@ -520,47 +520,33 @@ thesis:
 thesis-quick:
 	@echo "[thesis] Experimental campaign without the synthesis replicas"
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py \
-		--stages preflight verify benchmarks artifacts
+		--stages preflight verify benchmarks artifacts $(if $(FORCE),--force,)
 	@$(MAKE) --no-print-directory check-artifacts
 
-# Full campaign: everything that can be automated, plus a checklist for the
-# hardware measurements that require the physical DE1-SoC board.
+# The whole experimental campaign in one command.  The automated stages are
+# incremental: synthesis replicas, cocotb suites and benchmarks are skipped
+# when their RTL, tests or ELF did not change.  Hardware measurements come
+# last because they need the DE1-SoC and a value read from the VGA console;
+# only the pending ones are requested.
+# Pass FORCE=1 to redo every measurement.
 .PHONY: full-campaign
 full-campaign:
 	@echo "========================================================================"
-	@echo "  FULL CAMPAIGN - todo lo automatizable + checklist de hardware real"
+	@echo "  FULL CAMPAIGN - automated stages, then pending DE1-SoC measurements"
 	@echo "========================================================================"
 	@echo ""
-	@echo "=== [1/7] Preflight ==="
-	@-$(MAKE) --no-print-directory preflight || echo "[FALLO] preflight"
+	@-$(MAKE) --no-print-directory thesis FORCE=$(FORCE) || \
+		echo "[FAILED] automated campaign (see the log above)"
 	@echo ""
-	@echo "=== [2/7] Verificación funcional (verify-full) ==="
-	@-$(MAKE) --no-print-directory verify-full || echo "[FALLO] verify-full (revisar results/ de cocotb)"
+	@echo "=== CoreMark smoke test (simulation) ==="
+	@-$(MAKE) --no-print-directory verify-coremark || echo "[FAILED] verify-coremark"
 	@echo ""
-	@echo "=== [3/7] CoreMark smoke test (simulación) ==="
-	@-$(MAKE) --no-print-directory verify-coremark || echo "[FALLO] verify-coremark"
-	@echo ""
-	@echo "=== [4/7] Síntesis: 5 réplicas por arquitectura (requiere Quartus) ==="
-	@-$(MAKE) --no-print-directory replicas ARCH=single_cycle N_REPLICAS=5 || \
-		echo "[AVISO] Síntesis single_cycle no completada (¿Quartus disponible?)."
-	@-$(MAKE) --no-print-directory replicas ARCH=pipeline N_REPLICAS=5 || \
-		echo "[AVISO] Síntesis pipeline no completada (¿Quartus disponible?)."
-	@echo ""
-	@echo "=== [5/7] Benchmarks: CPI efectivo por programa y arquitectura ==="
-	@-PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --stages benchmarks || \
-		echo "[FALLO] benchmarks"
-	@echo ""
-	@echo "=== [6/7] Artefactos y reportes ==="
-	@-PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --stages artifacts || \
-		echo "[FALLO] artifacts"
-	@echo ""
-	@echo "=== [7/7] Checklist de medición en hardware real (DE1-SoC) ==="
-	@-PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_checklist.py || \
-		echo "[FALLO] hardware_checklist"
+	@echo "=== Pending measurements on the DE1-SoC ==="
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
+		--all-both $(if $(FORCE),--force,) || true
 	@echo ""
 	@echo "========================================================================"
-	@echo "  CAMPAÑA COMPLETA - revise results/ y thesis/"
-	@echo "  Las etapas marcadas [FALLO] o [AVISO] necesitan atención manual."
+	@echo "  CAMPAIGN COMPLETE - see results/ and thesis/tables, thesis/figures"
 	@echo "========================================================================"
 
 
@@ -597,10 +583,12 @@ measure-hardware:
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
 		--arch "$(ARCH)" --elf "$(ELF)" $(PROGRAM) $(if $(FORCE),--force,)
 
-# Measure every synthetic program for one architecture, one command.
+# Measure every available program for one architecture, one command
+# (synthetic programs and CoreMark when its ELF exists).
 # Automates memory images, synthesis and programming for each program, and
 # pauses between them so you can read CyclesToPass / InstrToPass from the VGA.
-# Skips programs already measured and matching cocotb; use FORCE=1 to re-run all.
+# Skips programs whose saved CSV was measured with the current RTL and ELF;
+# use FORCE=1 to re-run all.
 # Usage: make measure-all ARCH=pipeline   (or ARCH=single_cycle)
 #        FORCE=1 make measure-all ARCH=pipeline   (re-measure everything)
 .PHONY: measure-all
@@ -608,13 +596,18 @@ measure-all:
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
 		--arch "$(ARCH)" --all $(if $(FORCE),--force,)
 
-# Measure every synthetic program for both architectures, one command.
-# Skips programs already measured and matching cocotb; use FORCE=1 to re-run all.
+# Measure every available program for both architectures, one command.
+# Same skip logic as measure-all.
 # Usage: make measure-all-both
 #        FORCE=1 make measure-all-both   (re-measure everything)
 .PHONY: measure-all-both
 measure-all-both:
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py --all-both $(if $(FORCE),--force,)
+
+# Print which hardware measurements are pending, without touching the board.
+.PHONY: hardware-status
+hardware-status:
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py --status
 
 .PHONY: help
 help:
@@ -639,11 +632,12 @@ help:
 	@echo "                     (set COCOTB_CSV=path to cocotb results CSV)"
 	@echo "  measure-hardware   Measure one program on the FPGA (VGA console values)"
 	@echo "                     (set ARCH=pipeline|single_cycle, ELF=path/to/program.elf)"
-	@echo "  measure-all        Measure all synthetic programs for one ARCH, one command"
-	@echo "                     Skips programs already measured and matching cocotb."
-	@echo "                     Use FORCE=1 to re-measure everything."
-	@echo "  measure-all-both   Measure all synthetic programs for both architectures"
-	@echo "                     (same skip logic as measure-all)"
+	@echo "  measure-all        Measure all available programs for one ARCH"
+	@echo "                     (synthetic stress + CoreMark), one command"
+	@echo "  measure-all-both   Same for both architectures"
+	@echo "  hardware-status    Show pending measurements without touching the board"
+	@echo "                     Measurements are reused when the RTL and ELF are"
+	@echo "                     unchanged; use FORCE=1 to redo them."
 	@echo ""
 	@echo "Programming"
 	@echo "  program            Program FPGA via TCL script (no rebuild)"
@@ -661,6 +655,7 @@ help:
 	@echo "  verify-all-sc      Run ALL single-cycle tests (common + arch)"
 	@echo "  verify-all-pipe    Run ALL pipeline tests"
 	@echo "  verify-full        Run ALL tests for both architectures"
+	@echo "  verify-coremark    CoreMark smoke test in simulation (both architectures)"
 	@echo ""
 	@echo "Results"
 	@echo "  report             Run all tests, then generate report + LaTeX tables"
@@ -678,7 +673,11 @@ help:
 	@echo "Thesis"
 	@echo "  thesis             Full experimental campaign (synthesis, verification,"
 	@echo "                     benchmarks, tables, figures, protocol, chapter)"
+	@echo "                     Incremental: unchanged stages are skipped."
 	@echo "  thesis-quick       Same campaign reusing the existing replicas"
-	@echo "  thesis-hardware    Program the DE1-SoC and print the photo checklist"
+	@echo "  thesis-hardware    Measure every pending program on the DE1-SoC"
+	@echo "  full-campaign      Automated campaign plus the pending hardware"
+	@echo "                     measurements, in one command (FORCE=1 redoes all)"
 	@echo "  check-artifacts    Verify generated tables against the results CSVs"
+	@echo "  hardware-status    Show pending hardware measurements"
 	@echo ""
