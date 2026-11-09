@@ -153,18 +153,19 @@ The CoreMark memory map and the reason its `.tohost` symbol sits at `0x6000`
 are documented in
 [`docs/coremark_integration.md`](coremark_integration.md).
 
-### Cross-validating the hardware against the simulation
+### Reading the counters on the board
 
-The processor carries performance counters (`cycle_count`, `instr_retired`) that can be
-read out of the FPGA with SignalTap II and compared against the same numbers obtained
-in simulation:
+The processor freezes `cycle_count` and `instr_retired` the instant the program
+writes to `tohost`, and the VGA console shows both (`CyclesToPass`,
+`InstrToPass`). Comparing a photograph of the console with
+`results/results_benchmarks.csv` is the hardware evidence of the campaign.
 
-```bash
-python scripts/fpga_validate.py --elf build/riscv-tests/rv32ui/add.elf --fpga-only
-make build-fpga ARCH=pipeline     # build with the SignalTap II .stp file
-make capture ARCH=pipeline        # capture from the programmed board
-make cross-validate ARCH=pipeline COCOTB_CSV=results/validation_pipeline.csv
-```
+Capturing the counters over JTAG is **not** part of the project: SignalTap II
+cannot be built with Quartus Prime 25.1 (see
+[ADR 042](decisions/042_hardware_measurement_without_signaltap.md) and
+[`docs/hardware_validation.md`](hardware_validation.md) §3). The
+`make build-fpga` / `make capture` / `make cross-validate` targets are the
+remains of that attempt and cannot produce a measurement.
 
 ## 8. Configuration that has to stay consistent
 
