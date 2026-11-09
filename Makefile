@@ -13,7 +13,7 @@ endif
 
 # Paths
 SYNTH_DIR        = synthesis/$(ARCH)
-RESULTS_DIR      = results/$(ARCH)
+RESULTS_DIR      ?= results/$(ARCH)
 RTL_ROOT         = rtl
 VERIF_COMMON_DIR = verification/cocotb/common
 VERIF_ARCH_DIR   = verification/cocotb/$(ARCH)
@@ -133,10 +133,11 @@ define quartus_compile
 	sof_before=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
 	attempt=1; \
 	while : ; do \
-		(cd $(SYNTH_DIR) && $(QUARTUS_SH) -t $(1) $(2)) ; \
+		compile_ok=0; \
+		if (cd $(SYNTH_DIR) && $(QUARTUS_SH) -t $(1) $(2)); then compile_ok=1; fi; \
 		after=$$(stat -c %Y $(abspath $(STA_RPT)) 2>/dev/null || echo 0); \
 		sof_after=$$(stat -c %Y $(abspath $(SOF_FILE)) 2>/dev/null || echo 0); \
-		if [ -f $(abspath $(STA_RPT)) ] && [ -f $(abspath $(SOF_FILE)) ] && \
+		if [ "$$compile_ok" -eq 1 ] && [ -f $(abspath $(STA_RPT)) ] && [ -f $(abspath $(SOF_FILE)) ] && \
 		   [ "$$after" -gt "$$before" ] && [ "$$sof_after" -gt "$$sof_before" ]; then \
 			break; \
 		fi; \
@@ -237,21 +238,17 @@ REPLICA ?= 1
 REPLICA_DIR = $(RESULTS_DIR)/replica_$(REPLICA)
 
 .PHONY: replica
-replica: check-project
-	@mkdir -p $(REPLICA_DIR)
-	@echo "[$(ARCH)] --- Replica $(REPLICA) (SEED=$(REPLICA)) ---"
-	@SECONDS=0; \
-	$(call quartus_compile,build.tcl,$(REPLICA)); \
-	cp $(STA_RPT) $(REPLICA_DIR)/timing.rpt 2>/dev/null || \
-		echo "Warning: timing report not found for replica $(REPLICA)"; \
-	cp $(FIT_SUMMARY) $(REPLICA_DIR)/fit.summary 2>/dev/null || \
-		echo "Warning: fitter summary not found for replica $(REPLICA)"; \
-	cp $(SOF_FILE) $(REPLICA_DIR)/$(PROJECT).sof 2>/dev/null || \
-		echo "Warning: SOF file not found for replica $(REPLICA)"; \
-	python3 scripts/extract_fmax.py $(REPLICA_DIR)/timing.rpt \
-		> $(REPLICA_DIR)/fmax.txt 2>/dev/null || \
-		echo "Warning: fmax extraction failed for replica $(REPLICA)"; \
-	echo "[$(ARCH)] Replica $(REPLICA) done ($$SECONDS seconds)"
+replica: check-project check-elf mem $(MEM_CONFIG_VH)
+	@python3 scripts/replica_manifest.py prepare --directory "$(REPLICA_DIR)" \
+		--arch $(ARCH) --seed $(REPLICA) --elf "$(ELF)"
+	@set -o pipefail; { \
+		$(call quartus_compile,build.tcl,$(REPLICA)); \
+	} 2>&1 | tee "$(REPLICA_DIR)/compile.log"
+	@cp -p "$(STA_RPT)" "$(REPLICA_DIR)/timing.rpt"
+	@cp -p "$(FIT_SUMMARY)" "$(REPLICA_DIR)/fit.summary"
+	@cp -p "$(SOF_FILE)" "$(REPLICA_DIR)/$(PROJECT).sof"
+	@python3 scripts/extract_fmax.py "$(REPLICA_DIR)/timing.rpt" > "$(REPLICA_DIR)/fmax.txt"
+	@python3 scripts/replica_manifest.py finalize --directory "$(REPLICA_DIR)"
 
 
 .PHONY: replicas
@@ -261,7 +258,8 @@ replicas: check-project
 	@for i in $$(seq 1 $(N_REPLICAS)); do \
 		replica_dir=$(RESULTS_DIR)/replica_$$i; \
 		if [ -d "$$replica_dir" ]; then \
-			echo "[$(ARCH)] Replica $$i already exists, skipping. Use make clean-replicas to reset."; \
+			python3 scripts/replica_manifest.py check --directory "$$replica_dir" --elf "$(ELF)" || exit 1; \
+			echo "[$(ARCH)] Replica $$i verified, skipping."; \
 			continue; \
 		fi; \
 		$(MAKE) replica ARCH=$(ARCH) REPLICA=$$i || exit 1; \
@@ -531,23 +529,11 @@ thesis-quick:
 # Pass FORCE=1 to redo every measurement.
 .PHONY: full-campaign
 full-campaign:
-	@echo "========================================================================"
-	@echo "  FULL CAMPAIGN - automated stages, then pending DE1-SoC measurements"
-	@echo "========================================================================"
-	@echo ""
-	@-$(MAKE) --no-print-directory thesis FORCE=$(FORCE) || \
-		echo "[FAILED] automated campaign (see the log above)"
-	@echo ""
-	@echo "=== CoreMark smoke test (simulation) ==="
-	@-$(MAKE) --no-print-directory verify-coremark || echo "[FAILED] verify-coremark"
-	@echo ""
-	@echo "=== Pending measurements on the DE1-SoC ==="
+	@$(MAKE) --no-print-directory thesis FORCE=$(FORCE)
+	@$(MAKE) --no-print-directory verify-coremark
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
-		--all-both $(if $(FORCE),--force,) || true
-	@echo ""
-	@echo "========================================================================"
-	@echo "  CAMPAIGN COMPLETE - see results/ and thesis/tables, thesis/figures"
-	@echo "========================================================================"
+		--all-both $(if $(FORCE),--force,)
+	@echo "Automated stages completed; inspect hardware evidence before accepting the campaign."
 
 
 # Fails the campaign when a generated table no longer matches the CSV it
@@ -681,3 +667,8 @@ help:
 	@echo "  check-artifacts    Verify generated tables against the results CSVs"
 	@echo "  hardware-status    Show pending hardware measurements"
 	@echo ""
+
+# Functional CRCs, full register/DMEM comparison, NOPs and common retirement boundary.
+.PHONY: verify-audit
+verify-audit:
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/check_audit_fixes.py

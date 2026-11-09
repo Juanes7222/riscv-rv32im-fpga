@@ -1,9 +1,11 @@
+.DEFAULT_GOAL := all
+
 # CoreMark build for RV32IM bare-metal.
 # Usage:
 #   make                   # build with default ITERATIONS=2000
 #   make ITERATIONS=10     # build with small iteration count (simulation)
-#   make VALIDATION_RUN=1  # validation run (seeds fixed, CRC-checked output)
-#   make PROFILE_RUN=1     # profile run (smaller data set)
+#   make RUN_MODE=VALIDATION_RUN  # validation run (seeds fixed, CRC-checked output)
+#   make RUN_MODE=PROFILE_RUN     # profile run (smaller data set)
 
 # Toolchain
 RISCV_GCC      ?= riscv-none-elf-gcc
@@ -29,14 +31,13 @@ OBJ_DIR     := $(BUILD_DIR)/obj
 # CoreMark source files (from the EEMBC submodule)
 COREMARK_SRCS := \
     $(SRC_DIR)/core_list_join.c \
-    $(SRC_DIR)/core_main.c \
     $(SRC_DIR)/core_matrix.c \
     $(SRC_DIR)/core_state.c \
     $(SRC_DIR)/core_util.c
 
 # Platform porting files
 PORT_SRCS := \
-    core_portme.c
+    core_portme.c core_validation.c
 
 # Startup and linker
 START_S   := start.S
@@ -68,7 +69,15 @@ LDFLAGS += -T $(LINK_SCRIPT)
 LDFLAGS += -Wl,-Map=$(MAP)
 LDFLAGS += -Wl,--gc-sections
 
-.PHONY: all clean size mem
+.PHONY: all clean size mem FORCE
+
+FORCE:
+
+$(OBJ_DIR)/build_flags: FORCE | $(OBJ_DIR)
+	@echo '$(RISCV_GCC) $(CFLAGS) $(LDFLAGS)' > $@.tmp
+	@cmp -s $@.tmp $@ || cp $@.tmp $@
+
+$(ALL_OBJS): $(OBJ_DIR)/build_flags
 
 all: $(ELF) mem
 
@@ -77,7 +86,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c core_portme.h | $(OBJ_DIR)
 	$(RISCV_GCC) $(CFLAGS) -c -o $@ $<
 
 # Porting layer objects
-$(OBJ_DIR)/%.o: %.c core_portme.h | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: %.c core_portme.h $(SRC_DIR)/core_main.c | $(OBJ_DIR)
 	$(RISCV_GCC) $(CFLAGS) -c -o $@ $<
 
 # Startup object

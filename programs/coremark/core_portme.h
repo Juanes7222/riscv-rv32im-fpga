@@ -18,7 +18,7 @@
 /************************/
 /* Compiler identification */
 /************************/
-#define COMPILER_VERSION "GCC 14.2.0"
+#define COMPILER_VERSION __VERSION__
 #define COMPILER_FLAGS   "-march=rv32im -mabi=ilp32 -O2 -nostdlib"
 #define MEM_LOCATION     "STACK"
 

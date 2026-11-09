@@ -25,8 +25,10 @@ _start:
     li      a1, 0
     jal     ra, main
 
-    // main() returned: signal benchmark done via tohost = 1
-    li      t0, 1
+    // Encode functional CRC status: 1 = success, 3 = validation failure.
+    snez    t0, a0
+    slli    t0, t0, 1
+    ori     t0, t0, 1
     la      t1, tohost
     sw      t0, 0(t1)
 

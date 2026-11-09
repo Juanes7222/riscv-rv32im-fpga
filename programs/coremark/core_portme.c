@@ -1,8 +1,8 @@
 /*
  * CoreMark platform implementation for RV32IM bare-metal.
  * Timing is a stub (we use hardware perf counters, not CoreMark's timing).
- * ee_printf is a no-op stub (output goes to /dev/null;
- * results are read from tohost + FPGA performance counters).
+ * Functional CRC evidence is captured by core_validation.c before tohost.
+ * No internal timer is available; external rates are not official scores.
  */
 
 #include "coremark.h"
@@ -84,8 +84,7 @@ void portable_fini(core_portable *p)
     p->portable_id = 0;
 }
 
-/* ee_printf: no-op stub. CoreMark diagnostic output is not needed;
-   the FPGA performance counters capture cycle_count and instr_retired. */
+/* Diagnostics are suppressed; core_validation.c preserves the CRC evidence. */
 int ee_printf(const char *fmt, ...)
 {
     (void)fmt;
