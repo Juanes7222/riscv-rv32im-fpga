@@ -6,6 +6,7 @@ module id_ex_register (
     input  logic        stall,
     // PC and instruction data
     input  logic [31:0] id_pc,
+    input  logic        id_valid,
     input  logic [31:0] id_instruction,
     // Operands from register file
     input  logic [31:0] id_rs1_data,
@@ -35,6 +36,7 @@ module id_ex_register (
     input  logic        id_csr_imm,
     // Outputs for datapath
     output logic [31:0] ex_pc,
+    output logic        ex_valid,
     output logic [31:0] ex_instruction,
     output logic [31:0] ex_rs1_data,
     output logic [31:0] ex_rs2_data,
@@ -73,6 +75,7 @@ module id_ex_register (
     //     stay in EX for 34 cycles).
     always_ff @(posedge clk) begin
         if (rst) begin
+            ex_valid <= 1'b0;
             ex_pc              <= '0;
             ex_instruction     <= BUBBLE;
             ex_rs1_data        <= '0;
@@ -97,6 +100,7 @@ module id_ex_register (
             ex_csr_op          <= '0;
             ex_csr_imm         <= 1'b0;
         end else if (flush) begin
+            ex_valid <= 1'b0;
             ex_pc              <= '0;
             ex_instruction     <= BUBBLE;
             ex_rs1_data        <= '0;
@@ -121,6 +125,7 @@ module id_ex_register (
             ex_csr_op          <= '0;
             ex_csr_imm         <= 1'b0;
         end else if (!stall) begin
+            ex_valid <= id_valid;
             ex_pc              <= id_pc;
             ex_instruction     <= id_instruction;
             ex_rs1_data        <= id_rs1_data;

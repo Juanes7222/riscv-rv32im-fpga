@@ -39,6 +39,8 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from thesis_artifacts import (  # noqa: E402
     collect_replicas, replica_stats, write_fmax_csv,
 )
+from replica_manifest import verified
+
 from campaign_state import (  # noqa: E402
     FINGERPRINT_VERSION, load_state, mark, matches, save_state,
     source_fingerprint, verification_fingerprint,
@@ -184,12 +186,17 @@ def refresh_memory_artifacts() -> None:
 
 def stage_synthesis(args) -> int:
     banner(f"SYNTHESIS - {args.replicas} replicas per architecture")
+    if not args.elf.is_file():
+        raise SystemExit(f"Missing campaign ELF: {args.elf}")
+    from fpga_validate import _get_tohost_addr
+    os.environ["TOHOST_ADDR"] = hex(_get_tohost_addr(args.elf))
     refresh_memory_artifacts()
     fingerprint = source_fingerprint()
     commit = git("rev-parse", "HEAD")
     print(f"  commit    : {commit}")
     print(f"  RTL hash  : {fingerprint}")
 
+    archive_stamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
     for arch in ARCHES:
         replicas_dir = RESULTS / arch
         kept = set()
@@ -199,24 +206,13 @@ def stage_synthesis(args) -> int:
                 continue
             if args.force:
                 print(f"  [{arch}] replica {index}: forced regeneration")
-                shutil.rmtree(replica_dir)
+                archive = RESULTS / "archive" / archive_stamp / arch / replica_dir.name
+                archive.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(replica_dir), str(archive))
                 continue
-            meta_path = replica_dir / "meta.json"
-            meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
-            if (meta.get("fingerprint_version") == FINGERPRINT_VERSION
-                    and meta.get("fingerprint") == fingerprint):
-                print(f"  [{arch}] replica {index}: current, kept")
-                kept.add(replica_dir)
-                continue
-            if meta and "fingerprint_version" not in meta:
-                # Version 1 hashed the generated program artifacts, so its
-                # value cannot be re-derived.  Adopt the replica instead of
-                # forcing a full re-synthesis; FORCE=1 or deleting the
-                # directory still rebuilds it.
-                meta["fingerprint_version"] = FINGERPRINT_VERSION
-                meta["fingerprint"] = fingerprint
-                meta_path.write_text(json.dumps(meta, indent=2) + "\n")
-                print(f"  [{arch}] replica {index}: legacy metadata adopted, kept")
+            if verified(replica_dir, fingerprint, args.elf,
+                        int(os.environ["TOHOST_ADDR"], 0)):
+                print(f"  [{arch}] replica {index}: verified, kept")
                 kept.add(replica_dir)
                 continue
             if args.keep_stale:
@@ -225,7 +221,9 @@ def stage_synthesis(args) -> int:
                 kept.add(replica_dir)
                 continue
             print(f"  [{arch}] replica {index}: stale, regenerated")
-            shutil.rmtree(replica_dir)
+            archive = RESULTS / "archive" / archive_stamp / arch / replica_dir.name
+            archive.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(replica_dir), str(archive))
 
         for index in range(1, args.replicas + 1):
             replica_dir = replicas_dir / f"replica_{index}"
@@ -236,20 +234,12 @@ def stage_synthesis(args) -> int:
             # One replica per call, so that a crash of the tool is retried
             # by the Makefile and the metadata is written as soon as the
             # replica exists.
-            run(["make", "replica", f"ARCH={arch}", f"REPLICA={index}"])
+            run(["make", "replica", f"ARCH={arch}", f"REPLICA={index}",
+                 f"ELF={args.elf.resolve()}", f"TOHOST_ADDR={os.environ['TOHOST_ADDR']}"])
             fmax = None
             fmax_file = replica_dir / "fmax.txt"
             if fmax_file.exists():
                 fmax = float(fmax_file.read_text().strip())
-            meta = {
-                "git_commit": commit,
-                "fingerprint_version": FINGERPRINT_VERSION,
-                "fingerprint": fingerprint,
-                "seed": index,
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "fmax_mhz": fmax,
-            }
-            (replica_dir / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
             print(f"  [{arch}] replica {index}: Fmax {fmax} MHz")
     return 0
 
@@ -335,6 +325,9 @@ def main() -> int:
     parser.add_argument("--stages", nargs="+", default=None,
                         choices=ALL_STAGES,
                         help="stages to run (default: all but hardware)")
+    parser.add_argument("--elf", type=Path,
+                        default=BUILD / "coremark/coremark.elf",
+                        help="Frozen program for every synthesis replica")
     parser.add_argument("--replicas", type=int, default=5,
                         help="synthesis replicas per architecture (default: 5)")
     parser.add_argument("--arch", nargs="+", default=ARCHES, choices=ARCHES,

@@ -8,7 +8,7 @@
 # stopping at an artificially relaxed target.
 
 # Primary clock (board oscillator).  The single-cycle processor runs from a
-# 25 MHz PLL output derived from this pin (ADR 049); the pipeline runs from the
+# 40 MHz PLL output derived from this pin (ADR 049); the pipeline runs from the
 # pin itself.  DE1-SoC provides the 50 MHz oscillator on PIN_AF14.
 create_clock -period 10.000 -name clk [get_ports clk]
 
@@ -16,8 +16,8 @@ create_clock -period 10.000 -name clk [get_ports clk]
 # derive_pll_clocks auto-detects all PLL outputs regardless of the internal
 # hierarchical path; wrap in a catch so the processor compiles without the
 # visualization module (no PLL instantiated yet).  This also derives the
-# 25 MHz single-cycle CPU clock, so its 20 ns period is analysed at the same
-# 2x-aggressive ratio as the pin clock (40 ns on the board).
+# 40 MHz single-cycle CPU clock: its period is 12.5 ns under the
+# aggressive input constraint and 25 ns with the physical 50 MHz oscillator.
 catch { derive_pll_clocks }
 
 # Processor clock domains: the pin clock, plus the single-cycle CPU PLL when
@@ -39,7 +39,7 @@ set_clock_uncertainty -rise_from $proc_clocks \
 set_clock_uncertainty -fall_from $proc_clocks \
                       -rise_to   $proc_clocks 0.100
 
-set vga_clk_name [get_clocks -nowarn *u_altpll*divclk*]
+set vga_clk_name [get_clocks -nowarn *u_vga_pll*divclk*]
 if {[llength $vga_clk_name] > 0} {
     set_clock_uncertainty -rise_from $vga_clk_name \
                           -rise_to   $vga_clk_name 0.150

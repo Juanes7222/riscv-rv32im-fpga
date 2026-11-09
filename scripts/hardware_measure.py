@@ -44,6 +44,7 @@ import csv
 import datetime
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -141,7 +142,7 @@ def expected_values(program: str, arch: str):
 
 
 def hardware_csv_path(arch: str, program: str) -> Path:
-    return RESULTS / f"hardware_{arch}_{program}.csv"
+    return RESULTS / f"hardware_{arch}_{program}_v2.csv"
 
 
 def last_hardware_row(arch: str, program: str) -> dict | None:
@@ -174,22 +175,23 @@ def already_measured_ok(arch: str, program: str,
     except (KeyError, ValueError):
         return False, "hardware CSV unreadable"
 
-    # A measurement that matches the current simulation reference is valid:
-    # the reference CSV is only reused while the RTL and the ELF are the same.
+    inputs = measurement_inputs(program, elf)
+    if (row.get("rtl_sha256") != inputs["rtl"]
+            or row.get("elf_sha256") != inputs["elf"]
+            or not row.get("sof_sha256")
+            or row.get("counter_protocol") != "retire-inclusive-v2"):
+        return False, "missing or mismatched source/program/bitstream provenance"
+    if row.get("result") != "pass":
+        return False, "termination recorded; functional evidence still pending"
     expected = expected_values(program, arch)
     if expected is not None:
-        exp_cycles = int(expected["cycle_count"])
-        exp_instr = int(expected["instr_retired"])
-        if cycles == exp_cycles and instructions == exp_instr:
-            return True, f"matches cocotb ({cycles} / {instructions})"
-        return False, f"hardware {cycles}/{instructions} != cocotb {exp_cycles}/{exp_instr}"
-
-    # CoreMark is simulated with a reduced iteration count, so its only
-    # freshness record is the state entry.
-    key = f"hardware:{arch}:{program}"
-    if matches(load_state(), key, **measurement_inputs(program, elf)):
-        return True, f"measured with the current RTL and program ({cycles} / {instructions})"
-    return False, "RTL or program changed since the measurement"
+        if (expected.get("rtl_sha256") != inputs["rtl"]
+                or expected.get("elf_sha256") != inputs["elf"]):
+            return False, "simulation reference has different provenance"
+        if (cycles != int(expected["cycle_count"])
+                or instructions != int(expected["instr_retired"])):
+            return False, "hardware counters differ from the matching reference"
+    return True, "source, ELF and bitstream provenance recorded"
 
 
 def make_env(tohost_addr: int) -> dict:
@@ -260,19 +262,32 @@ def ask_vga_values(tohost_addr: int) -> dict:
     }
 
 
-def save_csv(out_csv: Path, arch: str, program: str, tohost_addr: int, values: dict) -> None:
+def save_csv(out_csv: Path, arch: str, program: str, tohost_addr: int, values: dict, elf: Path) -> None:
     """Append one row to the hardware CSV."""
     out_csv.parent.mkdir(parents=True, exist_ok=True)
+    sof = REPO_ROOT / "synthesis" / arch / "output_files" / f"rv32im_{arch}.sof"
+    sof_hash = file_fingerprint(sof)
+    archive = RESULTS / "hardware_bitstreams" / f"{sof_hash}.sof"
+    archive.parent.mkdir(exist_ok=True)
+    if not archive.exists():
+        shutil.copy2(sof, archive)
     row = {
         "architecture": arch,
         "program": program,
-        "result": "pass",
+        "result": "terminated-unvalidated" if program == COREMARK else "pass",
         "cycle_count": values["cycle_count"],
         "instr_retired": values["instr_retired"],
         "cpi": values["cpi"],
         "tohost_addr": hex(tohost_addr),
         "seconds": values["seconds"],
         "source": "vga_console",
+        "rtl_sha256": source_fingerprint(),
+        "elf_sha256": file_fingerprint(elf),
+        "sof_sha256": sof_hash,
+        "counter_protocol": "retire-inclusive-v2",
+        "clock_mhz": 40 if arch == "single_cycle" else 50,
+        "functional_validation": "CRC pending" if program == COREMARK else "termination only",
+
         "date_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "notes": values["notes"],
     }
@@ -323,7 +338,7 @@ def measure_one(program: str, arch: str, out_csv: Path | None = None,
     values = ask_vga_values(tohost_addr)
 
     out_csv = out_csv or hardware_csv_path(arch, program)
-    save_csv(out_csv, arch, program, tohost_addr, values)
+    save_csv(out_csv, arch, program, tohost_addr, values, elf)
     state = load_state()
     mark(state, f"hardware:{arch}:{program}", **measurement_inputs(program, elf))
     save_state(state)

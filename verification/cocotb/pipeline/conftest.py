@@ -45,6 +45,10 @@ def init_board_inputs(dut) -> None:
         dut.key_step.value = 1      # KEY[1] is active low: 1 = released
     if hasattr(dut, "step_mode"):
         dut.step_mode.value = 0     # no freeze
+    if hasattr(dut, "key_load"):
+        dut.key_load.value = 1      # KEY[2] active low: 1 = no load
+    if hasattr(dut, "sw"):
+        dut.sw.value = 0            # no program selected
 
 
 # ──────────────────────────────────────────────────────────────────────

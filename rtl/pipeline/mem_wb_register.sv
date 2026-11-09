@@ -17,6 +17,7 @@ module mem_wb_register (
     input  logic [31:0] mem_alu_result,
     input  logic [31:0] mem_dm_rd_data,
     input  logic [31:0] mem_rs1_data,
+    input  logic        mem_valid,
     input  logic [31:0] mem_instruction,
     input  logic [4:0]  mem_rd_addr,
     input  logic        mem_ru_wr,
@@ -35,6 +36,7 @@ module mem_wb_register (
     output logic [31:0] wb_alu_result,
     output logic [31:0] wb_dm_rd_data,
     output logic [31:0] wb_rs1_data,
+    output logic        wb_valid,
     output logic [31:0] wb_instruction,
     output logic [4:0]  wb_rd_addr,
     output logic        wb_ru_wr,
@@ -52,6 +54,7 @@ module mem_wb_register (
 );
     always_ff @(posedge clk) begin
         if (rst) begin
+            wb_valid <= 1'b0;
             wb_alu_result      <= '0;
             wb_dm_rd_data      <= '0;
             wb_rs1_data        <= '0;
@@ -69,6 +72,7 @@ module mem_wb_register (
             wb_csr_imm         <= 1'b0;
             wb_rs1_addr        <= '0;
         end else if (!stall) begin
+            wb_valid <= mem_valid;
             wb_alu_result      <= mem_alu_result;
             wb_dm_rd_data      <= mem_dm_rd_data;
             wb_rs1_data        <= mem_rs1_data;

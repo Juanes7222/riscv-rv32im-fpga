@@ -195,14 +195,12 @@ module top_single_cycle #(
     logic [63:0] instr_at_done;
     logic        program_done;
 
-    // program_done: detect store of value 1 to TOHOST_ADDR (ADR 026).
-    // In the single-cycle, the store executes in one cycle - alu_res is
-    // the address and rs2_data is the value.  The pulse is the condition
-    // itself: the counters are frozen in the cycle that carries the store
-    // into the register file, which is the instant cocotb samples.
+    // Any nonzero tohost value ends measurement, including failure codes.
+    // The completing store is included in both counters.
     logic program_done_pulse;
-    assign program_done_pulse = dm_wr && (alu_sum == TOHOST_ADDR)
-                             && (rs2_data == 32'd1);
+    assign program_done_pulse = fetch_valid && !div_busy && !step_hold_effective
+                             && dm_wr && (alu_sum == TOHOST_ADDR)
+                             && (rs2_data != 32'd0);
 
     // Registered copy for the console and the SignalTap II trigger.
     always_ff @(posedge clk_cpu) begin

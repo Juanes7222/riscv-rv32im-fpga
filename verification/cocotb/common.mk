@@ -90,4 +90,15 @@ $(SIM_DMEM): $(SIM_TEST_ELF)
 		--imem-depth $(IMEM_DEPTH) --imem-out $(SIM_IMEM) \
 		--dmem-depth $(DMEM_DEPTH) --dmem-out $(SIM_DMEM)
 
-sim_build/sim.vvp: $(SIM_IMEM) $(SIM_DMEM)
+$(SIM_BUILD)/sim.vvp: $(SIM_IMEM) $(SIM_DMEM)
+
+.PHONY: simulation-config-force
+simulation-config-force:
+
+# Icarus output depends on parameters and defines as well as source mtimes.
+$(SIM_BUILD)/compile_flags: simulation-config-force
+	@mkdir -p $(SIM_BUILD)
+	@echo '$(TOPLEVEL) $(COMPILE_ARGS)' > $@.tmp
+	@cmp -s $@.tmp $@ || cp $@.tmp $@
+
+$(SIM_BUILD)/sim.vvp: $(SIM_BUILD)/compile_flags

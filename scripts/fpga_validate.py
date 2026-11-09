@@ -135,7 +135,7 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     # verification/cocotb/<arch>/.  That file holds the XML evidence of the ISA
     # suites collected by `make verify`, so a validation run must write its own
     # file under results/ instead of overwriting it (issues C1 and C9).
-    results_xml = RESULTS_DIR / f"validation_{arch}_{elf_path.stem}.xml"
+    results_xml = csv_path.with_suffix(".xml")
     results_xml.parent.mkdir(parents=True, exist_ok=True)
 
     result = subprocess.run(
@@ -146,6 +146,7 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
          "TEST=test_validation",
          f"COCOTB_RESULTS_FILE={results_xml}",
          f"TOPLEVEL={top}",
+         f"SIM_BUILD={csv_path.parent / (arch + '_sim_' + hex(tohost_addr) + '_' + env.get('DMEM_DEPTH', '8192') + '_' + env.get('IMEM_DEPTH', '16384'))}",
          f"TOHOST_ADDR={tohost_addr:#x}"],
         capture_output=True,
         text=True,
@@ -153,9 +154,8 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     )
 
     if result.returncode != 0:
-        print("cocotb test failed. Checking CSV anyway...")
-        print(result.stdout[-3000:] if result.stdout else "")
-        print(result.stderr[-3000:] if result.stderr else "")
+        raise RuntimeError("cocotb validation failed:\n" + result.stdout[-4000:]
+                           + result.stderr[-1000:])
 
     # Read CSV
     if csv_path.exists():

@@ -3,7 +3,8 @@
 
 Reads the raw data of the experiment (the replica directories and the
 benchmark CSV) and writes the statistics, the LaTeX tables, the pgfplots
-figures, the protocol documents and the results chapter.
+figures and the protocol documents.  It writes no prose: the chapter text is
+written by hand around the generated tables and figures.
 
 Usage:
     python3 scripts/thesis_artifacts.py            # regenerate every artifact
@@ -11,7 +12,6 @@ Usage:
 """
 
 import csv
-import hashlib
 import json
 import re
 import statistics
@@ -24,10 +24,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from collect_results import TEST_SUITE_NAMES  # noqa: E402
+from campaign_state import source_fingerprint  # noqa: E402
 RESULTS = REPO_ROOT / "results"
 TABLES = REPO_ROOT / "thesis" / "tables"
 FIGURES = REPO_ROOT / "thesis" / "figures" / "diagrams"
-CHAPTERS = REPO_ROOT / "thesis" / "chapters"
 REPRO = REPO_ROOT / "docs" / "reproduction"
 
 ARCHES = ["single_cycle", "pipeline"]
@@ -57,20 +57,14 @@ RESOURCE_LABELS = {
 # --------------------------------------------------------------------------
 
 def rtl_fingerprint() -> str:
-    """SHA-256 of the RTL and of the synthesis configuration.
+    """SHA-256 of the hand-written RTL and of the synthesis configuration.
 
-    Two synthesis runs of the same fingerprint are comparable; a different
+    Program-dependent artifacts (mem_config.vh, screen.mif) are excluded, so
+    flashing another program does not invalidate the synthesis replicas.  Two
+    synthesis runs of the same fingerprint are comparable; a different
     fingerprint means the design changed and the old measurements are stale.
     """
-    digest = hashlib.sha256()
-    files = sorted(p for p in (REPO_ROOT / "rtl").rglob("*") if p.is_file())
-    files += sorted((REPO_ROOT / "synthesis").glob("*/constraints.sdc"))
-    files += sorted((REPO_ROOT / "synthesis").glob("*/setup.tcl"))
-    files += sorted((REPO_ROOT / "synthesis").glob("*/build.tcl"))
-    for path in files:
-        digest.update(str(path.relative_to(REPO_ROOT)).encode())
-        digest.update(path.read_bytes())
-    return digest.hexdigest()
+    return source_fingerprint()
 
 
 def parse_fit_summary(path: Path) -> dict:
@@ -229,7 +223,7 @@ def benchmark_metrics(benchmarks: list, stats: dict) -> list:
             row = per_arch.get(arch)
             if row is None:
                 continue
-            cpi = float(row["cpi"])
+            cpi = int(row["cycle_count"]) / int(row["instr_retired"])
             fmax_replicas = stats[arch]["fmax"]["values"] if stats[arch]["fmax"] else []
             # A run that did not finish leaves the counters frozen at an
             # arbitrary point: it has no valid throughput and no speedup.
@@ -252,10 +246,12 @@ def benchmark_metrics(benchmarks: list, stats: dict) -> list:
         sc = entry["arch"].get("single_cycle")
         pipe = entry["arch"].get("pipeline")
         if sc and pipe and sc["valid"] and pipe["valid"] and sc["throughputs"] and pipe["throughputs"]:
-            # The replicas are paired by index: they are exchangeable and the
-            # pairing keeps the estimator variance low.
-            pairs = list(zip(sc["throughputs"], pipe["throughputs"]))
-            speedups = [p / s for s, p in pairs if s]
+            # Pairing by index is a descriptive convention, not a variance claim.
+            # Compare the duration of the same workload, independent of NOP counts.
+            pairs = zip(stats["single_cycle"]["fmax"]["values"],
+                        stats["pipeline"]["fmax"]["values"])
+            speedups = [(sc["cycles"] / s) / (pipe["cycles"] / p)
+                        for s, p in pairs if s and p]
             entry["speedups"] = speedups
             entry["speedup"] = describe(speedups)
             entry["verdict"] = "H1" if entry["speedup"] and entry["speedup"]["mean"] - entry["speedup"]["std"] > 1.0 else "H0"
@@ -400,6 +396,124 @@ def table_header() -> list:
     ]
 
 
+TIMING_PATHS_TXT = {arch: RESULTS / f"timing_paths_{arch}.txt" for arch in ARCHES}
+
+# constraints.sdc declares the pin clock at 10 ns and the single-cycle CPU PLL
+# at 12.5 ns, both half of the real board periods, with 0.1 ns of uncertainty.
+DOMAIN_PERIOD_NS = {"single_cycle": 12.5, "pipeline": 10.0}
+
+
+def _timing_field(block: str, name: str) -> str:
+    match = re.search(rf"{name}\s*:\s*(\S+)", block)
+    return match.group(1) if match else ""
+
+
+def read_timing_paths() -> dict:
+    """Worst setup paths of each architecture, from the archived STA reports.
+
+    The report gives the slack of each path against the period it was
+    constrained with.  The period the path really needs follows from that
+    slack: it is the constrained period plus what the slack is short by.  A
+    path constrained at half the period is scaled back to a full one, so the
+    periods of both architectures are comparable.
+    """
+    out = {}
+    for arch in ARCHES:
+        path = TIMING_PATHS_TXT[arch]
+        if not path.exists():
+            continue
+        rows = []
+        for block in path.read_text().split("Path #")[1:]:
+            start, target = _timing_field(block, "From Node"), _timing_field(block, "To Node")
+            try:
+                relation = float(_timing_field(block, "Relationship"))
+                skew = float(_timing_field(block, "Clock Skew"))
+                delay = float(_timing_field(block, "Data Delay"))
+                slack = float(_timing_field(block, "Slack"))
+            except ValueError:
+                continue
+            required = relation - slack
+            period = required * (DOMAIN_PERIOD_NS[arch] / relation)
+            rows.append({
+                "from": start,
+                "to": target,
+                "relation_ns": relation,
+                "delay_ns": delay,
+                "skew_ns": skew,
+                "period_ns": period,
+                "fmax_mhz": 1000.0 / period,
+            })
+        # The report repeats the same transfer once per byte lane (and once per
+        # duplicated register), so only the first of each is kept.  What
+        # identifies a path here is which two blocks it joins and with which
+        # period it was constrained.
+        seen, unique = set(), []
+        for row in sorted(rows, key=lambda r: -r["period_ns"]):
+            key = (row["from"].split("|")[0], row["to"].split("|")[0],
+                   row["relation_ns"])
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(row)
+        out[arch] = unique[:3]
+    return out
+
+
+def _short_node(node: str) -> str:
+    """Drop the generated hierarchy of a node name, keep what identifies it.
+
+    The M10K lane names (``ram_block1a20``) are noise: every lane carries the
+    same signal, so only the block instance matters.
+    """
+    parts = node.split("|")
+    leaf = parts[-1].replace("~DUPLICATE", "")
+    if re.match(r"ram_block\d+a\d+", leaf):
+        leaf = ""
+    if len(parts) < 2:
+        return tex_escape(leaf)
+    return " ".join(tex_escape(part) for part in (parts[0], leaf) if part)
+
+
+def table_critical_path(paths: dict) -> str:
+    """The paths that fix the Fmax of each design."""
+    if not paths:
+        return ""
+    lines = table_header()
+    lines += [
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\small",
+        r"\caption{Caminos de datos que fijan la frecuencia máxima, ordenados "
+        r"por periodo exigido (proyecto de la última réplica, modelo "
+        r"\emph{Slow 1100 mV 85$^\circ$C}). La relación es el periodo con el "
+        r"que se restringió el camino: 6.25 ns es medio ciclo.}",
+        r"\label{tab:critical_path}",
+        r"\begin{tabular}{llrrrr}",
+        r"\toprule",
+        r"Arquitectura & Camino (origen $\to$ destino) & Relación (ns) & "
+        r"Retardo (ns) & Skew (ns) & Periodo exigido (ns) \\",
+        r"\midrule",
+    ]
+    for arch in ARCHES:
+        for row in paths.get(arch, []):
+            source = _short_node(row["from"])
+            target = _short_node(row["to"])
+            # A path that stays inside one block is better read as
+            # "block -> its output register" than as the block twice.
+            if row["from"].split("|")[0] == row["to"].split("|")[0]:
+                target = tex_escape(
+                    row["to"].split("|")[-1].replace("~DUPLICATE", ""))
+            lines.append(
+                f"{ARCH_LABELS[arch]} & {source} $\\to$ {target} & "
+                f"{fmt(row['relation_ns'], 3)} & "
+                f"{fmt(row['delay_ns'], 3)} & {fmt(row['skew_ns'], 3)} & "
+                f"{fmt(row['period_ns'], 2)} \\\\")
+        lines.append(r"\midrule")
+    lines = lines[:-1]
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    return "\n".join(lines)
+
+
 def table_fmax_replicas(replicas: list, stats: dict) -> str:
     lines = table_header()
     lines += [
@@ -512,7 +626,7 @@ COREMARK_PROVENANCE = (
 
 
 def read_coremark_hardware() -> list:
-    """The official CoreMark runs, read from the frozen board counters.
+    """The recorded CoreMark workload runs, read from the frozen board counters.
 
     One row per architecture: iterations, cycles and instructions as the VGA
     console shows them, and the clock the CPU ran at.  Everything else is
@@ -547,7 +661,7 @@ def read_coremark_hardware() -> list:
 
 
 def write_coremark_csv() -> Path:
-    """Persist the official CoreMark hardware run so it can be re-derived."""
+    """Persist the recorded CoreMark hardware run so it can be re-derived."""
     rows = read_coremark_hardware()
     path = RESULTS / "results_coremark.csv"
     with open(path, "w", newline="") as fp:
@@ -567,7 +681,7 @@ def write_coremark_csv() -> Path:
 
 
 def table_coremark(rows: list) -> str:
-    """CoreMark in hardware: the official EEMBC run (>= 10 s)."""
+    """CoreMark workload rates; legacy runs have no CRC evidence."""
     if not rows:
         return ""
     lines = table_header()
@@ -575,13 +689,13 @@ def table_coremark(rows: list) -> str:
         r"\begin{table}[htbp]",
         r"\centering",
         r"\caption{CoreMark en hardware, 2000 iteraciones ($\geq$ 10 s, regla "
-        r"de EEMBC). Ciclos e instrucciones son los contadores congelados que "
-        r"muestra la consola VGA.}",
+        r"de duración). Tasas derivadas; validación CRC histórica pendiente. Los contadores "
+        r"proceden de la consola VGA.}",
         r"\label{tab:coremark}",
         r"\begin{tabular}{lrrrrrr}",
         r"\toprule",
         r"Arquitectura & Reloj (MHz) & Ciclos & Instrucciones & Tiempo (s) & "
-        r"CoreMark & CoreMark/MHz \\",
+        r"Iteraciones/s & Iteraciones/s/MHz \\",
         r"\midrule",
     ]
     for row in rows:
@@ -594,13 +708,65 @@ def table_coremark(rows: list) -> str:
     return "\n".join(lines)
 
 
+def table_coremark_scenarios(rows: list, stats: dict) -> str:
+    """CoreMark read at the three frequencies the comparison admits.
+
+    The CPI is the measured one; the scenarios differ only in the clock each
+    design is given, so the table isolates the frequency term of the speedup.
+    """
+    by_arch = {row["arch"]: row for row in rows}
+    if len(by_arch) < 2:
+        return ""
+    sc, pipe = by_arch["single_cycle"], by_arch["pipeline"]
+    sc_fmax = stats["single_cycle"]["fmax"]["mean"]
+    pipe_fmax = stats["pipeline"]["fmax"]["mean"]
+    # The lowest Fmax of every replica is still above 40 MHz, so 40 MHz is the
+    # highest board clock that both designs meet in all five replicas.
+    common = sc["clock_mhz"]
+    scenarios = [
+        (f"Frecuencia común ({fmt(common, 0)} MHz en ambos, dentro de la Fmax "
+         "de todas las réplicas)",
+         common, common,
+         common * sc["per_mhz"], common * pipe["per_mhz"]),
+        (f"Frecuencia desplegada ({fmt(sc['clock_mhz'], 0)} / "
+         f"{fmt(pipe['clock_mhz'], 0)} MHz)",
+         sc["clock_mhz"], pipe["clock_mhz"], sc["score"], pipe["score"]),
+        (f"Fmax estimada ({fmt(sc_fmax)} / {fmt(pipe_fmax)} MHz, no validada "
+         "en placa)",
+         sc_fmax, pipe_fmax,
+         sc_fmax * sc["per_mhz"], pipe_fmax * pipe["per_mhz"]),
+    ]
+    lines = table_header()
+    lines += [
+        r"\begin{table}[htbp]",
+        r"\centering",
+        r"\caption{CoreMark según la frecuencia asignada a cada diseño. El CPI "
+        r"medido es el mismo en las tres filas; solo cambia el reloj.}",
+        r"\label{tab:coremark_scenarios}",
+        r"\begin{tabular}{lrrrrr}",
+        r"\toprule",
+        r"Escenario & \multicolumn{2}{c}{Reloj (MHz)} & "
+        r"\multicolumn{2}{c}{CoreMark} & Speedup \\",
+        r"\cmidrule(lr){2-3} \cmidrule(lr){4-5}",
+        r" & Monociclo & Pipeline & Monociclo & Pipeline & \\",
+        r"\midrule",
+    ]
+    for label, sc_mhz, pipe_mhz, sc_score, pipe_score in scenarios:
+        lines.append(
+            f"{label} & {fmt(sc_mhz, 2)} & {fmt(pipe_mhz, 2)} & "
+            f"{fmt(sc_score, 1)} & {fmt(pipe_score, 1)} & "
+            f"{fmt(pipe_score / sc_score, 3)} \\\\")
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    return "\n".join(lines)
+
+
 def table_speedup(metrics: list) -> str:
     lines = table_header()
     lines += [
         r"\begin{table}[htbp]",
         r"\centering",
         r"\caption{Speedup del pipeline respecto al monociclo y evaluación "
-        r"de la hipótesis por programa.}",
+        r"descriptiva por programa; media de cocientes temporales pareados.}",
         r"\label{tab:speedup}",
         r"\begin{tabular}{lrrrl}",
         r"\toprule",
@@ -684,7 +850,7 @@ def table_efficiency(metrics: list, stats: dict, efficiency: list) -> str:
     for row in efficiency:
         if row["overhead_pct"] is None:
             continue
-        lines.append(f"Overhead de {row['label'].lower()} del pipeline & "
+        lines.append(f"Overhead de {row['label']} del pipeline & "
                      f"--- & {row['overhead_pct']:+.1f} \\% \\\\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
     return "\n".join(lines)
@@ -943,7 +1109,7 @@ def efficiency_table_problems() -> list:
     for row in _read_csv_rows(RESULTS / "results_efficiency.csv"):
         if not row["overhead_pct"].strip():
             continue
-        expected[f"Overhead de {row['resource'].lower()} del pipeline"] = [
+        expected[f"Overhead de {row['resource']} del pipeline"] = [
             "---", f"{float(row['overhead_pct']):+.1f} \\%"]
 
     actual = {row[0]: row[1:]
@@ -1080,11 +1246,75 @@ def coremark_table_problems() -> list:
     return _table_problems("CoreMark", expected, actual)
 
 
+def coremark_scenarios_table_problems() -> list:
+    """Compare the three-frequency CoreMark table with both CSVs."""
+    setup = {row["architecture"]: row for row in _read_csv_rows(COREMARK_CSV)}
+    fmax = {row["arch"]: float(row["fmax_mean_mhz"])
+            for row in _read_csv_rows(RESULTS / "results_fmax.csv")}
+    if len(setup) < 2 or len(fmax) < 2:
+        return []
+    sc, pipe = setup["single_cycle"], setup["pipeline"]
+    clocks = [
+        (float(sc["clock_mhz"]), float(sc["clock_mhz"])),
+        (float(sc["clock_mhz"]), float(pipe["clock_mhz"])),
+        (fmax["single_cycle"], fmax["pipeline"]),
+    ]
+    scores = [
+        (float(sc["clock_mhz"]) * float(sc["score_per_mhz"]),
+         float(sc["clock_mhz"]) * float(pipe["score_per_mhz"])),
+        (float(sc["score"]), float(pipe["score"])),
+        (fmax["single_cycle"] * float(sc["score_per_mhz"]),
+         fmax["pipeline"] * float(pipe["score_per_mhz"])),
+    ]
+    rows = parse_tex_rows(TABLES / "coremark_scenarios.tex")
+    if len(rows) != len(clocks):
+        return [f"CoreMark escenarios: {len(rows)} filas en el .tex y "
+                f"{len(clocks)} esperadas"]
+    problems = []
+    for index, (row, (sc_mhz, pipe_mhz), (sc_score, pipe_score)) in enumerate(
+            zip(rows, clocks, scores), start=1):
+        for column, (tex_cell, target) in enumerate(
+                zip(row[1:], (sc_mhz, pipe_mhz, sc_score, pipe_score,
+                              pipe_score / sc_score))):
+            if abs(float(tex_cell) - target) > 0.05 * max(1.0, abs(target)):
+                problems.append(
+                    f"CoreMark escenarios: fila {index}, columna {column + 1}: "
+                    f"CSV {target:.3f} != TeX {tex_cell}")
+    return problems
+
+
+def critical_path_table_problems() -> list:
+    """The implied Fmax of each table must match the measured one.
+
+    The project state of ``synthesis/`` is one replica, so the path that
+    fixes its period reproduces the Fmax of that replica, not the mean.
+    """
+    problems = []
+    fmax = {row["arch"]: row for row in _read_csv_rows(RESULTS / "results_fmax.csv")}
+    rows = parse_tex_rows(TABLES / "critical_path.tex")
+    by_arch = {label: [] for label in ARCH_LABELS.values()}
+    for row in rows:
+        by_arch.setdefault(row[0], []).append(row)
+    for arch, label in ARCH_LABELS.items():
+        paths = by_arch.get(label, [])
+        if not paths:
+            problems.append(f"Camino crítico: no hay filas de {label}")
+            continue
+        implied = 1000.0 / float(paths[0][-1])
+        lowest = float(fmax[arch]["fmax_min_mhz"])
+        highest = float(fmax[arch]["fmax_max_mhz"])
+        if not 0.95 * lowest <= implied <= 1.05 * highest:
+            problems.append(
+                f"Camino crítico: {label} implica {implied:.2f} MHz, fuera del "
+                f"rango medido {lowest:.2f}-{highest:.2f} MHz")
+    return problems
+
+
 def _figure_addplots(path: Path, error_bars: bool = False) -> list:
     """Points of every ``\\addplot`` of a generated pgfplots figure."""
     plots = []
     text = path.read_text()
-    for match in re.finditer(r"\\addplot coordinates \{([^}]*)\};", text):
+    for match in re.finditer(r"\\addplot(?:\[[^\]]*\])? coordinates \{([^}]*)\};", text):
         body = match.group(1)
         if error_bars:
             points = [(int(m.group(1)), float(m.group(2)), float(m.group(3)))
@@ -1181,6 +1411,38 @@ def cpi_figure_problems() -> list:
         _benchmark_figure_values("cpi"))
 
 
+def speedup_figure_problems() -> list:
+    """Compare the speedup bars with results_benchmarks_summary.csv."""
+    programs, means, stds = [], [], []
+    for row in _read_csv_rows(RESULTS / "results_benchmarks_summary.csv"):
+        if not row["speedup_mean"].strip() or row["program"] in programs:
+            continue
+        programs.append(row["program"])
+        means.append(float(row["speedup_mean"]))
+        stds.append(float(row["speedup_std"]))
+    plots = _figure_addplots(FIGURES / "speedup.tex", error_bars=True)
+    if len(plots) < 2:
+        return [f"Figura Speedup: {len(plots)} series y se esperaban 2"]
+    points = plots[0]
+    if len(points) != len(programs):
+        return [f"Figura Speedup: {len(points)} barras y {len(programs)} "
+                "programas"]
+    problems = []
+    for index, ((x, mean, std), wanted, wanted_std) in enumerate(
+            zip(points, means, stds), start=1):
+        if x != index:
+            problems.append(f"Figura Speedup: '{programs[index - 1]}' en x={x}")
+        if abs(mean - wanted) > 0.0006:
+            problems.append(f"Figura Speedup: '{programs[index - 1]}' media "
+                            f"{wanted:.3f} != figura {mean:.3f}")
+        if abs(std - wanted_std) > 0.0006:
+            problems.append(f"Figura Speedup: '{programs[index - 1]}' "
+                            f"desviación {wanted_std:.3f} != figura {std:.3f}")
+    if any(abs(y - 1.0) > 1e-9 for _, y in plots[1]):
+        problems.append("Figura Speedup: la línea de referencia no está en 1")
+    return problems
+
+
 def resources_figure_problems() -> list:
     """Compare results_statistics.csv with the resources figure."""
     stats = {(row["arch"], row["metric"]): float(row["mean"])
@@ -1203,11 +1465,14 @@ def check_artifacts() -> int:
         ("Benchmarks", benchmarks_table_problems),
         ("Speedup", speedup_table_problems),
         ("CoreMark", coremark_table_problems),
+        ("CoreMark escenarios", coremark_scenarios_table_problems),
+        ("Camino crítico", critical_path_table_problems),
     )
     figures = (
         ("Fmax", fmax_figure_problems),
         ("Throughput", throughput_figure_problems),
         ("CPI", cpi_figure_problems),
+        ("Speedup", speedup_figure_problems),
         ("Recursos", resources_figure_problems),
     )
     problems = []
@@ -1331,6 +1596,52 @@ def figure_cpi(metrics: list) -> str:
         entries, values, "CPI",
         r"CPI efectivo por programa y microarquitectura.",
         "fig:cpi")
+
+
+def figure_speedup(metrics: list) -> str:
+    """Speedup per program with the H1 threshold, so the verdict is visible."""
+    measured = [m for m in metrics if m.get("speedup")]
+    entries = [m["program"] for m in measured]
+    ticks = [f"{{{tex_escape(name)}}}" for name in entries]
+    coords = ", ".join(
+        f"({index + 1},{m['speedup']['mean']:.3f}) +- "
+        f"(0,{m['speedup']['std']:.3f})"
+        for index, m in enumerate(measured))
+    options = [
+        r"  width=0.95\textwidth,",
+        r"  height=7cm,",
+        r"  ybar,",
+        r"  bar width=14pt,",
+        r"  ylabel={Speedup temporal del pipeline},",
+        "  xtick={" + ",".join(str(i + 1) for i in range(len(entries))) + "},",
+        "  xticklabels={" + ", ".join(ticks) + "},",
+        r"  xmin=0.5,",
+        r"  xmax=" + str(len(entries) + 0.5) + ",",
+        r"  ymajorgrids,",
+        r"  legend style={at={(0.5,-0.3)},anchor=north,legend columns=2},",
+        r"  error bars/.cd, y dir=both, y explicit,",
+    ]
+    lines = [
+        "% Generado por scripts/thesis_artifacts.py - no editar a mano.",
+        r"\begin{figure}[htbp]",
+        r"\centering",
+        r"\begin{tikzpicture}",
+        r"\begin{axis}[",
+        "\n".join(options),
+        r"]",
+        "  \\addplot coordinates {" + coords + "};",
+        "  \\addplot[black, dashed, sharp plot, update limits=false] "
+        "coordinates {(0.5,1) (" + str(len(entries) + 0.5) + ",1)};",
+        r"  \legend{Speedup medio $\pm$ desviación estándar,Umbral de $H_1$}",
+        r"\end{axis}",
+        r"\end{tikzpicture}",
+        r"\caption{Speedup temporal por programa, media de cocientes pareados. La "
+        r"línea en 1 separa la ganancia de la pérdida; $H_1$ exige además que "
+        r"la media menos una desviación estándar supere ese umbral.}",
+        r"\label{fig:speedup}",
+        r"\end{figure}",
+    ]
+    return "\n".join(lines)
 
 
 def figure_resources(stats: dict) -> str:
@@ -1514,6 +1825,10 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
         "",
         "<!-- Generado por scripts/thesis_artifacts.py. -->",
         "",
+        "> Instrumentación vigente: retire-inclusive-v2 (ADR 053). Los CSV "
+        "históricos usan la ventana anterior y no acreditan CRC físicos. "
+        "Las proyecciones que siguen no sustituyen la nueva campaña.",
+        "",
         "## 1. Tratamientos",
         "",
         "| Tratamiento | Microarquitectura |",
@@ -1530,10 +1845,10 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
         "| Contador | Definición |",
         "|---|---|",
         "| `cycle_count` | Ciclos de reloj desde el reinicio hasta que el programa "
-        "escribe en `tohost`; el valor queda congelado en ese instante. |",
+        "retira la escritura a `tohost`, incluida; el valor queda congelado. |",
         "| `instr_retired` | Monociclo: un ciclo por instrucción ejecutada. "
         "Pipeline: ciclos en los que `valid_wb = 1`, es decir, instrucciones "
-        "que se retiran sin burbuja. |",
+        "que se retiran sin burbuja. La validez es independiente del opcode NOP. |",
         "",
         "El mismo valor congelado en el silicio es el que muestra la consola VGA, y "
         "una aserción del testbench comprueba que coincide con el que reporta la "
@@ -1565,10 +1880,14 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
         "2. Síntesis de las cinco réplicas de cada tratamiento (ver "
         "`synthesis_protocol.md`).",
         "3. Medición del CPI en simulación con los contadores del procesador, "
-        "verificada contra el modelo de referencia de Python.",
+        "con comparación de registros, memoria y conteo contra el modelo de Python "
+        "cuando VALIDATION_REFERENCE=1. El registro histórico original no incluye "
+        "esta validación para todos los benchmarks.",
         "4. Cálculo del throughput de cada réplica como "
         r"$F_{\max,i}/\mathrm{CPI}$ "
-        "y del speedup como el cociente de los throughputs pareados por índice.",
+        "y del speedup temporal como media de T_monociclo/T_pipeline "
+        "pareados por índice; T = ciclos/(frecuencia en MHz × 10^6). "
+        "El emparejamiento es descriptivo y no garantiza menor varianza.",
         "5. Análisis descriptivo: media, desviación estándar muestral y "
         "coeficiente de variación.",
         "",
@@ -1587,9 +1906,9 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
         "",
         "## 6. Criterio de evaluación de la hipótesis",
         "",
-        "Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo: no se "
-        "aplica ninguna prueba de significancia inferencial, en línea con el "
-        "anteproyecto (§7.1.8). La hipótesis de trabajo $H_1$ se considera "
+        "Con $n = 5$ implementaciones por tratamiento, el análisis es descriptivo. "
+        "La siguiente regla adicional no es un intervalo de confianza ni se "
+        "atribuye retrospectivamente al anteproyecto. La hipótesis $H_1$ se considera "
         "sostenida para un programa cuando el extremo inferior de la dispersión "
         "del speedup, $\\overline{S} - \\sigma_{S}$, es mayor que uno; en caso "
         "contrario, $H_0$ no se descarta.",
@@ -1625,375 +1944,14 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
         "- La variabilidad experimental es la de la síntesis: el CPI es "
         "determinista en simulación, y el throughput de cada réplica usa el Fmax "
         "de esa réplica.",
+        "- La campaña histórica conserva una lectura CoreMark por arquitectura; "
+        "no acredita cinco ejecuciones físicas ni CRC correctos. La proyección "
+        "de ciclos deterministas sobre cinco frecuencias es una adaptación "
+        "metodológica y no sustituye comprobar cada bitstream en placa.",
         "",
     ]
     path.write_text("\n".join(lines))
     return path
-
-
-# --------------------------------------------------------------------------
-# Results chapter
-# --------------------------------------------------------------------------
-
-def write_chapter(metrics: list, stats: dict, replicas: list, verification: list,
-                  coremark: list, stale: bool, fingerprint: str) -> list:
-    """Markdown and LaTeX drafts of the results chapter."""
-    sc_fmax = stats["single_cycle"]["fmax"]
-    pipe_fmax = stats["pipeline"]["fmax"]
-    measured = [m for m in metrics if m.get("speedup")]
-    winners = [m for m in measured if m.get("verdict") == "H1"]
-    losers = [m for m in measured if m.get("verdict") != "H1"]
-    unmeasured = [m for m in metrics if not m.get("speedup")]
-
-    # Resource overhead of the pipeline and throughput per unit of logic.
-    overhead = {row["resource"]: row["overhead_pct"]
-                for row in efficiency_table(metrics, stats)
-                if row["overhead_pct"] is not None}
-    alm_overhead = overhead.get("alms", 0.0)
-    reg_overhead = overhead.get("registers", 0.0)
-    ram_overhead = overhead.get("ram_blocks", 0.0)
-    dsp_overhead = overhead.get("dsp_blocks", 0.0)
-
-    # CPI penalty of the pipeline per program: the quantity that has to be
-    # outweighed by the Fmax gain for the hypothesis to hold.
-    penalties = [m["arch"]["pipeline"]["cpi"] / m["arch"]["single_cycle"]["cpi"] - 1
-                 for m in measured
-                 if m["arch"].get("pipeline") and m["arch"].get("single_cycle")
-                 and m["arch"]["single_cycle"]["cpi"]]
-    fmax_gain = (pipe_fmax["mean"] / sc_fmax["mean"] - 1) * 100
-    coremark_note = ""
-    if coremark:
-        coremark_note = (
-            " En la carga estándar CoreMark el pipeline rinde "
-            f"{fmt(coremark[-1]['per_mhz'], 2)} CoreMark/MHz frente a "
-            f"{fmt(coremark[0]['per_mhz'], 2)} del monociclo, la métrica "
-            "normalizada por frecuencia que recomienda EEMBC (sección 9.2.13).")
-
-    def mean_throughput(arch):
-        values = [m["arch"][arch]["throughput"]["mean"] for m in metrics
-                  if arch in m["arch"] and m["arch"][arch].get("throughput")]
-        return sum(values) / len(values) if values else None
-
-    per_alm_ratio = 1.0
-    sc_tp, pipe_tp = mean_throughput("single_cycle"), mean_throughput("pipeline")
-    sc_alms = stats["single_cycle"]["alms"]
-    pipe_alms = stats["pipeline"]["alms"]
-    if sc_tp and pipe_tp and sc_alms and pipe_alms:
-        per_alm_ratio = ((pipe_tp / (pipe_alms["mean"] / 1000.0))
-                         / (sc_tp / (sc_alms["mean"] / 1000.0)))
-
-    def overhead_phrase(value, noun):
-        """Sign-aware phrase: '18 % más de ALMs', 'sin cambio en registros'."""
-        if abs(value) < 0.5:
-            return f"sin cambio en {noun}"
-        direction = "más" if value > 0 else "menos"
-        return f"un {fmt(abs(value), 1)} % {direction} de {noun}"
-
-    resource_changes = [
-        overhead_phrase(alm_overhead, "ALMs"),
-        overhead_phrase(reg_overhead, "registros"),
-        overhead_phrase(ram_overhead, "bloques RAM"),
-        overhead_phrase(dsp_overhead, "bloques DSP"),
-    ]
-    resource_text = ", ".join(resource_changes[:-1]) + " y " + resource_changes[-1]
-    if per_alm_ratio >= 1.0:
-        area_verdict = ("El intercambio es favorable: el pipeline entrega más "
-                        "throughput por unidad de lógica a pesar del área adicional.")
-    else:
-        area_verdict = ("El intercambio no compensa: el pipeline consume más área "
-                        "y entrega menos throughput, de modo que su eficiencia por "
-                        "ALM es inferior a la del monociclo.")
-
-    def program_list(entries):
-        return ", ".join(f"`{m['program']}`" for m in entries) if entries else "ninguno"
-
-    def program_list_tex(entries):
-        names = [r"\texttt{" + m["program"].replace("_", r"\_") + "}" for m in entries]
-        return ", ".join(names) if names else "ninguno"
-
-    if winners and losers:
-        discussion_md = (
-            "El resultado es un rechazo parcial de la hipótesis de trabajo $H_1$: el "
-            f"pipeline supera al monociclo en {program_list(winners)} y pierde en "
-            f"{program_list(losers)}. La ganancia de frecuencia "
-            f"({fmt(fmax_gain, 1)} %) no compensa el aumento del CPI por hazard de "
-            "datos, vaciado de las ramas tomadas y latencia de la división, que va "
-            f"de {fmt(min(penalties) * 100, 0) if penalties else 0} % a "
-            f"{fmt(max(penalties) * 100, 0) if penalties else 0} % según el "
-            "programa. La ventaja se limita, por tanto, a las cargas intensivas en "
-            "multiplicación y división y con pocas dependencias; no es una "
-            "propiedad general de la microarquitectura." + coremark_note + "\n")
-    elif winners:
-        discussion_md = (
-            "El pipeline supera al monociclo en todos los programas medidos "
-            f"({program_list(winners)}). En este conjunto de cargas la ganancia de "
-            "frecuencia supera siempre a la penalización por hazards, de modo que la "
-            "hipótesis de trabajo queda sostenida. El resultado es condicional al "
-            "conjunto de programas medido y no generaliza a cargas con una densidad "
-            "de hazards superior a la de estos programas.\n")
-    else:
-        discussion_md = (
-            "El pipeline no supera al monociclo en ninguno de los programas "
-            "medidos. La ganancia de frecuencia del pipeline es de "
-            f"{fmt((pipe_fmax['mean'] / sc_fmax['mean'] - 1) * 100, 1)} %, mientras "
-            "que la penalización por hazards elevate el CPI del pipeline entre "
-            f"{fmt(min(penalties) * 100, 0) if penalties else 0} % y "
-            f"{fmt(max(penalties) * 100, 0) if penalties else 0} % respecto al "
-            "monociclo: la segunda de las dos cantidades domina el resultado en "
-            "todos los programas, de modo que la hipótesis de trabajo no queda "
-            "sostenida y el mayor Fmax del pipeline no se traduce en mayor "
-            "throughput.\n")
-
-    md = []
-    md.append("# Capítulo 7. Resultados\n")
-    md.append("<!-- Generado por scripts/thesis_artifacts.py. Revisar y "
-              "completar la interpretación antes de la entrega. -->\n")
-    if stale:
-        md.append("> **Aviso:** las réplicas de síntesis guardadas no corresponden "
-                  "a la versión vigente del RTL (huella "
-                  f"`{fingerprint[:12]}`). Ejecute `make thesis` para repetirlas "
-                  "antes de consignar estos números.\n")
-    md.append("## 7.1 Resumen\n")
-    md.append(
-        "Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V "
-        "DE1-SoC bajo el protocolo descrito en `docs/reproduction/`. El pipeline "
-        f"alcanzó una Fmax de {fmt(pipe_fmax['mean'])} MHz "
-        f"($\\pm$ {fmt(pipe_fmax['std'])} MHz, n = {pipe_fmax['n']}) frente a los "
-        f"{fmt(sc_fmax['mean'])} MHz ($\\pm$ {fmt(sc_fmax['std'])} MHz, "
-        f"n = {sc_fmax['n']}) del monociclo, es decir, una mejora de frecuencia de "
-        f"{fmt((pipe_fmax['mean'] / sc_fmax['mean'] - 1) * 100, 1)} %.\n")
-    md.append(
-        "La mejora en frecuencia no se traslada sin más al rendimiento: el CPI del "
-        "pipeline es mayor que uno en todos los programas medidos, porque cada "
-        "burbuja de hazard y cada vaciado por rama tomada son ciclos perdidos. "
-        "El resultado neto depende del balance entre la ganancia de reloj y la "
-        "penalización por hazards.\n")
-    md.append("## 7.2 Verificación funcional\n")
-    md.append("Antes de medir el rendimiento se verificó la corrección funcional de "
-              "ambas implementaciones contra el modelo de referencia de Python y "
-              "contra la suite `riscv-tests`. La tabla "
-              "`\\ref{tab:verification_results}` resume el resultado.\n")
-    md.append("## 7.3 Frecuencia máxima y recursos\n")
-    md.append("La tabla `\\ref{tab:fmax_replicas}` presenta la Fmax de cada réplica y "
-              "la `\\ref{tab:resources}` la utilización de recursos. La dispersión "
-              f"de la Fmax entre réplicas es comparable en las dos arquitecturas "
-              f"(CV {fmt(sc_fmax['cv'])} % en el monociclo y {fmt(pipe_fmax['cv'])} "
-              f"% en el pipeline), de modo que la diferencia de Fmax entre los "
-              f"tratamientos ({fmt((pipe_fmax['mean'] / sc_fmax['mean'] - 1) * 100, 1)} %) "
-              "es mayor que la dispersión experimental y no es un artefacto del "
-              "proceso de síntesis.\n")
-    md.append("## 7.4 CPI, IPC y throughput\n")
-    md.append("La tabla `\\ref{tab:benchmarks}` muestra el CPI efectivo, el IPC y el "
-              "throughput de cada programa. El monociclo presenta CPI = 1 en los "
-              "programas sin división: cada ciclo retira una instrucción. La "
-              "excepción es el programa de la extensión M, donde el divisor de 34 "
-              "ciclos mantiene el datapath ocupado y el CPI del monociclo sube a "
-              "7.58. El pipeline retira una instrucción por ciclo en el mejor caso y "
-              "pierde ciclos por hazard de datos, por vaciado de rama y por la "
-              "latencia de la división.\n")
-    md.append("### CoreMark en hardware\n")
-    md.append(
-        "CoreMark es la carga de referencia del anteproyecto (sección 9.2.13), "
-        "y su regla de ejecución exige al menos 10 s, de modo que la corrida "
-        "oficial en la FPGA usa 2000 iteraciones y no las diez de la "
-        "simulación. El programa ocupa 9044 bytes de la memoria de "
-        "instrucciones (55 % de los 16 KB) y 3389 bytes del bloque de datos "
-        "(83 % de los 4 KB), así que cabe en el dispositivo.\n")
-    if coremark:
-        md.append("| Arquitectura | Reloj (MHz) | Ciclos | Instrucciones | "
-                  "Tiempo (s) | CoreMark | CoreMark/MHz |")
-        md.append("|---|---|---|---|---|---|---|")
-        for row in coremark:
-            md.append(
-                f"| {ARCH_LABELS[row['arch']]} | {fmt(row['clock_mhz'], 0)} | "
-                f"{row['cycles']} | {row['instructions']} | "
-                f"{fmt(row['seconds'], 2)} | {fmt(row['score'], 2)} | "
-                f"{fmt(row['per_mhz'], 3)} |")
-        md.append("")
-        md.append(
-            "La tabla `\\ref{tab:coremark}` recoge la corrida; los ciclos y "
-            "las instrucciones son los contadores congelados que se leyeron en "
-            "la consola VGA. El monociclo rinde "
-            f"{fmt(coremark[0]['per_mhz'], 2)} CoreMark/MHz y el pipeline "
-            f"{fmt(coremark[-1]['per_mhz'], 2)}: la normalización por "
-            "frecuencia aísla el efecto del CPI, que es la variable "
-            "arquitectural que el benchmark mide.\n")
-    else:
-        md.append("No hay una corrida de CoreMark en hardware registrada "
-                  "(`results/results_coremark.csv`).\n")
-    md.append("## 7.5 Análisis estadístico\n")
-    md.append(f"Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La "
-              f"desviación estándar de la Fmax es de {fmt(sc_fmax['std'])} MHz en el "
-              f"monociclo (CV {fmt(sc_fmax['cv'])} %) y de {fmt(pipe_fmax['std'])} "
-              f"MHz en el pipeline (CV {fmt(pipe_fmax['cv'])} %). "
-              "La tabla `\\ref{tab:statistics}` recoge la estadística completa.\n")
-    md.append("## 7.6 Eficiencia relativa\n")
-    md.append("La tabla `\\ref{tab:efficiency}` contrasta el throughput con el costo "
-              "en recursos. Respecto al monociclo, el pipeline usa "
-              f"{resource_text}. Expresado en throughput por mil ALMs, el pipeline "
-              f"multiplica por {fmt(per_alm_ratio, 2)} la eficiencia del monociclo. "
-              + area_verdict + "\n")
-    md.append("## 7.7 Evaluación de la hipótesis\n")
-    if winners and losers:
-        md.append(
-            f"La hipótesis de trabajo $H_1$ se sostiene solo en los programas "
-            f"{program_list(winners)} y no se descarta en los programas "
-            f"{program_list(losers)}; en conjunto, el resultado es un rechazo "
-            "parcial de la hipótesis, no una confirmación. La tabla "
-            "`\\ref{tab:speedup}` muestra el speedup del pipeline respecto al "
-            "monociclo y el extremo inferior de su dispersión.\n")
-    elif winners:
-        md.append(
-            f"La hipótesis de trabajo $H_1$ se sostiene en todos los programas "
-            f"medidos ({program_list(winners)}). La tabla "
-            "`\\ref{tab:speedup}` muestra el speedup del pipeline respecto al "
-            "monociclo y el extremo inferior de su dispersión.\n")
-    else:
-        md.append(
-            "La hipótesis de trabajo $H_1$ no se sostiene en ninguno de los "
-            "programas medidos: el extremo inferior de la dispersión del speedup "
-            "queda por debajo de uno en todos los casos. La tabla "
-            "`\\ref{tab:speedup}` muestra el speedup del pipeline respecto al "
-            "monociclo y su dispersión.\n")
-    md.append("## 7.8 Discusión\n")
-    md.append(discussion_md)
-    md.append("## 7.9 Limitaciones\n")
-    if unmeasured:
-        md.append(f"- Los programas {program_list(unmeasured)} no obtuvieron una "
-                  "medición válida y quedan fuera de la comparación.\n")
-    md.append(
-        "- El tamaño muestral ($n = 5$ réplicas) limita el análisis a la estadística "
-        "descriptiva; no se aplican pruebas de significancia.\n"
-        "- El CPI se mide con los contadores del procesador en cocotb y se "
-        "verifica sobre la FPGA con CoreMark (ADR 051). Los contadores son "
-        "deterministas, así que la única fuente de dispersión que se modela "
-        "estadísticamente es la Fmax.\n"
-        "- CoreMark se mide en simulación con diez iteraciones para el CPI; la "
-        "corrida oficial en hardware usa 2000 iteraciones para cumplir el "
-        "mínimo de 10 s de EEMBC y se ejecuta una vez por arquitectura, porque "
-        "el conteo de ciclos no depende del seed de place-and-route.\n")
-
-    tex = []
-    tex.append("% Generado por scripts/thesis_artifacts.py - no editar a mano.")
-    tex.append(r"\chapter{Resultados}")
-    tex.append("")
-    tex.append(r"\section{Resumen}")
-    tex.append("")
-    if stale:
-        tex.append(r"\begin{quote}")
-        tex.append(r"\textbf{Aviso.} Las réplicas de síntesis guardadas no "
-                   "corresponden a la versión vigente del RTL. Repita "
-                   r"\texttt{make thesis} antes de consignar estos números.")
-        tex.append(r"\end{quote}")
-    tex.append(
-        "Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V "
-        "DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El "
-        f"pipeline alcanzó una Fmax de {fmt(pipe_fmax['mean'])} MHz "
-        f"($\\pm$ {fmt(pipe_fmax['std'])} MHz, $n = {pipe_fmax['n']}$) frente a los "
-        f"{fmt(sc_fmax['mean'])} MHz ($\\pm$ {fmt(sc_fmax['std'])} MHz, "
-        f"$n = {sc_fmax['n']}$) del monociclo, una mejora de frecuencia del "
-        f"{fmt((pipe_fmax['mean'] / sc_fmax['mean'] - 1) * 100, 1)} \\%.")
-    tex.append("")
-    tex.append(r"\section{Verificación funcional}")
-    tex.append("")
-    tex.append("La corrección funcional de ambas implementaciones se verificó "
-               "contra el modelo de referencia de Python y contra la suite "
-               r"\texttt{riscv-tests} antes de medir el rendimiento. Los "
-               "resultados se resumen en la tabla "
-               r"\ref{tab:verification_results}.")
-    tex.append("")
-    tex.append(r"\input{tables/verification_results.tex}")
-    tex.append("")
-    tex.append(r"\section{Frecuencia máxima y recursos}")
-    tex.append("")
-    tex.append(r"\input{tables/fmax_replicas.tex}")
-    tex.append("")
-    tex.append(r"\input{tables/resources.tex}")
-    tex.append("")
-    tex.append(r"\input{figures/diagrams/fmax_comparison.tex}")
-    tex.append("")
-    tex.append(r"\section{CPI, IPC y throughput}")
-    tex.append("")
-    tex.append(r"\input{tables/benchmarks.tex}")
-    tex.append("")
-    tex.append("El monociclo presenta CPI = 1 en los programas sin división: cada "
-               "ciclo retira una instrucción. La excepción es el programa de la "
-               "extensión M, donde el divisor de 34 ciclos mantiene el datapath "
-               "ocupado y el CPI del monociclo sube a 7.58. El pipeline retira una "
-               "instrucción por ciclo en el mejor caso y pierde ciclos por hazard de "
-               "datos, por vaciado de rama y por la latencia de la división.")
-    tex.append("")
-    tex.append(r"\input{figures/diagrams/throughput_comparison.tex}")
-    tex.append("")
-    tex.append(r"\input{figures/diagrams/cpi_comparison.tex}")
-    tex.append("")
-    tex.append(r"\subsection{CoreMark en hardware}")
-    tex.append("")
-    tex.append("CoreMark es la carga de referencia del anteproyecto (sección "
-               "9.2.13) y exige al menos 10 s de ejecución, así que la corrida "
-               "oficial usa 2000 iteraciones. El programa ocupa 9044 bytes de la "
-               "memoria de instrucciones (55 \\% de 16 KB) y 3389 bytes del "
-               "bloque de datos (83 \\% de 4 KB), por lo que cabe en el "
-               "dispositivo.")
-    if coremark:
-        tex.append("")
-        tex.append(r"\input{tables/coremark.tex}")
-        tex.append("")
-        tex.append("Los ciclos y las instrucciones son los contadores "
-                   "congelados que se leyeron en la consola VGA. La "
-                   "normalización por frecuencia aísla el efecto del CPI: "
-                   f"el monociclo rinde {fmt(coremark[0]['per_mhz'], 2)} "
-                   f"CoreMark/MHz y el pipeline {fmt(coremark[-1]['per_mhz'], 2)}.")
-    else:
-        tex.append("")
-        tex.append("No hay una corrida de CoreMark en hardware registrada.")
-    tex.append("")
-    tex.append(r"\section{Análisis estadístico}")
-    tex.append("")
-    tex.append(f"Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. "
-               f"La desviación estándar de la Fmax es de {fmt(sc_fmax['std'])} MHz en "
-               f"el monociclo (CV {fmt(sc_fmax['cv'])} \\%) y de "
-               f"{fmt(pipe_fmax['std'])} MHz en el pipeline (CV {fmt(pipe_fmax['cv'])} "
-               "\\%).")
-    tex.append("")
-    tex.append(r"\input{tables/statistics.tex}")
-    tex.append("")
-    tex.append(r"\section{Eficiencia relativa}")
-    tex.append("")
-    tex.append(r"\input{tables/efficiency.tex}")
-    tex.append("")
-    tex.append(r"\input{figures/diagrams/resources_comparison.tex}")
-    tex.append("")
-    tex.append(r"\section{Evaluación de la hipótesis}")
-    tex.append("")
-    tex.append(r"\input{tables/speedup.tex}")
-    tex.append("")
-    if winners and losers:
-        tex.append(
-            "La hipótesis de trabajo $H_1$ se sostiene solo en "
-            f"{program_list_tex(winners)} y no se descarta en "
-            f"{program_list_tex(losers)}: "
-            "en conjunto, el resultado es un rechazo parcial, no una confirmación. "
-            f"La ganancia de frecuencia ({fmt(fmax_gain, 1)} \\%) no compensa el "
-            "aumento del CPI por hazard de datos, vaciado de ramas y latencia de "
-            "la división." + coremark_note)
-        tex.append("")
-    tex.append(r"\section{Limitaciones}")
-    tex.append("")
-    tex.append(r"\begin{itemize}")
-    tex.append(r"\item El tamaño muestral ($n = 5$) limita el análisis a la "
-               "estadística descriptiva.")
-    tex.append(r"\item El CPI se mide con los contadores del procesador en "
-               r"cocotb y se verifica sobre la FPGA con CoreMark (ADR 051); la "
-               r"única fuente de dispersión considerada es la variabilidad de "
-               r"la Fmax entre réplicas.")
-    tex.append(r"\item CoreMark se mide en simulación con diez iteraciones; la "
-               r"corrida oficial en hardware usa 2000 iteraciones ($\geq$ 10 s, "
-               r"EEMBC) y se ejecuta una vez por arquitectura, porque el conteo "
-               r"de ciclos no depende del seed de place-and-route.")
-    tex.append(r"\end{itemize}")
-
-    return md, tex
 
 
 # --------------------------------------------------------------------------
@@ -2009,7 +1967,7 @@ def main() -> int:
     metrics = benchmark_metrics(benchmarks, stats)
     efficiency = efficiency_table(metrics, stats)
 
-    for directory in (TABLES, FIGURES, CHAPTERS, REPRO):
+    for directory in (TABLES, FIGURES, REPRO):
         directory.mkdir(parents=True, exist_ok=True)
 
     written = [
@@ -2023,12 +1981,15 @@ def main() -> int:
 
     tables = {
         "fmax_replicas.tex": table_fmax_replicas(replicas, stats),
+        "critical_path.tex": table_critical_path(read_timing_paths()),
         "resources.tex": table_resources(stats),
         "benchmarks.tex": table_benchmarks(metrics),
         "statistics.tex": table_statistics(stats),
         "efficiency.tex": table_efficiency(metrics, stats, efficiency),
         "speedup.tex": table_speedup(metrics),
         "coremark.tex": table_coremark(read_coremark_hardware()),
+        "coremark_scenarios.tex": table_coremark_scenarios(
+            read_coremark_hardware(), stats),
         "verification_results.tex": table_verification(verification),
     }
     for name, content in tables.items():
@@ -2040,6 +2001,7 @@ def main() -> int:
         "fmax_comparison.tex": figure_fmax(stats),
         "throughput_comparison.tex": figure_throughput(metrics),
         "cpi_comparison.tex": figure_cpi(metrics),
+        "speedup.tex": figure_speedup(metrics),
         "resources_comparison.tex": figure_resources(stats),
     }
     for name, content in figures.items():
@@ -2054,13 +2016,6 @@ def main() -> int:
     # A replica without a fingerprint comes from an unknown RTL: it is stale
     # too, and the numbers it holds cannot be compared with the others.
     stale = any(r.get("fingerprint") != fingerprint for r in replicas)
-    coremark = read_coremark_hardware()
-    md, tex = write_chapter(metrics, stats, replicas, verification, coremark,
-                            stale, fingerprint)
-    (CHAPTERS / "07_resultados.md").write_text("\n".join(md))
-    (CHAPTERS / "07_resultados.tex").write_text("\n".join(tex) + "\n")
-    written.append(CHAPTERS / "07_resultados.md")
-    written.append(CHAPTERS / "07_resultados.tex")
 
     for path in written:
         print(f"  {path.relative_to(REPO_ROOT)}")

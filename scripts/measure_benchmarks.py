@@ -10,9 +10,10 @@ The script runs the cocotb validation test once per (architecture, program)
 and merges the result with the Fmax collected in results/results_synthesis.csv.
 
 A single simulation run per (architecture, program) is enough: the CPI is
-deterministic in simulation, so the only source of experimental variability is
+deterministic in simulation, so the propagated source of variability is
 the place-and-route process, which is covered by the five synthesis replicas
-and propagated to the throughput through their Fmax (anteproyecto §7.1.3).
+and propagated through their Fmax. This is a reduced simulation protocol,
+not evidence of five physical executions per program.
 
 A (program, architecture) pair whose CSV was produced from the same RTL and
 the same ELF is reused instead of simulated again; use --force to re-run it.
@@ -35,7 +36,7 @@ RESULTS_DIR = REPO_ROOT / "results"
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from fpga_validate import run_cocotb_validation  # noqa: E402
 from campaign_state import (  # noqa: E402
-    file_fingerprint, load_state, mark, matches, save_state, source_fingerprint,
+    file_fingerprint, load_state, mark, matches, save_state, verification_fingerprint,
 )
 
 # The synthetic stress programs and CoreMark.  The CoreMark binary uses a
@@ -112,9 +113,10 @@ def main() -> int:
         benchmarks += riscv_test_elfs()
 
     fmax = read_fmax(args.fmax_csv)
-    fingerprint = source_fingerprint()
+    fingerprint = verification_fingerprint()
     state = load_state()
     rows = []
+    failures = []
 
     for name, rel_path in benchmarks:
         elf_path = REPO_ROOT / rel_path
@@ -149,6 +151,7 @@ def main() -> int:
                                                      max_cycles=args.max_cycles)
                     except Exception as error:
                         print(f" FAILED ({error})")
+                        failures.append((arch, name, str(error)))
                         continue
                     mark(state, key, **inputs)
                     save_state(state)
@@ -192,6 +195,7 @@ def main() -> int:
                 row["result"] = "divergent"
                 row["note"] = (f"instruction streams differ: "
                                f"single_cycle={sc_instr}, pipeline={pipe_instr}")
+                row["throughput_mips"] = ""
 
     # Speedup of the pipeline over the single-cycle, per program.
     by_program = {}
@@ -206,7 +210,8 @@ def main() -> int:
             continue
         if not sc["throughput_mips"] or not pipe["throughput_mips"]:
             continue
-        speedup = float(pipe["throughput_mips"]) / float(sc["throughput_mips"])
+        speedup = ((int(sc["cycle_count"]) / fmax["single_cycle"])
+                   / (int(pipe["cycle_count"]) / fmax["pipeline"]))
         sc["speedup_pipeline_over_single_cycle"] = f"{speedup:.4f}"
         pipe["speedup_pipeline_over_single_cycle"] = f"{speedup:.4f}"
 
@@ -231,7 +236,7 @@ def main() -> int:
 
     print()
     print(f"Measurements written to: {args.output}")
-    return 0
+    return 1 if failures or any(r["result"] != "pass" for r in rows) else 0
 
 
 if __name__ == "__main__":

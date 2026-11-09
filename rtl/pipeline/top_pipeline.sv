@@ -271,10 +271,12 @@ module top_pipeline #(
     );
 
     // Clock enable of the IF stage: the hazard stall plus the step freeze.
-    // A pending trap still overrides the hazard stall, but not the freeze:
+    // A redirect overrides hazards in the younger, discarded ID instruction.
+    // Otherwise a MEM load dependency can suppress an EX jump permanently.
+    // The step freeze still takes priority:
     // the pipeline must not move until the user releases it.
     logic pipe_stall;
-    assign pipe_stall = (stall && !trap_flush) || step_hold_effective;
+    assign pipe_stall = (stall && !flush) || step_hold_effective;
 
     // While the pipeline is frozen no flush may be applied: the flush
     // signals are combinational functions of the held state, so they would
@@ -287,6 +289,7 @@ module top_pipeline #(
     logic [63:0] cycles_at_done;
     logic [63:0] instr_at_done;
 
+    // Explicit stage validity counts program NOPs while excluding inserted bubbles.
     // valid_wb: a real instruction retires in WB when it is not a bubble
     // and the WB stage is advancing.
     //
@@ -298,17 +301,22 @@ module top_pipeline #(
     // The division stall holds the MEM/WB register, so the instruction
     // that is already in WB would be counted again on every cycle of the
     // stall.  The division makes the pipeline advance flag false.
+    logic ex_valid, mem_valid, wb_valid;
+    logic wb_tohost;
     logic valid_wb;
-    assign valid_wb = (wb_instruction != 32'h00000013) && !ex_div_busy;
+    assign valid_wb = wb_valid && !ex_div_busy;
 
-    // program_done: detect tohost write in MEM stage (ADR 026).
-    // A store of value 1 to TOHOST_ADDR signals benchmark completion.
-    // The pulse is the condition itself: the counters are frozen in the
-    // cycle that carries the store into the register file, which is the
-    // instant cocotb samples.
+    // Count through the tohost store's retirement, including that store.
     logic program_done_pulse;
-    assign program_done_pulse = mem_dm_wr && (mem_alu_result == TOHOST_ADDR)
-                             && (mem_rs2_data == 32'd1);
+    always_ff @(posedge clk) begin
+        if (rst)
+            wb_tohost <= 1'b0;
+        else if (!ex_div_busy && !step_hold_effective)
+            wb_tohost <= mem_valid && mem_dm_wr
+                         && (mem_alu_result == TOHOST_ADDR)
+                         && (mem_rs2_data != 32'd0);
+    end
+    assign program_done_pulse = valid_wb && wb_tohost;
 
     // Registered copy for the console and the SignalTap II trigger.  `rst`
     // also covers the loader reset pulse, so loading a new program clears the
@@ -342,7 +350,7 @@ module top_pipeline #(
         .PIPELINE_MODE (1'b1)
     ) u_perf (
         .clk                  (clk),
-        .rst_n                (rst_n_int),
+        .rst_n                (~rst),
         .enable               (~step_hold_effective & ~program_done),
         .div_busy             (ex_div_busy),
         .valid_wb             (valid_wb),
@@ -561,6 +569,7 @@ module top_pipeline #(
         .flush             (id_ex_flush),
         .stall             (ex_div_busy || step_hold_effective),
         .id_pc             (id_pc),
+        .id_valid          (fetch_valid),
         .id_instruction    (id_instruction),
         .id_rs1_data       (id_rs1_data_wb_fwd),
         .id_rs2_data       (id_rs2_data_wb_fwd),
@@ -584,6 +593,7 @@ module top_pipeline #(
         .id_csr_op         (id_csr_op),
         .id_csr_imm        (id_csr_imm),
         .ex_pc             (ex_pc),
+        .ex_valid          (ex_valid),
         .ex_instruction    (ex_instruction),
         .ex_rs1_data       (ex_rs1_data),
         .ex_rs2_data       (ex_rs2_data),
@@ -687,6 +697,7 @@ module top_pipeline #(
         .ex_alu_result      (ex_alu_result),
         .ex_rs2_data_fwd    (ex_rs2_fwd),
         .ex_rs1_data_fwd    (ex_rs1_fwd),
+        .ex_valid          (ex_valid),
         .ex_instruction     (ex_instruction),
         .ex_rd_addr         (ex_rd_addr),
         .ex_ru_wr           (ex_ru_wr),
@@ -705,6 +716,7 @@ module top_pipeline #(
         .mem_alu_result     (mem_alu_result),
         .mem_rs2_data       (mem_rs2_data),
         .mem_rs1_data       (mem_rs1_data),
+        .mem_valid          (mem_valid),
         .mem_instruction    (mem_instruction),
         .mem_rd_addr        (mem_rd_addr),
         .mem_ru_wr          (mem_ru_wr),
@@ -775,6 +787,7 @@ module top_pipeline #(
         .mem_alu_result     (mem_alu_result),
         .mem_dm_rd_data     ('0),
         .mem_rs1_data       (mem_rs1_data),
+        .mem_valid          (mem_valid),
         .mem_instruction    (mem_instruction),
         .mem_rd_addr        (mem_rd_addr),
         .mem_ru_wr          (mem_ru_wr),
@@ -791,6 +804,7 @@ module top_pipeline #(
         .wb_alu_result      (wb_alu_result),
         .wb_dm_rd_data      (wb_dm_rd_data_unused),
         .wb_rs1_data        (wb_rs1_data),
+        .wb_valid          (wb_valid),
         .wb_instruction     (wb_instruction),
         .wb_rd_addr         (wb_rd_addr),
         .wb_ru_wr           (wb_ru_wr),

@@ -22,6 +22,7 @@ module ex_mem_register (
     input  logic [31:0] ex_alu_result,
     input  logic [31:0] ex_rs2_data_fwd,
     input  logic [31:0] ex_rs1_data_fwd,  // needed for CSR zimm / rs1 source
+    input  logic        ex_valid,
     input  logic [31:0] ex_instruction,
     input  logic [4:0]  ex_rd_addr,
     input  logic        ex_ru_wr,
@@ -42,6 +43,7 @@ module ex_mem_register (
     output logic [31:0] mem_alu_result,
     output logic [31:0] mem_rs2_data,
     output logic [31:0] mem_rs1_data,
+    output logic        mem_valid,
     output logic [31:0] mem_instruction,
     output logic [4:0]  mem_rd_addr,
     output logic        mem_ru_wr,
@@ -63,6 +65,7 @@ module ex_mem_register (
 
     always_ff @(posedge clk) begin
         if (rst) begin
+            mem_valid <= 1'b0;
             mem_alu_result      <= '0;
             mem_rs2_data        <= '0;
             mem_rs1_data        <= '0;
@@ -82,6 +85,7 @@ module ex_mem_register (
             mem_csr_imm         <= 1'b0;
             mem_rs1_addr        <= '0;
         end else if (flush) begin
+            mem_valid <= 1'b0;
             mem_alu_result      <= '0;
             mem_rs2_data        <= '0;
             mem_rs1_data        <= '0;
@@ -101,6 +105,7 @@ module ex_mem_register (
             mem_csr_imm         <= 1'b0;
             mem_rs1_addr        <= '0;
         end else if (!stall) begin
+            mem_valid <= ex_valid;
             mem_alu_result      <= ex_alu_result;
             mem_rs2_data        <= ex_rs2_data_fwd;
             mem_rs1_data        <= ex_rs1_data_fwd;

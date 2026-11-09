@@ -16,12 +16,15 @@ This test loads the program, runs until tohost write, and logs the
 performance counter values (cycle_count, instr_retired, CPI).
 """
 
+import csv
+import hashlib
+import json
 import os
 import pathlib
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge
+from cocotb.triggers import RisingEdge, ReadOnly
 
 from tohost import (
     generate_mem_for_elf,
@@ -74,25 +77,42 @@ async def test_validation(dut):
     await reset_and_reload_memories(dut, imem_path, dmem_path)
     cocotb.log.info("Reset complete, program loaded, starting execution...")
 
+    trace = None
+    if is_pipeline and os.environ.get("VALIDATION_LOCKSTEP", "0") == "1":
+        from benchmark_evidence import check_pipeline_retirement
+        trace = cocotb.start_soon(check_pipeline_retirement(
+            dut, imem_path, dmem_path, tohost_addr))
+
     # Wait for tohost write or timeout.
     # MAX_CYCLES env var overrides default (200k) - needed for CoreMark.
     max_cycles = int(os.environ.get("VALIDATION_MAX_CYCLES", 200_000))
     result = await monitor_tohost(dut, elf_path, max_cycles=max_cycles)
 
-    # Read counters AFTER the tohost write (give the pipeline one extra cycle)
-    await RisingEdge(dut.clk)
+    # MEM detects the store before its WB retirement. Sample settled flops.
+    for _ in range(128):
+        await RisingEdge(dut.clk)
+        await ReadOnly()
+        if int(dut.u_perf.program_done_synced.value):
+            break
+    else:
+        raise AssertionError("Completion store did not retire within 128 cycles")
     cycle_count = int(dut.u_perf.cycle_count.value)
     instr_retired = int(dut.u_perf.instr_retired.value)
-    cpi = cycle_count / max(instr_retired, 1)
-
-    # The counters the console shows on the board are frozen when the
-    # program writes to tohost.  They are latched by the clock edge that
-    # ends the store, so they are visible one edge later.  They must match
-    # the values reported here, otherwise a photograph of the console cannot
-    # be compared with the simulation.
-    await RisingEdge(dut.clk)
     cycles_at_done = int(dut.u_perf.cycles_at_done.value)
     instr_at_done = int(dut.u_perf.instr_at_done.value)
+    cpi = cycle_count / max(instr_retired, 1)
+
+    from benchmark_evidence import validate_coremark, compare_reference_model
+    evidence = validate_coremark(dut, elf_path)
+    cocotb.log.info(f"Functional evidence: {evidence}")
+    if evidence and not evidence["functional_valid"]:
+        result = "crc-fail"
+    differential = None
+    if os.environ.get("VALIDATION_REFERENCE", "0") == "1":
+        differential = compare_reference_model(
+            dut, imem_path, dmem_path, tohost_addr, max_cycles, instr_retired)
+    if trace is not None:
+        await trace
 
     cocotb.log.info("=== Validation Results ===")
     cocotb.log.info(f"  Architecture:    {arch}")
@@ -109,11 +129,24 @@ async def test_validation(dut):
     csv_dir = pathlib.Path(csv_path).parent
     csv_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(csv_path, "w") as f:
-        f.write("architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr\n")
-        f.write(
-            f"{arch},{elf_path.name},{result},{cycle_count},{instr_retired},{cpi:.4f},{tohost_addr:#x}\n"
-        )
+    from campaign_state import source_fingerprint
+    record = {
+        "architecture": arch, "program": elf_path.name, "result": result,
+        "cycle_count": cycle_count, "instr_retired": instr_retired,
+        "cpi": f"{cpi:.8f}", "tohost_addr": hex(tohost_addr),
+        "counter_protocol": "retire-inclusive-v2",
+        "elf_sha256": hashlib.sha256(elf_path.read_bytes()).hexdigest(),
+        "rtl_sha256": source_fingerprint(),
+        "coremark_functional_valid": evidence["functional_valid"] if evidence else "",
+        "reference_valid": differential is not None,
+    }
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(record))
+        writer.writeheader()
+        writer.writerow(record)
+    pathlib.Path(str(csv_path) + ".evidence.json").write_text(
+        json.dumps({"measurement": record, "coremark": evidence,
+                    "reference": differential}, indent=2) + "\n")
 
     cocotb.log.info(f"Results written to: {csv_path}")
 

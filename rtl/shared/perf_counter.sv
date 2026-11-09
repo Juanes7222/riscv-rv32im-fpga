@@ -14,7 +14,7 @@ module perf_counters #(
     input  logic        valid_wb,
 
     // program_done_pulse: pulsed high (one cycle) when the benchmark writes
-    // to tohost.  The registered sticky copy (program_done) lives in the
+    // to tohost retires. The registered sticky copy (program_done) lives in the
     // top-level and drives HALTED / SignalTap II.
     input  logic        program_done_pulse,
 
@@ -26,7 +26,7 @@ module perf_counters #(
     output logic [63:0] instr_retired      /* synthesis keep */,
     output logic        program_done_synced /* synthesis keep */,  // registered for SignalTap trigger
 
-    // Counters frozen at the instant the program wrote to tohost.  They are
+    // Counters frozen through retirement of the completing tohost store. They are
     // the on-board counterpart of the values cocotb reports, so the console
     // shows the same numbers the simulation measured.
     output logic [63:0] cycles_at_done     /* synthesis keep */,
@@ -49,16 +49,14 @@ module perf_counters #(
             program_done_synced  <= 1'b0;
             cycles_at_done       <= 64'h0;
             instr_at_done        <= 64'h0;
-        end else if (enable) begin
+        end else if (enable && !program_done_synced) begin
             cycle_count          <= cycle_count + 64'h1;
             instr_retired        <= instr_retired + {{63{1'b0}}, instr_retired_en};
             program_done_synced  <= program_done_synced || program_done_pulse;
-            // Freeze the counters at the tohost write.  The value captured is
-            // the one cocotb reads one edge later, so the console and the
-            // simulation report the same numbers.
+            // Include the completing instruction and freeze both views together.
             if (program_done_pulse) begin
-                cycles_at_done <= cycle_count;
-                instr_at_done  <= instr_retired;
+                cycles_at_done <= cycle_count + 64'd1;
+                instr_at_done  <= instr_retired + {{63{1'b0}}, instr_retired_en};
             end
         end
     end

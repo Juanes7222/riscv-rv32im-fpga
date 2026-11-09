@@ -1,3 +1,4 @@
+import hashlib
 import os
 import pathlib
 import subprocess
@@ -46,7 +47,7 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.
     imem_depth = int(os.environ.get("IMEM_DEPTH", 16384))
     dmem_depth = int(os.environ.get("DMEM_DEPTH", 8192))
 
-    sim_dir    = BUILD_DIR / "sim"
+    sim_dir    = BUILD_DIR / "sim" / hashlib.sha256(elf_path.read_bytes()).hexdigest()[:16]
     imem_path  = sim_dir / "imem.mem"
     dmem_path  = sim_dir / "dmem.mem"
 
@@ -170,7 +171,7 @@ async def monitor_tohost(
                 dm_wr = 0
                 dm_addr_val = -1
 
-        addr_matches = (dm_addr_val == tohost_byte_addr or dm_addr_val == tohost_word_addr)
+        addr_matches = dm_addr_val == tohost_byte_addr
 
         # Debug: log any store in MEM and PC
         if dm_wr == 1 and cycle < 200:
