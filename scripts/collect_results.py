@@ -45,6 +45,8 @@ TEST_SUITES = {
         ],
         "arch": [
             "test_cpi_one",    # CPI=1 architectural invariant
+            "test_step_mode",
+            "test_program_loader",
         ],
     },
     "pipeline": {
@@ -57,6 +59,10 @@ TEST_SUITES = {
             "test_pipeline_hazards",  # 7 hazard/forwarding tests
             "test_pipeline_control",  # 5 control hazard tests
             "test_pipeline_cpi",      # 4 CPI performance tests
+            "test_pipeline_step_mode",
+            "test_pipeline_tail_jump",
+            "test_program_loader",
+            "test_loader_executes",
         ],
     },
 }
@@ -82,6 +88,7 @@ TEST_SUITE_NAMES = {
     "test_pipeline_step_mode": "Pipeline Step Mode",
     "test_program_loader":   "Program Loader",
     "test_loader_executes":  "Loader Execution (1 test)",
+    "test_pipeline_tail_jump": "Pipeline Tail Jump",
 }
 
 
@@ -461,7 +468,7 @@ def run_make_target(target: str, arch: str, cwd: Optional[Path] = None) -> bool:
     env = os.environ.copy()
     env["ARCH"] = arch
 
-    cmd = ["make", target]
+    cmd = ["make", target, f"ARCH={arch}"]
     print(f"  Running: {' '.join(cmd)} (ARCH={arch})")
 
     result = subprocess.run(
@@ -565,11 +572,11 @@ def collect_verification_results(arch: str) -> Dict[str, SuiteSummary]:
         common_suites = parse_results_xml(common_xml)
         suites.update(common_suites)
 
-    # Arch-specific tests (CPI for single_cycle; all pipeline tests).
-    # Prefer the archived copy under results/ (immune to overwrites).
-    arch_xml = RESULTS_DIR / f"verification_{arch}.xml"
+    # Validation runs have separate XML paths. Prefer the latest suite run,
+    # including its failures, over a potentially stale archived success.
+    arch_xml = VERIF_DIR / arch / "results.xml"
     if not arch_xml.exists():
-        arch_xml = VERIF_DIR / arch / "results.xml"
+        arch_xml = RESULTS_DIR / f"verification_{arch}.xml"
     arch_suites = parse_results_xml(arch_xml)
     suites.update(arch_suites)
 
@@ -652,6 +659,7 @@ def generate_latex_verification_table(
     ]
 
     ordered = common_suites + arch_suites_sc + arch_suites_pipe
+    ordered += sorted(all_suite_names - set(ordered))
 
     for suite_name in ordered:
         if suite_name not in all_suite_names:
@@ -787,7 +795,7 @@ def generate_latex_synthesis_table(
                  r"expected: the SDC declares a 10\,ns target, twice as aggressive as "
                  r"the board clock on purpose, so that Quartus reports the true "
                  r"achievable Fmax (ADR~049). At the 25\,ns (single-cycle) and "
-                 r"20\,ns (pipeline) operating periods both designs meet timing.} \\")
+                 r"20\,ns (pipeline) operating periods require a separate full timing audit.} \\")
     lines.append(r"\bottomrule")
     lines.append(r"\end{tabular}")
     lines.append(r"\end{table}")
@@ -933,6 +941,7 @@ def generate_markdown_report(all_results: Dict[str, ArchitectureResults]) -> str
         "test_pipeline_step_mode", "test_program_loader", "test_loader_executes",
     ]
 
+    ordered += sorted(all_suite_names - set(ordered))
     for suite_name in ordered:
         if suite_name not in all_suite_names:
             continue
@@ -1214,6 +1223,8 @@ def main():
         ok = run_all_tests()
         if not ok:
             print("\nWARNING: Some tests failed. Continuing with partial results.\n")
+    else:
+        ok = True
 
     # Collect results
     print("Collecting results from existing data...")
@@ -1275,13 +1286,16 @@ def main():
         csv_path.write_text(csv_content)
         print(f"  CSV verification data written to: {csv_path}")
 
-        synth_csv_path = output_dir / "results_synthesis.csv"
+        synth_csv_path = output_dir / "results_synthesis_latest.csv"
         synth_csv_content = generate_synth_csv(all_results)
         synth_csv_path.write_text(synth_csv_content)
         print(f"  CSV synthesis data written to: {synth_csv_path}")
 
     print("\nDone.")
+    failed = any(s.failed or s.errors for r in all_results.values() for s in r.suites.values())
+    missing = any(not r.suites for r in all_results.values())
+    return 1 if not ok or failed or missing else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

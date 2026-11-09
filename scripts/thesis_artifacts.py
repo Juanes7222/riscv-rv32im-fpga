@@ -3,7 +3,8 @@
 
 Reads the raw data of the experiment (the replica directories and the
 benchmark CSV) and writes the statistics, the LaTeX tables, the pgfplots
-figures and the protocol documents.  It writes no prose: the chapter text is
+figures. The report orchestrator publishes these in an isolated bundle.
+It does not rewrite methodology prose: the chapter text is
 written by hand around the generated tables and figures.
 
 Usage:
@@ -12,6 +13,7 @@ Usage:
 """
 
 import csv
+import math
 import json
 import re
 import statistics
@@ -25,7 +27,8 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from collect_results import TEST_SUITE_NAMES  # noqa: E402
 from campaign_state import source_fingerprint  # noqa: E402
-RESULTS = REPO_ROOT / "results"
+INPUT_RESULTS = REPO_ROOT / "results"
+RESULTS = INPUT_RESULTS
 TABLES = REPO_ROOT / "thesis" / "tables"
 FIGURES = REPO_ROOT / "thesis" / "figures" / "diagrams"
 REPRO = REPO_ROOT / "docs" / "reproduction"
@@ -84,7 +87,8 @@ def collect_replicas() -> list:
     """One record per synthesis replica, with Fmax and resource usage."""
     records = []
     for arch in ARCHES:
-        for replica_dir in sorted((RESULTS / arch).glob("replica_*")):
+        for replica_dir in sorted((INPUT_RESULTS / arch).glob("replica_*"),
+                                  key=lambda p: int(p.name.split("_")[-1])):
             meta_path = replica_dir / "meta.json"
             meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
             fmax = None
@@ -92,6 +96,8 @@ def collect_replicas() -> list:
             if fmax_file.exists():
                 try:
                     fmax = float(fmax_file.read_text().strip())
+                    if not math.isfinite(fmax) or fmax <= 0:
+                        fmax = None
                 except ValueError:
                     fmax = None
             record = {
@@ -110,11 +116,15 @@ def collect_replicas() -> list:
 
 def read_benchmarks() -> list:
     """Rows of results/results_benchmarks.csv."""
-    path = RESULTS / "results_benchmarks.csv"
+    path = INPUT_RESULTS / "results_benchmarks.csv"
     if not path.exists():
         return []
     with path.open() as fp:
-        return list(csv.DictReader(fp))
+        rows = list(csv.DictReader(fp))
+    keys = [(r["program"], r["architecture"]) for r in rows]
+    if len(set(keys)) != len(keys):
+        raise ValueError("Duplicate benchmark (program, architecture) rows")
+    return rows
 
 
 def read_verification() -> list:
@@ -223,11 +233,12 @@ def benchmark_metrics(benchmarks: list, stats: dict) -> list:
             row = per_arch.get(arch)
             if row is None:
                 continue
-            cpi = int(row["cycle_count"]) / int(row["instr_retired"])
+            cycles, instructions = int(row["cycle_count"]), int(row["instr_retired"])
+            valid = row["result"] == "pass" and cycles > 0 and instructions > 0
+            cpi = cycles / instructions if valid else None
             fmax_replicas = stats[arch]["fmax"]["values"] if stats[arch]["fmax"] else []
             # A run that did not finish leaves the counters frozen at an
             # arbitrary point: it has no valid throughput and no speedup.
-            valid = row["result"] == "pass"
             throughputs = [f / cpi for f in fmax_replicas] if valid else []
             entry["arch"][arch] = {
                 "row": row,
@@ -235,10 +246,10 @@ def benchmark_metrics(benchmarks: list, stats: dict) -> list:
                 "cpi": cpi,
                 "fmax_mean": (sum(fmax_replicas) / len(fmax_replicas))
                 if fmax_replicas else None,
-                "ipc": 1.0 / cpi if cpi else 0.0,
+                "ipc": 1.0 / cpi if cpi else None,
                 "cycles": int(row["cycle_count"]),
                 "instructions": int(row["instr_retired"]),
-                "result": row["result"],
+                "result": row["result"] if valid or row["result"] != "pass" else "invalid-counts",
                 "note": row.get("note", ""),
                 "throughputs": throughputs,
                 "throughput": describe(throughputs),
@@ -248,8 +259,16 @@ def benchmark_metrics(benchmarks: list, stats: dict) -> list:
         if sc and pipe and sc["valid"] and pipe["valid"] and sc["throughputs"] and pipe["throughputs"]:
             # Pairing by index is a descriptive convention, not a variance claim.
             # Compare the duration of the same workload, independent of NOP counts.
-            pairs = zip(stats["single_cycle"]["fmax"]["values"],
-                        stats["pipeline"]["fmax"]["values"])
+            if all("replicas" in stats[a] for a in ARCHES):
+                keyed = {a: {str(r.get("seed") or r["replica"]): r["fmax_mhz"]
+                             for r in stats[a]["replicas"] if r["fmax_mhz"]}
+                         for a in ARCHES}
+                pairs = [(keyed["single_cycle"][key], keyed["pipeline"][key])
+                         for key in sorted(keyed["single_cycle"].keys()
+                                           & keyed["pipeline"].keys())]
+            else:
+                pairs = zip(stats["single_cycle"]["fmax"]["values"],
+                            stats["pipeline"]["fmax"]["values"])
             speedups = [(sc["cycles"] / s) / (pipe["cycles"] / p)
                         for s, p in pairs if s and p]
             entry["speedups"] = speedups
@@ -270,7 +289,8 @@ def efficiency_table(metrics: list, stats: dict) -> list:
             pipe_stat = pipe.get(key)
             if not sc_stat or not pipe_stat:
                 continue
-            overhead = (pipe_stat["mean"] - sc_stat["mean"]) / sc_stat["mean"] * 100.0
+            overhead = ((pipe_stat["mean"] - sc_stat["mean"]) / sc_stat["mean"] * 100.0
+                        if sc_stat["mean"] else None)
             rows.append({
                 "arch": arch,
                 "resource": key,
@@ -308,11 +328,11 @@ def write_fmax_csv(stats: dict) -> Path:
             stat = stats[arch]["fmax"]
             writer.writerow([
                 arch,
-                fmt(stat["mean"]) if stat else "",
-                fmt(stat["std"]) if stat else "",
-                fmt(stat["cv"]) if stat else "",
-                fmt(stat["min"]) if stat else "",
-                fmt(stat["max"]) if stat else "",
+                stat["mean"] if stat else "",
+                stat["std"] if stat else "",
+                stat["cv"] if stat else "",
+                stat["min"] if stat else "",
+                stat["max"] if stat else "",
                 stat["n"] if stat else 0,
             ])
     return path
@@ -334,6 +354,36 @@ def write_statistics_csv(stats: dict) -> Path:
     return path
 
 
+def benchmark_summary_rows(metrics: list):
+    """Derived summary records, preserving original counters as the authority."""
+    for entry in metrics:
+        for arch in ARCHES:
+            data = entry["arch"].get(arch)
+            if not data:
+                continue
+            speedup = entry.get("speedup")
+            yield {
+                "program": entry["program"],
+                "architecture": arch,
+                "result": data["result"],
+                "cycle_count": data["cycles"],
+                "instr_retired": data["instructions"],
+                "cpi": fmt(data["cpi"], 4),
+                "ipc": fmt(data["ipc"], 4),
+                "fmax_mean_mhz": fmt(data["throughput"]["mean"] * data["cpi"])
+                if data["throughput"] else "",
+                "throughput_mean_mips": fmt(data["throughput"]["mean"], 3)
+                if data["throughput"] else "",
+                "throughput_std_mips": fmt(data["throughput"]["std"], 3)
+                if data["throughput"] else "",
+                "latency_ms": fmt(data["cycles"] / (data["fmax_mean"] * 1000.0), 4)
+                if data["fmax_mean"] and data["valid"] else "",
+                "speedup_mean": fmt(speedup["mean"], 4) if speedup else "",
+                "speedup_std": fmt(speedup["std"], 4) if speedup else "",
+                "verdict": entry.get("verdict", ""),
+            }
+
+
 def write_benchmarks_csv(metrics: list) -> Path:
     path = RESULTS / "results_benchmarks_summary.csv"
     fields = ["program", "architecture", "result", "cycle_count", "instr_retired",
@@ -343,32 +393,7 @@ def write_benchmarks_csv(metrics: list) -> Path:
     with path.open("w", newline="") as fp:
         writer = csv.DictWriter(fp, fieldnames=fields, restval="")
         writer.writeheader()
-        for entry in metrics:
-            for arch in ARCHES:
-                data = entry["arch"].get(arch)
-                if not data:
-                    continue
-                speedup = entry.get("speedup")
-                writer.writerow({
-                    "program": entry["program"],
-                    "architecture": arch,
-                    "result": data["result"],
-                    "cycle_count": data["cycles"],
-                    "instr_retired": data["instructions"],
-                    "cpi": fmt(data["cpi"], 4),
-                    "ipc": fmt(data["ipc"], 4),
-                    "fmax_mean_mhz": fmt(data["throughput"]["mean"] * data["cpi"])
-                    if data["throughput"] else "",
-                    "throughput_mean_mips": fmt(data["throughput"]["mean"], 3)
-                    if data["throughput"] else "",
-                    "throughput_std_mips": fmt(data["throughput"]["std"], 3)
-                    if data["throughput"] else "",
-                    "latency_ms": fmt(data["cycles"] / (data["fmax_mean"] * 1000.0), 4)
-                    if data["fmax_mean"] and data["valid"] else "",
-                    "speedup_mean": fmt(speedup["mean"], 4) if speedup else "",
-                    "speedup_std": fmt(speedup["std"], 4) if speedup else "",
-                    "verdict": entry.get("verdict", ""),
-                })
+        writer.writerows(benchmark_summary_rows(metrics))
     return path
 
 
@@ -514,6 +539,17 @@ def table_critical_path(paths: dict) -> str:
     return "\n".join(lines)
 
 
+def replica_frequency_rows(replicas: list):
+    """Keep replica identities visible when either architecture has gaps."""
+    indexed = {(r["arch"], int(r["replica"])): r for r in replicas}
+    for identity in sorted({int(r["replica"]) for r in replicas}):
+        cells = []
+        for arch in ARCHES:
+            value = indexed.get((arch, identity), {}).get("fmax_mhz")
+            cells.append(fmt(float(value)) if value not in (None, "") else r"\textemdash")
+        yield str(identity), cells
+
+
 def table_fmax_replicas(replicas: list, stats: dict) -> str:
     lines = table_header()
     lines += [
@@ -527,12 +563,8 @@ def table_fmax_replicas(replicas: list, stats: dict) -> str:
         r"Réplica & Monociclo (MHz) & Pipeline (MHz) \\",
         r"\midrule",
     ]
-    sc_rows = [r for r in replicas if r["arch"] == "single_cycle"]
-    pipe_rows = [r for r in replicas if r["arch"] == "pipeline"]
-    for index in range(max(len(sc_rows), len(pipe_rows))):
-        sc = fmt(sc_rows[index]["fmax_mhz"]) if index < len(sc_rows) else r"\textemdash"
-        pipe = fmt(pipe_rows[index]["fmax_mhz"]) if index < len(pipe_rows) else r"\textemdash"
-        lines.append(f"{index + 1} & {sc} & {pipe} \\\\")
+    for identity, cells in replica_frequency_rows(replicas):
+        lines.append(f"{identity} & {cells[0]} & {cells[1]} " + r"\\")
     lines.append(r"\midrule")
     for label, key in (("Media", "mean"), ("Desviación estándar", "std"),
                        ("Mínimo", "min"), ("Máximo", "max")):
@@ -553,7 +585,7 @@ def table_resources(stats: dict) -> str:
         r"\begin{table}[htbp]",
         r"\centering",
         r"\caption{Utilización de recursos de la FPGA por réplica "
-        r"(media $\pm$ desviación estándar, n = 5).}",
+        r"(media $\pm$ desviación estándar; n por recurso en el CSV).}",
         r"\label{tab:resources}",
         r"\begin{tabular}{lrrl}",
         r"\toprule",
@@ -569,7 +601,8 @@ def table_resources(stats: dict) -> str:
         sc_stat = stats["single_cycle"].get(key)
         pipe_stat = stats["pipeline"].get(key)
         if sc_stat and pipe_stat and sc_stat["mean"]:
-            overhead = (pipe_stat["mean"] - sc_stat["mean"]) / sc_stat["mean"] * 100.0
+            overhead = ((pipe_stat["mean"] - sc_stat["mean"]) / sc_stat["mean"] * 100.0
+                        if sc_stat["mean"] else None)
             overhead_str = f"{overhead:+.1f} \\%"
         else:
             overhead_str = r"\textemdash"
@@ -585,8 +618,8 @@ def table_benchmarks(metrics: list) -> str:
         r"\centering",
         r"\small",
         r"\caption{CPI, IPC, throughput y latencia por programa y arquitectura. "
-        r"El throughput y la latencia se obtienen con la Fmax media de las cinco "
-        r"réplicas de síntesis.}",
+        r"El throughput y la latencia se obtienen con la Fmax media de las "
+        r"réplicas disponibles de síntesis.}",
         r"\label{tab:benchmarks}",
         r"\begin{tabular}{llrrrrrr}",
         r"\toprule",
@@ -603,7 +636,7 @@ def table_benchmarks(metrics: list) -> str:
                 lines.append(
                     f"{tex_escape(entry['program'])} & {ARCH_LABELS[arch]} & "
                     f"{data['cycles']} & {data['instructions']} & "
-                    + " & ".join([r"\textemdash"] * 3) + r" \\")
+                    + " & ".join([r"\textemdash"] * 4) + r" \\")
                 continue
             throughput = fmt(data["throughput"]["mean"], 2) if data["throughput"] else r"\textemdash"
             latency = (data["cycles"] / (data["fmax_mean"] * 1000.0)
@@ -618,10 +651,11 @@ def table_benchmarks(metrics: list) -> str:
     return "\n".join(lines)
 
 
+COREMARK_INPUT_CSV = INPUT_RESULTS / "results_coremark.csv"
 COREMARK_CSV = RESULTS / "results_coremark.csv"
 COREMARK_PROVENANCE = (
     "git_commit", "rtl_fingerprint", "date_utc", "sof_sha256",
-    "fmax_mhz", "tohost_addr",
+    "fmax_mhz", "tohost_addr", "coremark_functional_valid", "elf_sha256", "counter_protocol",
 )
 
 
@@ -632,10 +666,10 @@ def read_coremark_hardware() -> list:
     console shows them, and the clock the CPU ran at.  Everything else is
     derived, so the file only stores what was measured.
     """
-    if not COREMARK_CSV.exists():
+    if not COREMARK_INPUT_CSV.exists():
         return []
     rows = []
-    with open(COREMARK_CSV) as fp:
+    with open(COREMARK_INPUT_CSV) as fp:
         for row in csv.DictReader(fp):
             cycles = int(row["cycles"])
             instructions = int(row["instructions"])
@@ -676,7 +710,7 @@ def write_coremark_csv() -> Path:
                 row["instructions"], row["clock_mhz"], row["seconds"],
                 row["score"], row["per_mhz"],
             ] + [row.get(key, "") for key in COREMARK_PROVENANCE])
-    print(f"  {path.relative_to(REPO_ROOT)}")
+    print(f"  {path}")
     return path
 
 
@@ -688,8 +722,8 @@ def table_coremark(rows: list) -> str:
     lines += [
         r"\begin{table}[htbp]",
         r"\centering",
-        r"\caption{CoreMark en hardware, 2000 iteraciones ($\geq$ 10 s, regla "
-        r"de duración). Tasas derivadas; validación CRC histórica pendiente. Los contadores "
+        r"\caption{Carga CoreMark en hardware. Tasas derivadas de contadores; "
+        r"la validación funcional se identifica en el manifiesto. Los contadores "
         r"proceden de la consola VGA.}",
         r"\label{tab:coremark}",
         r"\begin{tabular}{lrrrrrr}",
@@ -715,7 +749,7 @@ def table_coremark_scenarios(rows: list, stats: dict) -> str:
     design is given, so the table isolates the frequency term of the speedup.
     """
     by_arch = {row["arch"]: row for row in rows}
-    if len(by_arch) < 2:
+    if len(by_arch) < 2 or any(not stats[a]["fmax"] for a in ARCHES):
         return ""
     sc, pipe = by_arch["single_cycle"], by_arch["pipeline"]
     sc_fmax = stats["single_cycle"]["fmax"]["mean"]
@@ -724,8 +758,7 @@ def table_coremark_scenarios(rows: list, stats: dict) -> str:
     # highest board clock that both designs meet in all five replicas.
     common = sc["clock_mhz"]
     scenarios = [
-        (f"Frecuencia común ({fmt(common, 0)} MHz en ambos, dentro de la Fmax "
-         "de todas las réplicas)",
+        (f"Frecuencia común hipotética ({fmt(common, 0)} MHz en ambos)",
          common, common,
          common * sc["per_mhz"], common * pipe["per_mhz"]),
         (f"Frecuencia desplegada ({fmt(sc['clock_mhz'], 0)} / "
@@ -746,7 +779,7 @@ def table_coremark_scenarios(rows: list, stats: dict) -> str:
         r"\begin{tabular}{lrrrrr}",
         r"\toprule",
         r"Escenario & \multicolumn{2}{c}{Reloj (MHz)} & "
-        r"\multicolumn{2}{c}{CoreMark} & Speedup \\",
+        r"\multicolumn{2}{c}{Iteraciones/s} & Speedup \\",
         r"\cmidrule(lr){2-3} \cmidrule(lr){4-5}",
         r" & Monociclo & Pipeline & Monociclo & Pipeline & \\",
         r"\midrule",
@@ -792,7 +825,7 @@ def table_statistics(stats: dict) -> str:
     lines += [
         r"\begin{table}[htbp]",
         r"\centering",
-        r"\caption{Estadística descriptiva de las cinco réplicas de síntesis "
+        r"\caption{Estadística descriptiva de las réplicas disponibles de síntesis "
         r"por arquitectura (desviación estándar muestral, $n-1$).}",
         r"\label{tab:statistics}",
         r"\begin{tabular}{llrrrr}",
@@ -839,12 +872,12 @@ def table_efficiency(metrics: list, stats: dict, efficiency: list) -> str:
         alms = stats[arch]["alms"]
         registers = stats[arch]["registers"]
         per_arch[arch] = {
-            "per_alm": mean_throughput / (alms["mean"] / 1000.0) if alms else None,
-            "per_reg": mean_throughput / (registers["mean"] / 1000.0) if registers else None,
+            "per_alm": mean_throughput / (alms["mean"] / 1000.0) if alms and alms["mean"] else None,
+            "per_reg": mean_throughput / (registers["mean"] / 1000.0) if registers and registers["mean"] else None,
         }
     for key, label in (("per_alm", "Throughput por 1000 ALMs (MIPS)"),
                        ("per_reg", "Throughput por 1000 registros (MIPS)")):
-        cells = [fmt(per_arch[arch].get(key), 3) if arch in per_arch else r"\textemdash"
+        cells = [fmt(per_arch[arch].get(key), 3, dash=r"\textemdash") if arch in per_arch else r"\textemdash"
                  for arch in ARCHES]
         lines.append(f"{label} & {cells[0]} & {cells[1]} \\\\")
     for row in efficiency:
@@ -882,8 +915,6 @@ def verification_table_rows(rows: list) -> list:
 
 def table_verification(rows: list) -> str:
     """Verification table, reusing the collector of the verification results."""
-    if not rows:
-        return ""
     lines = table_header()
     lines += [
         r"\begin{table}[htbp]",
@@ -996,13 +1027,8 @@ def fmax_table_problems() -> list:
                for row in _read_csv_rows(RESULTS / "results_fmax.csv")}
 
     expected = {}
-    for index in range(max(len(replicas[arch]) for arch in ARCHES)):
-        cells = []
-        for arch in ARCHES:
-            rows = replicas[arch]
-            cells.append(fmt(float(rows[index]["fmax_mhz"]))
-                         if index < len(rows) else r"\textemdash")
-        expected[str(index + 1)] = cells
+    for identity, cells in replica_frequency_rows([r for rows in replicas.values() for r in rows]):
+        expected[identity] = cells
     for label, key in (("Media", "fmax_mean_mhz"),
                        ("Desviación estándar", "fmax_std_mhz"),
                        ("Mínimo", "fmax_min_mhz"),
@@ -1094,7 +1120,7 @@ def efficiency_table_problems() -> list:
     def per_resource(arch: str, metric: str):
         values = throughputs.get(arch)
         stat = stats.get((arch, metric))
-        if not values or not stat:
+        if not values or not stat or not float(stat["mean"]):
             return None
         mean_throughput = sum(values) / len(values)
         return mean_throughput / (float(stat["mean"]) / 1000.0)
@@ -1136,12 +1162,12 @@ def benchmarks_table_problems() -> list:
         cells = [tex_escape(row["program"]), ARCH_LABELS[row["architecture"]],
                  str(int(row["cycle_count"])), str(int(row["instr_retired"]))]
         if row["result"] != "pass":
-            cells += [r"\textemdash"] * 3
+            cells += [r"\textemdash"] * 4
         else:
             cells += [f"{float(row['cpi']):.4f}",
                       f"{float(row['ipc']):.4f}",
-                      f"{float(row['throughput_mean_mips']):.2f}",
-                      f"{float(row['latency_ms']):.4f}"]
+                      fmt(float(row["throughput_mean_mips"]), 2) if row["throughput_mean_mips"] else r"\textemdash",
+                      fmt(float(row["latency_ms"]), 4) if row["latency_ms"] else "---"]
         expected.append(cells)
 
     actual = parse_tex_rows(TABLES / "benchmarks.tex")
@@ -1319,10 +1345,10 @@ def _figure_addplots(path: Path, error_bars: bool = False) -> list:
         if error_bars:
             points = [(int(m.group(1)), float(m.group(2)), float(m.group(3)))
                       for m in re.finditer(
-                          r"\((\d+),([\d.]+)\)\s*\+-\s*\(0,([\d.]+)\)", body)]
+                          r"\((\d+),([\d.]+|nan)\)\s*\+-\s*\(0,([\d.]+)\)", body)]
         else:
             points = [(int(m.group(1)), float(m.group(2)))
-                      for m in re.finditer(r"\((\d+),([\d.]+)\)", body)]
+                      for m in re.finditer(r"\((\d+),([\d.]+|nan)\)", body)]
         plots.append(points)
     return plots
 
@@ -1344,7 +1370,8 @@ def _grouped_figure_problems(name: str, filename: str, expected: list,
             if x != index:
                 problems.append(f"Figura {name}: serie {series}, x={x} donde "
                                 f"se esperaba {index}")
-            if abs(value - target) > tolerance:
+            if (math.isnan(value) != math.isnan(target)
+                    or (not math.isnan(target) and abs(value - target) > tolerance)):
                 problems.append(f"Figura {name}: serie {series}, punto {index}: "
                                 f"CSV {target:.3f} != figura {value:.3f}")
     return problems
@@ -1368,10 +1395,11 @@ def fmax_figure_problems() -> list:
         if x != index + 1:
             problems.append(f"Figura Fmax: '{ARCH_LABELS[arch]}' en x={x}")
         # The figure shows two decimals of values stored with three.
-        if abs(mean - float(row["fmax_mean_mhz"])) > 0.0055:
+        target = float(row["fmax_mean_mhz"]) if row["fmax_mean_mhz"] else math.nan
+        if math.isnan(mean) != math.isnan(target) or (not math.isnan(target) and abs(mean - target) > 0.0055):
             problems.append(f"Figura Fmax: '{ARCH_LABELS[arch]}' media del "
                             f"CSV {row['fmax_mean_mhz']} != figura {mean}")
-        if abs(std - float(row["fmax_std_mhz"])) > 0.0055:
+        if abs(std - float(row["fmax_std_mhz"] or 0)) > 0.0055:
             problems.append(f"Figura Fmax: '{ARCH_LABELS[arch]}' desviación "
                             f"del CSV {row['fmax_std_mhz']} != figura {std}")
     return problems
@@ -1390,7 +1418,7 @@ def _benchmark_figure_values(column: str) -> list:
             row = by_program.get(program)
             if (row is None or row["result"] != "pass"
                     or not row[column].strip()):
-                values.append(0.0)
+                values.append(math.nan)
             else:
                 values.append(float(row[column]))
         expected.append(values)
@@ -1447,16 +1475,51 @@ def resources_figure_problems() -> list:
     """Compare results_statistics.csv with the resources figure."""
     stats = {(row["arch"], row["metric"]): float(row["mean"])
              for row in _read_csv_rows(RESULTS / "results_statistics.csv")}
-    expected = [[stats[(arch, key)] for key in
-                 ("alms", "registers", "ram_blocks", "dsp_blocks")]
+    expected = [[stats.get((arch, key), math.nan) for key in
+                 ("alms", "registers")]
                 for arch in ARCHES]
     return _grouped_figure_problems("Recursos", "resources_comparison.tex",
                                     expected)
 
 
+def derived_metric_problems() -> list:
+    """Recompute metrics from counters and replicas, independently of plots."""
+    replicas = _read_csv_rows(RESULTS / "results_replicas.csv")
+    for row in replicas:
+        for key in ("fmax_mhz", *RESOURCE_PATTERNS):
+            row[key] = float(row[key]) if row.get(key) else None
+    stats = replica_stats(replicas)
+    benchmarks = _read_csv_rows(RESULTS / "results_benchmarks.csv")
+    wanted = [{k: str(v) for k, v in row.items()}
+              for row in benchmark_summary_rows(benchmark_metrics(benchmarks, stats))]
+    actual = _read_csv_rows(RESULTS / "results_benchmarks_summary.csv")
+    problems = []
+    if wanted != actual:
+        problems.append("Métricas: el resumen no se deriva de los contadores y réplicas publicados")
+    for row in _read_csv_rows(RESULTS / "results_fmax.csv"):
+        expected = stats[row["arch"]]["fmax"]
+        for field, key in (("fmax_mean_mhz", "mean"), ("fmax_std_mhz", "std"),
+                           ("fmax_min_mhz", "min"), ("fmax_max_mhz", "max")):
+            if expected is None:
+                if row[field]:
+                    problems.append(f"Métricas: {row['arch']} tiene frecuencia sin réplicas")
+            elif not math.isclose(float(row[field]), expected[key], rel_tol=1e-10):
+                problems.append(f"Métricas: {row['arch']}/{field} no concuerda con sus réplicas")
+    for row in _read_csv_rows(RESULTS / "results_statistics.csv"):
+        expected = stats[row["arch"]].get(row["metric"])
+        if not expected or int(row["n"]) != expected["n"]:
+            problems.append(f"Métricas: n incompatible en {row['arch']}/{row['metric']}")
+            continue
+        for field in ("mean", "std", "min", "max"):
+            if abs(float(row[field]) - expected[field]) > 0.00051:
+                problems.append(f"Métricas: {row['arch']}/{row['metric']}/{field} incompatible")
+    return problems
+
+
 def check_artifacts() -> int:
     """Compare the generated tables and figures with their source CSVs."""
     tables = (
+        ("Métricas", derived_metric_problems),
         ("Verificación", verification_table_problems),
         ("Fmax", fmax_table_problems),
         ("Recursos", resources_table_problems),
@@ -1476,7 +1539,15 @@ def check_artifacts() -> int:
         ("Recursos", resources_figure_problems),
     )
     problems = []
+    checked = 0
     for name, check in tables + figures:
+        if name == "CoreMark" and not _read_csv_rows(COREMARK_CSV):
+            continue
+        if name == "CoreMark escenarios" and not (TABLES / "coremark_scenarios.tex").exists():
+            continue
+        if name == "Camino crítico" and not (TABLES / "critical_path.tex").exists():
+            continue
+        checked += 1
         try:
             problems += check()
         except (OSError, KeyError, ValueError) as error:
@@ -1489,8 +1560,7 @@ def check_artifacts() -> int:
         print("Ejecute 'python3 scripts/thesis_artifacts.py' para regenerar "
               "las tablas y figuras.")
         return 1
-    print(f"OK: {len(tables)} tablas y {len(figures)} figuras coinciden con "
-          "sus CSV.")
+    print(f"OK: {checked} comprobaciones de tablas y figuras coinciden con sus CSV.")
     return 0
 
 
@@ -1504,7 +1574,7 @@ def figure_fmax(stats: dict) -> str:
     coords = []
     for index, arch in enumerate(ARCHES):
         stat = stats[arch]["fmax"]
-        coords.append(f"({index + 1},{stat['mean']:.2f}) +- (0,{stat['std']:.2f})")
+        coords.append(f"({index + 1},{(stat['mean'] if stat else math.nan):.2f}) +- (0,{(stat['std'] if stat else 0):.2f})")
     return "\n".join([
         "% Generado por scripts/thesis_artifacts.py - no editar a mano.",
         r"\begin{figure}[htbp]",
@@ -1514,6 +1584,7 @@ def figure_fmax(stats: dict) -> str:
         r"  width=0.65\textwidth,",
         r"  height=7cm,",
         r"  ybar,",
+        r"  unbounded coords=jump,",
         r"  bar width=25pt,",
         r"  ylabel={Fmax (MHz)},",
         r"  xtick={1,2},",
@@ -1521,32 +1592,53 @@ def figure_fmax(stats: dict) -> str:
         r"  nodes near coords,",
         r"  nodes near coords align={vertical},",
         r"  ymin=0,",
-        r"  error bars/.cd, y dir=both, y explicit,",
+        r"  xmin=0.5, xmax=2.5,",
+        r"  enlarge y limits={upper,value=0.18},",
+        r"  every node near coord/.append style={anchor=south,yshift=2pt},",
+        r"  error bars/y dir=both, error bars/y explicit,",
         r"]",
-        "  \\addplot coordinates {" + ", ".join(coords) + "};",
+        "  \\addplot coordinates {" + " ".join(coords) + "};",
         r"\end{axis}",
         r"\end{tikzpicture}",
         r"\caption{Frecuencia máxima de cada microarquitectura, media "
-        r"$\pm$ desviación estándar de las cinco réplicas de síntesis.}",
+        r"$\pm$ desviación estándar de las réplicas disponibles de síntesis.}",
         r"\label{fig:fmax}",
         r"\end{figure}",
     ])
 
 
-def _grouped_bar_figure(entries, values_by_arch, ylabel, caption, label):
+def _grouped_bar_figure(entries, values_by_arch, ylabel, caption, label, value_labels=False):
     ticks = [f"{{{tex_escape(name)}}}" for name in entries]
     options = [
         r"  width=0.95\textwidth,",
         r"  height=7cm,",
         r"  ybar,",
+        r"  unbounded coords=jump,",
         r"  bar width=8pt,",
         f"  ylabel={{{ylabel}}},",
         "  xtick={" + ",".join(str(i + 1) for i in range(len(entries))) + "},",
         "  xticklabels={" + ", ".join(ticks) + "},",
         r"  xmin=0.5,",
-        r"  enlarge x limits=0.1,",
+        "  xmax=" + str(max(1, len(entries)) + 0.5) + ",",
+        r"  ymin=0,",
+        r"  enlarge y limits={upper,value=0.18},",
         r"  legend style={at={(0.5,-0.25)},anchor=north,legend columns=2},",
     ]
+    if value_labels:
+        options += [
+            r"  width=10cm,",
+            r"  bar width=22pt,",
+            r"  nodes near coords,",
+            r"  nodes near coords align={vertical},",
+            r"  every node near coord/.append style={font=\scriptsize,anchor=south,yshift=2pt,text=black,/pgf/number format/fixed,/pgf/number format/precision=1},",
+            r"  x tick label style={font=\small,align=center,text width=3.6cm},",
+            r"  legend style={at={(0.5,-0.23)},anchor=north,legend columns=2},",
+        ]
+    else:
+        options += [
+            r"  x tick label style={rotate=45,anchor=east,font=\small},",
+            r"  legend style={at={(0.5,-0.43)},anchor=north,legend columns=2},",
+        ]
     lines = [
         "% Generado por scripts/thesis_artifacts.py - no editar a mano.",
         r"\begin{figure}[htbp]",
@@ -1557,7 +1649,7 @@ def _grouped_bar_figure(entries, values_by_arch, ylabel, caption, label):
         r"]",
     ]
     for arch in ARCHES:
-        coords = ", ".join(f"({index + 1},{value:.3f})"
+        coords = " ".join(f"({index + 1},{value:.3f})"
                            for index, value in enumerate(values_by_arch[arch]))
         lines.append(f"  \\addplot coordinates {{{coords}}};")
     lines += [
@@ -1577,7 +1669,7 @@ def figure_throughput(metrics: list) -> str:
     for arch in ARCHES:
         for entry in metrics:
             data = entry["arch"].get(arch)
-            values[arch].append(data["throughput"]["mean"] if data and data["throughput"] else 0.0)
+            values[arch].append(data["throughput"]["mean"] if data and data["throughput"] else math.nan)
     return _grouped_bar_figure(
         entries, values, "Throughput (MIPS)",
         r"Throughput efectivo por programa y microarquitectura "
@@ -1591,7 +1683,7 @@ def figure_cpi(metrics: list) -> str:
     for arch in ARCHES:
         for entry in metrics:
             data = entry["arch"].get(arch)
-            values[arch].append(data["cpi"] if data else 0.0)
+            values[arch].append(data["cpi"] if data and data["valid"] else math.nan)
     return _grouped_bar_figure(
         entries, values, "CPI",
         r"CPI efectivo por programa y microarquitectura.",
@@ -1603,7 +1695,7 @@ def figure_speedup(metrics: list) -> str:
     measured = [m for m in metrics if m.get("speedup")]
     entries = [m["program"] for m in measured]
     ticks = [f"{{{tex_escape(name)}}}" for name in entries]
-    coords = ", ".join(
+    coords = " ".join(
         f"({index + 1},{m['speedup']['mean']:.3f}) +- "
         f"(0,{m['speedup']['std']:.3f})"
         for index, m in enumerate(measured))
@@ -1611,15 +1703,19 @@ def figure_speedup(metrics: list) -> str:
         r"  width=0.95\textwidth,",
         r"  height=7cm,",
         r"  ybar,",
+        r"  unbounded coords=jump,",
         r"  bar width=14pt,",
         r"  ylabel={Speedup temporal del pipeline},",
         "  xtick={" + ",".join(str(i + 1) for i in range(len(entries))) + "},",
         "  xticklabels={" + ", ".join(ticks) + "},",
         r"  xmin=0.5,",
-        r"  xmax=" + str(len(entries) + 0.5) + ",",
+        r"  ymin=0,",
+        r"  x tick label style={rotate=45,anchor=east,font=\small},",
+        r"  enlarge y limits={upper,value=0.18},",
+        r"  xmax=" + str(max(1, len(entries)) + 0.5) + ",",
         r"  ymajorgrids,",
-        r"  legend style={at={(0.5,-0.3)},anchor=north,legend columns=2},",
-        r"  error bars/.cd, y dir=both, y explicit,",
+        r"  legend style={at={(0.5,-0.43)},anchor=north,legend columns=1},",
+        r"  error bars/y dir=both, error bars/y explicit,",
     ]
     lines = [
         "% Generado por scripts/thesis_artifacts.py - no editar a mano.",
@@ -1632,7 +1728,7 @@ def figure_speedup(metrics: list) -> str:
         "  \\addplot coordinates {" + coords + "};",
         "  \\addplot[black, dashed, sharp plot, update limits=false] "
         "coordinates {(0.5,1) (" + str(len(entries) + 0.5) + ",1)};",
-        r"  \legend{Speedup medio $\pm$ desviación estándar,Umbral de $H_1$}",
+        r"  \legend{Speedup medio $\pm$ desviación estándar,Paridad ($S=1$)}",
         r"\end{axis}",
         r"\end{tikzpicture}",
         r"\caption{Speedup temporal por programa, media de cocientes pareados. La "
@@ -1645,17 +1741,17 @@ def figure_speedup(metrics: list) -> str:
 
 
 def figure_resources(stats: dict) -> str:
-    entries = ["ALMs", "Registros", "RAM", "DSP"]
-    keys = ["alms", "registers", "ram_blocks", "dsp_blocks"]
+    entries = ["Elementos lógicos adaptativos (ALM)", "Registros"]
+    keys = ["alms", "registers"]
     values = {arch: [] for arch in ARCHES}
     for arch in ARCHES:
         for key in keys:
             stat = stats[arch].get(key)
-            values[arch].append(stat["mean"] if stat else 0.0)
+            values[arch].append(stat["mean"] if stat else math.nan)
     return _grouped_bar_figure(
         entries, values, "Cantidad de recursos",
-        r"Utilización de recursos de la FPGA por microarquitectura.",
-        "fig:resources")
+        r"Utilización de los recursos lógicos de la FPGA por microarquitectura.",
+        "fig:resources", value_labels=True)
 
 
 # --------------------------------------------------------------------------
@@ -1958,7 +2054,7 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
 # Entry point
 # --------------------------------------------------------------------------
 
-def main() -> int:
+def generate_artifacts() -> int:
     fingerprint = rtl_fingerprint()
     replicas = collect_replicas()
     stats = replica_stats(replicas)
@@ -1970,6 +2066,15 @@ def main() -> int:
     for directory in (TABLES, FIGURES, REPRO):
         directory.mkdir(parents=True, exist_ok=True)
 
+    from collect_results import ArchitectureResults, generate_csv_report
+    import collect_results
+    all_results = {arch: ArchitectureResults(name=arch, suites=
+                   collect_results.collect_verification_results(arch)) for arch in ARCHES}
+    (RESULTS / "results_verification.csv").write_text(generate_csv_report(all_results) + "\n")
+    (RESULTS / "results_benchmarks.csv").write_text(
+        (INPUT_RESULTS / "results_benchmarks.csv").read_text()
+        if (INPUT_RESULTS / "results_benchmarks.csv").exists() else
+        "architecture,program,result,cycle_count,instr_retired,cpi\n")
     written = [
         write_replicas_csv(replicas),
         write_fmax_csv(stats),
@@ -2008,24 +2113,22 @@ def main() -> int:
         (FIGURES / name).write_text(content + "\n")
         written.append(FIGURES / name)
 
-    versions = tool_versions()
-    written.append(write_environment_doc(stats, versions, fingerprint))
-    written.append(write_synthesis_protocol_doc(stats, replicas))
-    written.append(write_measurement_protocol_doc(metrics, stats, replicas))
-
     # A replica without a fingerprint comes from an unknown RTL: it is stale
     # too, and the numbers it holds cannot be compared with the others.
     stale = any(r.get("fingerprint") != fingerprint for r in replicas)
 
     for path in written:
-        print(f"  {path.relative_to(REPO_ROOT)}")
+        print(f"  {path}")
     if stale:
         print("\nAVISO: las replicas guardadas no corresponden al RTL vigente; "
               "ejecute 'make thesis' para repetirlas.")
     return 0
 
 
+def main() -> int:
+    from generate_reports import main as generate_reports
+    return generate_reports()
+
+
 if __name__ == "__main__":
-    if "--check" in sys.argv[1:]:
-        raise SystemExit(check_artifacts())
     raise SystemExit(main())

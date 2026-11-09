@@ -292,10 +292,7 @@ def stage_benchmarks(args) -> int:
 
 def stage_artifacts(args) -> int:
     banner("ARTIFACTS - statistics, tables, figures and protocol docs")
-    # The collector refreshes the summary report and the CSV of the
-    # verification results; the thesis artifacts read the same data.
-    run([sys.executable, "scripts/collect_results.py", "--markdown", "--latex", "--csv"])
-    run([sys.executable, "scripts/thesis_artifacts.py"])
+    run([sys.executable, "scripts/generate_reports.py", "--strict", "--render"])
     return 0
 
 

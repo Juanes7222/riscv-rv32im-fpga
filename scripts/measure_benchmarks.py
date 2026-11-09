@@ -28,6 +28,7 @@ Usage:
 import argparse
 import csv
 import pathlib
+import os
 import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -105,6 +106,7 @@ def main() -> int:
                         help="CSV with the mean Fmax per architecture "
                              "(default: results/results_fmax.csv)")
     args = parser.parse_args()
+    os.environ.setdefault("VALIDATION_REFERENCE", "1")
 
     benchmarks = list(BENCHMARKS)
     if args.only:
@@ -127,7 +129,8 @@ def main() -> int:
         for arch in ARCHES:
             csv_path = RESULTS_DIR / f"benchmark_{name}_{arch}.csv"
             key = f"benchmark:{arch}:{name}"
-            inputs = {"rtl": fingerprint, "elf": elf_fingerprint}
+            inputs = {"rtl": fingerprint, "elf": elf_fingerprint,
+                      "validation_protocol": "retire-inclusive-v2-reference"}
             if args.from_csv:
                 if not csv_path.exists():
                     print(f"[{arch}] {name}: no saved CSV, skipped")
@@ -173,6 +176,9 @@ def main() -> int:
                 "fmax_mhz": fmax[arch],
                 "throughput_mips": f"{throughput:.3f}" if valid else "",
                 "note": "" if valid else f"invalid measurement: {data['result']}",
+                **{field: data.get(field, "") for field in (
+                    "rtl_sha256", "elf_sha256", "counter_protocol",
+                    "coremark_functional_valid", "reference_valid", "tohost_addr")},
             })
             print(f" cycles={cycles} instr={instr} CPI={cpi:.4f}"
                   f"{'' if valid else ' INVALID'}")
@@ -217,7 +223,8 @@ def main() -> int:
 
     fields = ["architecture", "program", "result", "cycle_count",
               "instr_retired", "cpi", "fmax_mhz", "throughput_mips",
-              "speedup_pipeline_over_single_cycle", "note"]
+              "speedup_pipeline_over_single_cycle", "note", "rtl_sha256", "elf_sha256",
+              "counter_protocol", "coremark_functional_valid", "reference_valid", "tohost_addr"]
 
     # A filtered run (--only) must not erase the benchmarks it did not
     # measure: keep their rows and replace only the ones measured now.

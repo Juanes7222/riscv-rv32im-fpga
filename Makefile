@@ -37,6 +37,8 @@ FIT_SUMMARY = $(SYNTH_DIR)/output_files/$(PROJECT).fit.summary
 # makefiles need cocotb-config in the PATH, so the thesis targets prepend it.
 VENV_PY = .venv/bin/python3
 VENV_BIN = $(CURDIR)/.venv/bin
+REPORT_DIR ?= build/reports/latest
+REPORT_FLAGS ?= --render
 
 # Screen console artifacts.  The .mif carries the memory dump of the program
 # that is loaded, so it is regenerated whenever the memory image changes.
@@ -327,36 +329,14 @@ verify-coremark:
 	@echo "=== CoreMark smoke test (pipeline) ==="
 	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/pipeline COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_pipeline VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000
 
-.PHONY: report
+.PHONY: report report-quick
 report:
-	@echo ""
-	@echo "=== Generating Results Report ==="
-	@echo ""
-	@echo "Running all verification tests..."
-	@$(MAKE) verify-full
-	@echo ""
-	@echo "Collecting results and generating report..."
-	@.venv/bin/python3 scripts/collect_results.py --markdown --latex --csv
-	@echo ""
-	@echo "Report generated:"
-	@echo "  results/results_report.md     (Markdown report)"
-	@echo "  results/results_latex.tex     (LaTeX tables for thesis)"
-	@echo "  results/results_verification.csv  (Verification data as CSV)"
-	@echo "  results/results_synthesis.csv     (Synthesis data as CSV)"
-	@echo ""
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/generate_reports.py \
+		--run-tests --output-dir "$(abspath $(REPORT_DIR))" $(REPORT_FLAGS)
 
-.PHONY: report-quick
 report-quick:
-	@echo ""
-	@echo "=== Generating Quick Results Report (no test re-run) ==="
-	@.venv/bin/python3 scripts/collect_results.py --markdown --latex --csv
-	@echo ""
-	@echo "Report generated:"
-	@echo "  results/results_report.md     (Markdown report)"
-	@echo "  results/results_latex.tex     (LaTeX tables for thesis)"
-	@echo "  results/results_verification.csv  (Verification data as CSV)"
-	@echo "  results/results_synthesis.csv     (Synthesis data as CSV)"
-	@echo ""
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/generate_reports.py \
+		--output-dir "$(abspath $(REPORT_DIR))" $(REPORT_FLAGS)
 
 
 .PHONY: results
@@ -542,7 +522,7 @@ full-campaign:
 .PHONY: check-artifacts
 check-artifacts:
 	@echo "[thesis] Checking generated tables against the results CSVs..."
-	@$(VENV_PY) scripts/thesis_artifacts.py --check
+	@$(VENV_PY) scripts/generate_reports.py --check --output-dir "$(abspath $(REPORT_DIR))"
 
 # Programs the DE1-SoC with every benchmark and prints the values that the
 # console must show, for the photographs of the hardware evidence.
@@ -644,8 +624,8 @@ help:
 	@echo "  verify-coremark    CoreMark smoke test in simulation (both architectures)"
 	@echo ""
 	@echo "Results"
-	@echo "  report             Run all tests, then generate report + LaTeX tables"
-	@echo "  report-quick       Generate report from existing results (no re-run)"
+	@echo "  report             Run tests, then generate checked report, tables and PDF figures"
+	@echo "  report-quick       Generate the same report bundle from existing results"
 	@echo "  results            Show Fmax per replica for ARCH"
 	@echo "  results-all        Show Fmax for both architectures"
 	@echo "  status             Show build and replica status for all archs"
@@ -664,7 +644,7 @@ help:
 	@echo "  thesis-hardware    Measure every pending program on the DE1-SoC"
 	@echo "  full-campaign      Automated campaign plus the pending hardware"
 	@echo "                     measurements, in one command (FORCE=1 redoes all)"
-	@echo "  check-artifacts    Verify generated tables against the results CSVs"
+	@echo "  check-artifacts    Check report hashes and recompute metrics, tables and figures"
 	@echo "  hardware-status    Show pending hardware measurements"
 	@echo ""
 
