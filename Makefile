@@ -325,9 +325,9 @@ verify-coremark:
 		$(COREMARK_BUILD) || exit 1; \
 	fi
 	@echo "=== CoreMark smoke test (single_cycle) ==="
-	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/single_cycle COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_single_cycle VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000
+	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/single_cycle COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_single_cycle VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000 COCOTB_RESULTS_FILE=$(abspath results/coremark_smoke_single_cycle.xml)
 	@echo "=== CoreMark smoke test (pipeline) ==="
-	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/pipeline COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_pipeline VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000
+	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/pipeline COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_pipeline VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000 COCOTB_RESULTS_FILE=$(abspath results/coremark_smoke_pipeline.xml)
 
 .PHONY: report report-quick
 report:
@@ -488,8 +488,8 @@ preflight:
 
 .PHONY: thesis
 thesis:
-	@echo "[thesis] Experimental campaign: preflight, synthesis, verification, benchmarks, artifacts"
-	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py $(if $(FORCE),--force,)
+	@echo "[thesis] Automated campaign and preliminary report; physical evidence may remain pending"
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py --report-mode diagnostic $(if $(FORCE),--force,)
 	@$(MAKE) --no-print-directory check-artifacts
 
 # Same campaign without the synthesis replicas: it reuses the replicas that
@@ -498,14 +498,14 @@ thesis:
 thesis-quick:
 	@echo "[thesis] Experimental campaign without the synthesis replicas"
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/run_experiment.py \
-		--stages preflight verify benchmarks artifacts $(if $(FORCE),--force,)
+		--stages preflight verify benchmarks artifacts --report-mode diagnostic $(if $(FORCE),--force,)
 	@$(MAKE) --no-print-directory check-artifacts
 
 # The whole experimental campaign in one command.  The automated stages are
 # incremental: synthesis replicas, cocotb suites and benchmarks are skipped
-# when their RTL, tests or ELF did not change.  Hardware measurements come
-# last because they need the DE1-SoC and a value read from the VGA console;
-# only the pending ones are requested.
+# when their RTL, tests or ELF did not change. Hardware measurements
+# follow the preliminary report because they need the DE1-SoC and a value
+# read from the VGA console. Strict publication runs after physical capture.
 # Pass FORCE=1 to redo every measurement.
 .PHONY: full-campaign
 full-campaign:
@@ -513,7 +513,15 @@ full-campaign:
 	@$(MAKE) --no-print-directory verify-coremark
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
 		--all-both $(if $(FORCE),--force,)
-	@echo "Automated stages completed; inspect hardware evidence before accepting the campaign."
+	@$(MAKE) --no-print-directory validate-campaign
+	@echo "Campaign evidence and generated artifacts passed the final checks."
+
+# Re-run the final gate after recording physical evidence, without resynthesis.
+.PHONY: validate-campaign
+validate-campaign:
+	@echo "[thesis] Validating campaign evidence after physical measurements..."
+	@$(VENV_PY) scripts/generate_reports.py --strict --render --output-dir "$(abspath $(REPORT_DIR))"
+	@$(MAKE) --no-print-directory check-artifacts
 
 
 # Fails the campaign when a generated table no longer matches the CSV it
@@ -642,8 +650,9 @@ help:
 	@echo "                     Incremental: unchanged stages are skipped."
 	@echo "  thesis-quick       Same campaign reusing the existing replicas"
 	@echo "  thesis-hardware    Measure every pending program on the DE1-SoC"
-	@echo "  full-campaign      Automated campaign plus the pending hardware"
-	@echo "                     measurements, in one command (FORCE=1 redoes all)"
+	@echo "  full-campaign      Automated campaign, pending hardware and final validation"
+	@echo "                     Incremental; FORCE=1 redoes all measurements."
+	@echo "  validate-campaign  Require complete evidence and regenerate the final report"
 	@echo "  check-artifacts    Check report hashes and recompute metrics, tables and figures"
 	@echo "  hardware-status    Show pending hardware measurements"
 	@echo ""

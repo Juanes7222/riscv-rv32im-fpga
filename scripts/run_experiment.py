@@ -7,9 +7,9 @@ Stages, in order:
   synthesis   five synthesis replicas per architecture, with Fmax and resources
   verify      the cocotb suites of both architectures
   benchmarks  the effective CPI of every program on both architectures
-  artifacts   statistics, LaTeX tables, figures, protocol docs, results chapter
   hardware    measure the pending programs on the board (asks for the VGA
               console values)
+  artifacts   statistics, LaTeX tables, figures, protocol docs, results chapter
 
 Every stage is resumable: a synthesis replica whose fingerprint does not match
 the current RTL is regenerated, the cocotb suites are skipped when the RTL and
@@ -19,7 +19,7 @@ are still pending.
 
 Usage:
     python3 scripts/run_experiment.py                     # every stage but hardware
-    python3 scripts/run_experiment.py --stages verify,artifacts
+    python3 scripts/run_experiment.py --stages verify artifacts --report-mode diagnostic
     python3 scripts/run_experiment.py --stages hardware --arch pipeline
     python3 scripts/run_experiment.py --force             # redo everything
 """
@@ -59,7 +59,7 @@ HARDWARE_PROGRAMS = [
     ("m_ext_stress", BUILD / "synthetic/m_ext_stress.elf"),
 ]
 
-ALL_STAGES = ["preflight", "synthesis", "verify", "benchmarks", "artifacts", "hardware"]
+ALL_STAGES = ["preflight", "synthesis", "verify", "benchmarks", "hardware", "artifacts"]
 
 VERIFY_RESULTS = [
     REPO_ROOT / "verification" / "cocotb" / "common" / "results.xml",
@@ -297,7 +297,12 @@ def stage_benchmarks(args) -> int:
 
 def stage_artifacts(args) -> int:
     banner("ARTIFACTS - statistics, tables, figures and protocol docs")
-    run([sys.executable, "scripts/generate_reports.py", "--strict", "--render"])
+    cmd = [sys.executable, "scripts/generate_reports.py", "--render"]
+    if args.report_mode == "strict":
+        cmd.append("--strict")
+    else:
+        print("  Preliminary report: incomplete evidence remains listed in the report.")
+    run(cmd)
     return 0
 
 
@@ -338,6 +343,8 @@ def main() -> int:
                         help="keep the replicas that do not match the current RTL")
     parser.add_argument("--benchmarks-from-csv", action="store_true",
                         help="assemble the benchmark table from the saved CSVs")
+    parser.add_argument("--report-mode", choices=("strict", "diagnostic"), default="strict",
+                        help="require complete evidence or generate a preliminary report (default: strict)")
     parser.add_argument("--force", action="store_true",
                         help="ignore the saved state and redo every stage")
     args = parser.parse_args()

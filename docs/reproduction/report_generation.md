@@ -83,8 +83,45 @@ Para rechazar esa evidencia antes de generar un informe de campaña:
 .venv/bin/python3 scripts/generate_reports.py --strict --render
 ```
 
-La etapa `artifacts` de `run_experiment.py` utiliza este modo. Una campaña
-incompleta no sustituye silenciosamente un informe anterior.
+La etapa `artifacts` de `run_experiment.py` utiliza este modo por defecto.
+`--report-mode diagnostic` permite solicitar explícitamente un informe
+preliminar que enumere la evidencia pendiente. Un fallo de pruebas, de cálculo
+o de compilación sigue siendo un error en ambos modos.
+
+## Orden de la campaña y CRC físicos pendientes
+
+`make thesis` y `make thesis-quick` generan un paquete preliminar. Que terminen
+correctamente acredita la ejecución automatizada y la consistencia de sus
+artefactos; el estado del informe indica si falta evidencia experimental.
+
+`make full-campaign` ejecuta, en este orden:
+
+1. La campaña automatizada y el informe preliminar.
+2. La comprobación de CoreMark de `verify-coremark`.
+3. Las mediciones físicas pendientes.
+4. `make validate-campaign`: generación estricta del informe y comprobación de
+   sus artefactos.
+
+Los smoke tests conservan sus XML en `results/coremark_smoke_<arch>.xml`, sin
+sobrescribir los `verification/cocotb/<arch>/results.xml` de las suites ISA.
+
+La validación estricta se hace después de la captura física. Antes se exigían
+los CRC físicos dentro de `thesis`, lo que impedía llegar a la etapa que mide
+la FPGA. El nuevo orden no convierte un CRC simulado en evidencia física ni
+marca automáticamente como validadas las lecturas de contadores.
+
+El capturador `hardware_measure.py` actual registra ciclos e instrucciones;
+para CoreMark conserva el estado `terminated-unvalidated` y `CRC pending`.
+Esas lecturas por sí solas no eliminan el pendiente de CRC del informe.
+`results/results_coremark.csv` es la entrada de las ejecuciones físicas para
+el generador; sus filas históricas carecen de `coremark_functional_valid`.
+Ese campo debe corresponder a una validación física documentada, no añadirse
+para hacer pasar el comando. Si falta esa evidencia, el último paso de
+`full-campaign` seguirá rechazando la publicación como validada.
+
+Para regenerar las tablas y figuras disponibles sin repetir síntesis ni
+simulaciones, usar `make report-quick`. Una vez registrada toda la evidencia,
+`make validate-campaign` repite únicamente la comprobación final.
 
 Los capítulos de `ProyectoGrado` contienen tablas y figuras propias: generar
 este paquete no actualiza automáticamente toda su prosa ni sus tablas
@@ -102,7 +139,8 @@ largas para evitar solapamientos.
 ```sh
 .venv/bin/python3 -m unittest \
   verification/test_report_generation.py \
-  verification/test_campaign_integrity.py
+  verification/test_campaign_integrity.py \
+  verification/test_campaign_order.py
 ```
 
 Cubren selección de XML reciente, conservación de entradas, rechazo de
