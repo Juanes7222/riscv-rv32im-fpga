@@ -145,8 +145,13 @@ def stage_preflight(args) -> int:
 
     for name, elf in HARDWARE_PROGRAMS:
         check(f"program {name}", elf)
-    coremark = BUILD / "coremark_iter10" / "coremark.elf"
-    check("CoreMark (10 iterations)", coremark)
+    from measure_benchmarks import BENCHMARKS, COREMARK_ITERATIONS, prepare_coremark_benchmarks
+    try:
+        prepare_coremark_benchmarks(BENCHMARKS)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        problems.append(f"CoreMark preparation: {error}")
+    for name in COREMARK_ITERATIONS:
+        check(name, BUILD / name / "coremark.elf")
 
     if problems:
         print(f"\nMissing: {', '.join(problems)}")

@@ -163,6 +163,27 @@ class ReportGenerationTests(unittest.TestCase):
         self.assertEqual(self.generate(), 0)
         self.assertFalse(table.exists())
 
+    def test_resource_overhead_is_checked_before_rounding(self):
+        for arch, registers in (("single_cycle", 3303), ("pipeline", 4104)):
+            for path in (self.raw / arch).glob("replica_*/fit.summary"):
+                path.write_text(path.read_text().replace("Total registers : 150", f"Total registers : {registers}"))
+        self.assertEqual(self.generate(), 0)
+        self.assertIn("+24.3", (self.output / "thesis/tables/resources.tex").read_text())
+        self.assertIn("24.25", (self.output / "results/results_efficiency.csv").read_text())
+        self.assertEqual(self.generate("--check"), 0)
+
+    def test_speedup_dispersion_is_checked_before_rounding(self):
+        for arch, frequencies in (("single_cycle", (50, 50)), ("pipeline", (50, 52.015))):
+            for index, frequency in enumerate(frequencies, 1):
+                (self.raw / arch / f"replica_{index}/fmax.txt").write_text(str(frequency))
+        self.benchmarks[1]["cycle_count"] = 100
+        self.write_benchmarks()
+        self.assertEqual(self.generate(), 0)
+        self.assertIn("0.0285", (self.output / "results/results_benchmarks_summary.csv").read_text())
+        rows = artifacts.parse_tex_rows(self.output / "thesis/tables/speedup.tex")
+        self.assertEqual(rows[0][2], "0.028")
+        self.assertEqual(self.generate("--check"), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

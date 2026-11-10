@@ -1047,29 +1047,32 @@ def fmax_table_problems() -> list:
     return _table_problems("Fmax", expected, actual)
 
 
-def resources_table_problems() -> list:
-    """Compare the statistics and efficiency CSVs with the resources table."""
-    stats = {(row["arch"], row["metric"]): row
-             for row in _read_csv_rows(RESULTS / "results_statistics.csv")}
-    overhead = {row["resource"]: row["overhead_pct"]
-                for row in _read_csv_rows(RESULTS / "results_efficiency.csv")
-                if row["overhead_pct"].strip()}
+def published_analysis():
+    """Rebuild full-precision statistics and metrics from the published inputs."""
+    replicas = _read_csv_rows(RESULTS / "results_replicas.csv")
+    for row in replicas:
+        for key in ("fmax_mhz", *RESOURCE_PATTERNS):
+            row[key] = float(row[key]) if row.get(key) else None
+    stats = replica_stats(replicas)
+    metrics = benchmark_metrics(_read_csv_rows(RESULTS / "results_benchmarks.csv"), stats)
+    return stats, metrics
 
+
+def resources_table_problems() -> list:
+    """Compare displayed resources using original replica precision."""
+    stats, _ = published_analysis()
     expected = {}
     for key, label in RESOURCE_LABELS.items():
         cells = []
         for arch in ARCHES:
-            row = stats.get((arch, key))
-            cells.append(f"{float(row['mean']):.0f} $\\pm$ "
-                         f"{float(row['std']):.0f}"
-                         if row else r"\textemdash")
-        pct = overhead.get(label)
-        cells.append(f"{float(pct):+.1f} \\%"
-                     if pct is not None else r"\textemdash")
+            stat = stats[arch].get(key)
+            cells.append(f"{fmt(stat['mean'], 0)} $\\pm$ {fmt(stat['std'], 0)}"
+                         if stat else r"\textemdash")
+        sc, pipe = stats["single_cycle"].get(key), stats["pipeline"].get(key)
+        overhead = (pipe["mean"] - sc["mean"]) / sc["mean"] * 100 if sc and pipe and sc["mean"] else None
+        cells.append(f"{overhead:+.1f} \\%" if overhead is not None else r"\textemdash")
         expected[label] = cells
-
-    actual = {row[0]: row[1:]
-              for row in parse_tex_rows(TABLES / "resources.tex")}
+    actual = {row[0]: row[1:] for row in parse_tex_rows(TABLES / "resources.tex")}
     return _table_problems("Recursos", expected, actual)
 
 
@@ -1103,43 +1106,26 @@ def statistics_table_problems() -> list:
 
 
 def efficiency_table_problems() -> list:
-    """Compare results_efficiency.csv and its sources with the efficiency table.
+    """Compare efficiency with unrounded counters and replica measurements."""
+    stats, metrics = published_analysis()
 
-    The throughput per resource is derived, so it is rebuilt from the mean
-    throughput of the summary and the mean resource count per architecture.
-    """
-    stats = {(row["arch"], row["metric"]): row
-             for row in _read_csv_rows(RESULTS / "results_statistics.csv")}
-    throughputs = {}
-    for row in _read_csv_rows(RESULTS / "results_benchmarks_summary.csv"):
-        if row["result"] != "pass" or not row["throughput_mean_mips"].strip():
-            continue
-        throughputs.setdefault(row["architecture"], []).append(
-            float(row["throughput_mean_mips"]))
-
-    def per_resource(arch: str, metric: str):
-        values = throughputs.get(arch)
-        stat = stats.get((arch, metric))
-        if not values or not stat or not float(stat["mean"]):
+    def per_resource(arch, resource):
+        values = [m["arch"][arch]["throughput"]["mean"] for m in metrics
+                  if arch in m["arch"] and m["arch"][arch]["throughput"]]
+        stat = stats[arch].get(resource)
+        if not values or not stat or not stat["mean"]:
             return None
-        mean_throughput = sum(values) / len(values)
-        return mean_throughput / (float(stat["mean"]) / 1000.0)
+        return (sum(values) / len(values)) / (stat["mean"] / 1000)
 
     expected = {}
-    for metric, label in (("alms", "Throughput por 1000 ALMs (MIPS)"),
-                          ("registers", "Throughput por 1000 registros (MIPS)")):
-        expected[label] = [
-            fmt(per_resource(arch, metric), 3)
-            if per_resource(arch, metric) is not None else r"\textemdash"
-            for arch in ARCHES]
-    for row in _read_csv_rows(RESULTS / "results_efficiency.csv"):
-        if not row["overhead_pct"].strip():
-            continue
-        expected[f"Overhead de {row['resource']} del pipeline"] = [
-            "---", f"{float(row['overhead_pct']):+.1f} \\%"]
-
-    actual = {row[0]: row[1:]
-              for row in parse_tex_rows(TABLES / "efficiency.tex")}
+    for key, label in (("alms", "Throughput por 1000 ALMs (MIPS)"),
+                       ("registers", "Throughput por 1000 registros (MIPS)")):
+        expected[label] = [fmt(per_resource(arch, key), 3, dash=r"\textemdash") for arch in ARCHES]
+    for row in efficiency_table(metrics, stats):
+        if row["overhead_pct"] is not None:
+            expected[f"Overhead de {row['label']} del pipeline"] = [
+                "---", f"{row['overhead_pct']:+.1f} \\%"]
+    actual = {row[0]: row[1:] for row in parse_tex_rows(TABLES / "efficiency.tex")}
     return _table_problems("Eficiencia", expected, actual)
 
 
@@ -1187,71 +1173,19 @@ def benchmarks_table_problems() -> list:
     return problems
 
 
-def _speedup_cell_matches(column: int, csv_cell: str, tex_cell: str) -> bool:
-    """The CSV keeps four decimals; the table derives the bound and rounds it."""
-    if csv_cell == tex_cell:
-        return True
-    if column == 3:
-        return False
-    tolerance = 0.0006 if column < 2 else 0.0015
-    try:
-        return abs(float(csv_cell) - float(tex_cell)) <= tolerance
-    except ValueError:
-        return False
-
-
 def speedup_table_problems() -> list:
-    """Compare results_benchmarks_summary.csv with the speedup table.
-
-    Both architectures share the paired speedup of a program, so the first
-    row of each program is enough: a disagreement between them means the
-    summary itself is inconsistent and is reported too.
-    """
+    """Compare displayed speedups without double-rounding the CSV summary."""
+    _, metrics = published_analysis()
     expected = {}
-    problems = []
-    conflicts = set()
-    for row in _read_csv_rows(RESULTS / "results_benchmarks_summary.csv"):
-        if not row["speedup_mean"].strip():
-            continue
-        mean = float(row["speedup_mean"])
-        std = float(row["speedup_std"])
-        cells = [fmt(mean, 3), fmt(std, 3), fmt(mean - std, 3),
-                 "H1 sostenida" if row["verdict"] == "H1"
-                 else "H0 no descartada"]
-        label = tex_escape(row["program"])
-        previous = expected.get(label)
-        if label in conflicts:
-            continue
-        if previous is not None and previous != cells:
-            problems.append(f"Speedup: '{row['program']}' tiene speedups "
-                            f"distintos entre arquitecturas ({previous} y "
-                            f"{cells})")
-            conflicts.add(label)
-            del expected[label]
-            continue
-        expected[label] = cells
-
-    actual = {row[0]: row[1:]
-              for row in parse_tex_rows(TABLES / "speedup.tex")}
-    for label in conflicts:
-        actual.pop(label, None)
-
-    for label, cells in expected.items():
-        if label not in actual:
-            problems.append(f"Speedup: falta la fila '{label}' en el .tex")
-            continue
-        tex_cells = actual.pop(label)
-        if len(tex_cells) != len(cells):
-            problems.append(f"Speedup: '{label}' tiene {len(tex_cells)} "
-                            f"columnas en el .tex y {len(cells)} en el CSV")
-            continue
-        for column, (csv_cell, tex_cell) in enumerate(zip(cells, tex_cells)):
-            if not _speedup_cell_matches(column, csv_cell, tex_cell):
-                problems.append(f"Speedup: '{label}' columna {column + 1}: "
-                                f"CSV {csv_cell} != TeX {tex_cell}")
-    for label in actual:
-        problems.append(f"Speedup: sobra la fila '{label}' en el .tex")
-    return problems
+    for entry in metrics:
+        stat = entry.get("speedup")
+        if stat:
+            expected[tex_escape(entry["program"])] = [
+                fmt(stat["mean"], 3), fmt(stat["std"], 3),
+                fmt(stat["mean"] - stat["std"], 3),
+                "H1 sostenida" if entry["verdict"] == "H1" else "H0 no descartada"]
+    actual = {row[0]: row[1:] for row in parse_tex_rows(TABLES / "speedup.tex")}
+    return _table_problems("Speedup", expected, actual)
 
 
 def coremark_table_problems() -> list:
@@ -1484,18 +1418,19 @@ def resources_figure_problems() -> list:
 
 def derived_metric_problems() -> list:
     """Recompute metrics from counters and replicas, independently of plots."""
-    replicas = _read_csv_rows(RESULTS / "results_replicas.csv")
-    for row in replicas:
-        for key in ("fmax_mhz", *RESOURCE_PATTERNS):
-            row[key] = float(row[key]) if row.get(key) else None
-    stats = replica_stats(replicas)
-    benchmarks = _read_csv_rows(RESULTS / "results_benchmarks.csv")
-    wanted = [{k: str(v) for k, v in row.items()}
-              for row in benchmark_summary_rows(benchmark_metrics(benchmarks, stats))]
+    stats, metrics = published_analysis()
+    wanted = [{k: str(v) for k, v in row.items()} for row in benchmark_summary_rows(metrics)]
     actual = _read_csv_rows(RESULTS / "results_benchmarks_summary.csv")
     problems = []
     if wanted != actual:
         problems.append("Métricas: el resumen no se deriva de los contadores y réplicas publicados")
+    efficiency = [{"resource": row["label"],
+                   "single_cycle_mean": fmt(row["single_cycle"], 1),
+                   "pipeline_mean": fmt(row["pipeline"], 1),
+                   "overhead_pct": fmt(row["overhead_pct"], 2) if row["overhead_pct"] is not None else ""}
+                  for row in efficiency_table(metrics, stats)]
+    if efficiency != _read_csv_rows(RESULTS / "results_efficiency.csv"):
+        problems.append("Métricas: la eficiencia no se deriva de las réplicas publicadas")
     for row in _read_csv_rows(RESULTS / "results_fmax.csv"):
         expected = stats[row["arch"]]["fmax"]
         for field, key in (("fmax_mean_mhz", "mean"), ("fmax_std_mhz", "std"),

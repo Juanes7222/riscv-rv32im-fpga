@@ -111,7 +111,7 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     )
 
     # Generate cocotb-compatible .mem files (large depths)
-    generate_cocotb_mem(elf_path)
+    imem_path, dmem_path = generate_cocotb_mem(elf_path)
 
     verif_dir = REPO_ROOT / "verification" / "cocotb" / arch
     top = "top_pipeline" if arch == "pipeline" else "top_single_cycle"
@@ -126,6 +126,8 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
     env["VALIDATION_CSV"] = str(csv_path)
     env["VALIDATION_MAX_CYCLES"] = str(max_cycles)
     env["VALIDATION_TOHOST_ADDR"] = hex(tohost_addr)
+    env.setdefault("IMEM_DEPTH", str(COCOTB_IMEM_DEPTH))
+    env.setdefault("DMEM_DEPTH", str(COCOTB_DMEM_DEPTH))
     env["PATH"] = f"{REPO_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
 
     # A stale CSV must never be mistaken for a fresh reference.
@@ -146,12 +148,17 @@ def run_cocotb_validation(elf_path: pathlib.Path, arch: str,
          "TEST=test_validation",
          f"COCOTB_RESULTS_FILE={results_xml}",
          f"TOPLEVEL={top}",
+         f"SIM_IMEM={imem_path}",
+         f"SIM_DMEM={dmem_path}",
+         f"IMEM_DEPTH={env['IMEM_DEPTH']}",
+         f"DMEM_DEPTH={env['DMEM_DEPTH']}",
          f"SIM_BUILD={csv_path.parent / (arch + '_sim_' + hex(tohost_addr) + '_' + env.get('DMEM_DEPTH', '8192') + '_' + env.get('IMEM_DEPTH', '16384'))}",
          f"TOHOST_ADDR={tohost_addr:#x}"],
         capture_output=True,
         text=True,
         env=env,
     )
+    results_xml.with_suffix(".log").write_text(result.stdout + result.stderr)
 
     if result.returncode != 0:
         raise RuntimeError("cocotb validation failed:\n" + result.stdout[-4000:]

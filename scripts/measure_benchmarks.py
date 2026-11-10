@@ -29,7 +29,10 @@ import argparse
 import csv
 import pathlib
 import os
+import subprocess
 import sys
+
+from elftools.elf.elffile import ELFFile
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 RESULTS_DIR = REPO_ROOT / "results"
@@ -40,11 +43,9 @@ from campaign_state import (  # noqa: E402
     file_fingerprint, load_state, mark, matches, save_state, verification_fingerprint,
 )
 
-# The synthetic stress programs and CoreMark.  The CoreMark binary uses a
-# reduced iteration count (10): the instruction mix - and therefore the CPI -
-# is the same, but the run finishes in minutes instead of hours.  Build it
-# with: make -C programs/coremark BUILD_DIR=../../build/coremark_iter10
-# ITERATIONS=10
+# Reduced CoreMark runs retain startup/finalization overhead, so the 1- and
+# 10-iteration variants are measured separately. Selected variants are rebuilt
+# incrementally before simulation, rather than trusting an existing ELF.
 BENCHMARKS = [
     ("raw_stress", "build/synthetic/raw_stress.elf"),
     ("branch_stress", "build/synthetic/branch_stress.elf"),
@@ -55,6 +56,51 @@ BENCHMARKS = [
 ]
 
 ARCHES = ["single_cycle", "pipeline"]
+COREMARK_ITERATIONS = {"coremark_iter1": 1, "coremark_iter10": 10}
+
+
+def validate_coremark_elf(elf_path: pathlib.Path, iterations: int) -> None:
+    """Reject obsolete ports or mismatched build parameters before simulation."""
+    with elf_path.open("rb") as stream:
+        elf = ELFFile(stream)
+        symbols = elf.get_section_by_name(".symtab")
+
+        def symbol(name):
+            matches = symbols.get_symbol_by_name(name) if symbols else None
+            if not matches:
+                raise ValueError(f"{elf_path}: missing {name}; rebuild the CoreMark port")
+            return matches[0]
+
+        record = symbol("coremark_validation")
+        if int(record["st_size"]) != 64:
+            raise ValueError(f"{elf_path}: incompatible CoreMark CRC record")
+        if int(symbol("tohost")["st_value"]) != 0x6000:
+            raise ValueError(f"{elf_path}: obsolete CoreMark memory map; expected tohost=0x6000")
+        if int(symbol("static_memblk")["st_size"]) != 2000:
+            raise ValueError(f"{elf_path}: expected TOTAL_DATA_SIZE=2000")
+        for name, expected in (("seed1_volatile", 0), ("seed2_volatile", 0),
+                               ("seed3_volatile", 0x66), ("seed4_volatile", iterations)):
+            seed = symbol(name)
+            section = elf.get_section(seed["st_shndx"])
+            offset = int(seed["st_value"]) - int(section["sh_addr"])
+            contents = section.data()[offset:offset + 4]
+            if len(contents) != 4 or int.from_bytes(contents, "little") != expected:
+                raise ValueError(f"{elf_path}: {name} does not match {expected}")
+
+
+def prepare_coremark_benchmarks(benchmarks: list) -> None:
+    """Incrementally build and inspect every selected CoreMark variant."""
+    for name, relative_path in benchmarks:
+        if name not in COREMARK_ITERATIONS:
+            continue
+        elf_path = REPO_ROOT / relative_path
+        iterations = COREMARK_ITERATIONS[name]
+        print(f"Preparing {name}: {iterations} iterations, CRC-enabled port", flush=True)
+        subprocess.run(["make", "-C", str(REPO_ROOT / "programs/coremark"),
+                        f"BUILD_DIR={elf_path.parent}", f"ITERATIONS={iterations}",
+                        "RUN_MODE=PERFORMANCE_RUN", "TOTAL_DATA_SIZE=2000", "all"],
+                       cwd=REPO_ROOT, check=True)
+        validate_coremark_elf(elf_path, iterations)
 
 
 def read_fmax(path=None) -> dict:
@@ -66,10 +112,9 @@ def read_fmax(path=None) -> dict:
     CPI numbers with an old Fmax.
     """
     if path is None:
-        path = RESULTS_DIR / "results_synthesis.csv"
-        header = path.read_text().splitlines()[:1] if path.exists() else []
-        if not header or "fmax_mean_mhz" not in header[0]:
-            path = RESULTS_DIR / "results_fmax.csv"
+        path = RESULTS_DIR / "results_fmax.csv"
+        if not path.exists():
+            path = RESULTS_DIR / "results_synthesis.csv"
     fmax = {}
     with open(path) as fp:
         for row in csv.DictReader(fp):
@@ -113,6 +158,13 @@ def main() -> int:
         benchmarks = [b for b in benchmarks if b[0] in args.only]
     if args.riscv_tests:
         benchmarks += riscv_test_elfs()
+
+    if not args.from_csv:
+        try:
+            prepare_coremark_benchmarks(benchmarks)
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(f"Benchmark preparation failed: {error}", file=sys.stderr)
+            return 1
 
     fmax = read_fmax(args.fmax_csv)
     fingerprint = verification_fingerprint()

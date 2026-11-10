@@ -77,7 +77,7 @@ $(OBJ_DIR)/build_flags: FORCE | $(OBJ_DIR)
 	@echo '$(RISCV_GCC) $(CFLAGS) $(LDFLAGS)' > $@.tmp
 	@cmp -s $@.tmp $@ || cp $@.tmp $@
 
-$(ALL_OBJS): $(OBJ_DIR)/build_flags
+$(ALL_OBJS): $(OBJ_DIR)/build_flags $(SRC_DIR)/coremark.h
 
 all: $(ELF) mem
 

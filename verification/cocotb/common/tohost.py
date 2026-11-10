@@ -2,6 +2,7 @@ import hashlib
 import os
 import pathlib
 import subprocess
+import sys
 from typing import Union
 
 from elftools.elf.elffile import ELFFile
@@ -54,7 +55,7 @@ def generate_mem_for_elf(elf_path: pathlib.Path) -> tuple[pathlib.Path, pathlib.
     sim_dir.mkdir(parents=True, exist_ok=True)
 
     subprocess.run(
-        ["python3", str(SCRIPTS_ROOT / "elf_to_mem_split.py"), str(elf_path),
+        [sys.executable, str(SCRIPTS_ROOT / "elf_to_mem_split.py"), str(elf_path),
          "--imem-depth", str(imem_depth), "--imem-out", str(imem_path),
          "--dmem-depth", str(dmem_depth), "--dmem-out", str(dmem_path)],
         check=True,
