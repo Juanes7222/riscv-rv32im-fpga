@@ -3,10 +3,7 @@
 
 \section{Resumen}
 
-\begin{quote}
-\textbf{Aviso.} Las réplicas de síntesis guardadas no corresponden a la versión vigente del RTL. Repita \texttt{make thesis} antes de consignar estos números.
-\end{quote}
-Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El pipeline alcanzó una Fmax de 59.50 MHz ($\pm$ 1.42 MHz, $n = 5$) frente a los 47.76 MHz ($\pm$ 0.77 MHz, $n = 5$) del monociclo, una mejora de frecuencia del 24.6 \%.
+Se compararon las dos microarquitecturas RV32IM sobre la FPGA Cyclone V DE1-SoC bajo el protocolo descrito en el capítulo de metodología. El pipeline alcanzó una Fmax de 62.15 MHz ($\pm$ 1.03 MHz, $n = 5$) frente a los 49.10 MHz ($\pm$ 1.35 MHz, $n = 5$) del monociclo, una mejora de frecuencia del 26.6 \%.
 
 \section{Verificación funcional}
 
@@ -38,11 +35,11 @@ CoreMark es la carga de referencia del anteproyecto (sección 9.2.13) y exige al
 
 \input{tables/coremark.tex}
 
-Los ciclos y las instrucciones son los contadores congelados que se leyeron en la consola VGA. La normalización por frecuencia aísla el efecto del CPI: el monociclo rinde 3.19 CoreMark/MHz y el pipeline 2.27.
+Los ciclos y las instrucciones son los contadores congelados que se leyeron en la consola VGA. La normalización por frecuencia aísla el efecto del CPI: el monociclo rinde 3.19 CoreMark/MHz y el pipeline 2.49.
 
 \section{Análisis estadístico}
 
-Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 0.77 MHz en el monociclo (CV 1.62 \%) y de 1.42 MHz en el pipeline (CV 2.39 \%).
+Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviación estándar de la Fmax es de 1.35 MHz en el monociclo (CV 2.74 \%) y de 1.03 MHz en el pipeline (CV 1.66 \%).
 
 \input{tables/statistics.tex}
 
@@ -55,6 +52,8 @@ Con $n = 5$ réplicas por tratamiento, el análisis es descriptivo. La desviaci�
 \section{Evaluación de la hipótesis}
 
 \input{tables/speedup.tex}
+
+La hipótesis de trabajo $H_1$ se sostiene solo en \texttt{m\_ext\_stress}, \texttt{raw\_stress} y no se descarta en \texttt{branch\_stress}, \texttt{coremark\_iter1}, \texttt{coremark\_iter10}, \texttt{load\_use\_stress}: en conjunto, el resultado es un rechazo parcial, no una confirmación. La ganancia de frecuencia (26.6 \%) no compensa el aumento del CPI por hazard de datos, vaciado de ramas y latencia de la división. En la carga estándar CoreMark el pipeline rinde 2.49 CoreMark/MHz frente a 3.19 del monociclo, la métrica normalizada por frecuencia que recomienda EEMBC (sección 9.2.13).
 
 \section{Limitaciones}
 

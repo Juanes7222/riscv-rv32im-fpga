@@ -1,0 +1,26 @@
+% Generado por scripts/thesis_artifacts.py - no editar a mano.
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.95\textwidth,
+  height=7cm,
+  ybar,
+  bar width=14pt,
+  ylabel={Speedup del pipeline},
+  xtick={1,2,3,4,5,6},
+  xticklabels={{branch\_stress}, {coremark\_iter1}, {coremark\_iter10}, {load\_use\_stress}, {m\_ext\_stress}, {raw\_stress}},
+  xmin=0.5,
+  xmax=6.5,
+  ymajorgrids,
+  legend style={at={(0.5,-0.3)},anchor=north,legend columns=2},
+  error bars/.cd, y dir=both, y explicit,
+]
+  \addplot coordinates {(1,0.844) +- (0,0.033), (2,0.994) +- (0,0.038), (3,0.991) +- (0,0.038), (4,0.670) +- (0,0.026), (5,1.225) +- (0,0.047), (6,1.124) +- (0,0.043)};
+  \addplot[black, dashed, sharp plot, update limits=false] coordinates {(0.5,1) (6.5,1)};
+  \legend{Speedup medio $\pm$ desviación estándar,Umbral de $H_1$}
+\end{axis}
+\end{tikzpicture}
+\caption{Speedup del pipeline respecto al monociclo por programa. La línea en 1 separa la ganancia de la pérdida; $H_1$ exige además que la media menos una desviación estándar supere ese umbral.}
+\label{fig:speedup}
+\end{figure}

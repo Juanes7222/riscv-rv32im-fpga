@@ -1,0 +1,23 @@
+{
+  "measurement": {
+    "architecture": "pipeline",
+    "program": "branch_stress.elf",
+    "result": "pass",
+    "cycle_count": 6008,
+    "instr_retired": 4005,
+    "cpi": "1.50012484",
+    "tohost_addr": "0x708",
+    "counter_protocol": "retire-inclusive-v2",
+    "elf_sha256": "dd0230a5feddf7c463cf11092643c5add99b459482e703f25602987ddb112d97",
+    "rtl_sha256": "670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841",
+    "coremark_functional_valid": "",
+    "reference_valid": true
+  },
+  "coremark": null,
+  "reference": {
+    "valid": true,
+    "instructions": 4005,
+    "registers_compared": 32,
+    "memory_bytes_compared": 4096
+  }
+}

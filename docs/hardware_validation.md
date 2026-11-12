@@ -7,6 +7,12 @@ board shows while a program runs, and which parts of the documented
 Board: Cyclone V 5CSEMA5F31C6 (DE1-SoC), programmed over the USB-Blaster
 (`quartus_pgm --list` reports `DE-SoC [USB-1]`).
 
+For the current CoreMark flow, follow
+[physical CRC capture](reproduction/coremark_physical_crc.md). The corrected
+2000-iteration port preserves its CRC-gated exit status in x5/t0. The capture
+binds that observed status to the ELF, bitstream and counters. Historical
+counter readings below do not retroactively gain CRC validation.
+
 ---
 
 ## 1. The program must reach the FPGA memory, not just the simulation

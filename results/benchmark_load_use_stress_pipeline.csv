@@ -1,2 +1,2 @@
-architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
-pipeline,load_use_stress.elf,pass,2236,1124,1.9893,0x708
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,counter_protocol,elf_sha256,rtl_sha256,coremark_functional_valid,reference_valid
+pipeline,load_use_stress.elf,pass,2128,1126,1.88987567,0x708,retire-inclusive-v2,fb0f7225235e2b30e86e9d284975dab5b2d40990c333de3fe196c2d05e8c2673,670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841,,True

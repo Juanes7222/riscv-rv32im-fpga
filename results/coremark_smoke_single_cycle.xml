@@ -1,0 +1,6 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1794485091" />
+    <testcase name="test_coremark_smoke" classname="test_coremark_smoke" file="/mnt/c/Users/juanb/Documents/GitHub/riscv-rv32im-fpga/verification/cocotb/common/test_coremark_smoke.py" lineno="27" time="1.252532958984375" sim_time_ns="20110.0" ratio_time="16055.465731062544" />
+  </testsuite>
+</testsuites>

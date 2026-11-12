@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,seconds,source,rtl_sha256,elf_sha256,sof_sha256,counter_protocol,clock_mhz,functional_validation,date_utc,notes
+single_cycle,raw_stress,pass,1149,1149,1.0000,0x708,,vga_console,670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841,436b5ea23c52dd4dc6f3f6f5e2f7cb02e46c2dc22107cd3bdf15843f979c01b4,38abe31e28634cec8e1acba133ac20f00605f6947495ef0ae4abf8d1cfa26af0,retire-inclusive-v2,40,termination only,2026-11-10T17:48:11.066774+00:00,

@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,seconds,source,date_utc,notes
+single_cycle,m_ext_stress,pass,1175,155,7.5806,0x708,,vga_console,2026-11-07T21:49:06.705458+00:00,

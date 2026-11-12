@@ -1,13 +1,13 @@
 resource,single_cycle_mean,pipeline_mean,overhead_pct
-ALMs,3828.4,5738.4,
-Registros,4136.0,5115.8,
-Bloques RAM,60.0,44.0,
+ALMs,3857.2,4499.8,
+Registros,4206.6,5113.6,
+Bloques RAM,60.0,60.0,
 Bloques DSP,10.0,10.0,
-Bits de memoria,475648.0,344576.0,
-Pines,85.0,85.0,
-ALMs,3828.4,5738.4,49.89
-Registros,4136.0,5115.8,23.69
-Bloques RAM,60.0,44.0,-26.67
+Bits de memoria,475648.0,475648.0,
+Pines,90.0,90.0,
+ALMs,3857.2,4499.8,16.66
+Registros,4206.6,5113.6,21.56
+Bloques RAM,60.0,60.0,0.00
 Bloques DSP,10.0,10.0,0.00
-Bits de memoria,475648.0,344576.0,-27.56
-Pines,85.0,85.0,0.00
+Bits de memoria,475648.0,475648.0,0.00
+Pines,90.0,90.0,0.00

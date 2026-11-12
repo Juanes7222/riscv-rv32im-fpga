@@ -1,0 +1,5 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,seconds,source,date_utc,notes
+pipeline,branch_stress,pass,6006,4006,1.4993,0x708,,vga_console,2026-11-07T21:55:31.741401+00:00,
+pipeline,branch_stress,pass,6006,4003,1.5004,0x708,,vga_console,2026-11-07T23:11:55.274454+00:00,
+pipeline,branch_stress,pass,6006,4003,1.5004,0x708,,vga_console,2026-11-08T00:44:38.463467+00:00,
+pipeline,branch_stress,pass,6006,4003,1.5004,0x708,,vga_console,2026-11-08T01:04:13.067285+00:00,

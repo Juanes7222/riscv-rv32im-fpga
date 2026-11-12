@@ -1,0 +1,20 @@
+% Generado por scripts/thesis_artifacts.py - no editar a mano.
+% Fecha: 2026-11-07 21:36
+\begin{table}[htbp]
+\centering
+\small
+\caption{Caminos de datos que fijan la frecuencia máxima, ordenados por periodo exigido (proyecto de la última réplica, modelo \emph{Slow 1100 mV 85$^\circ$C}). La relación es el periodo con el que se restringió el camino: 6.25 ns es medio ciclo.}
+\label{tab:critical_path}
+\begin{tabular}{llrrrr}
+\toprule
+Arquitectura & Camino (origen $\to$ destino) & Relación (ns) & Retardo (ns) & Skew (ns) & Periodo exigido (ns) \\
+\midrule
+Monociclo & instruction\_memory:u\_imem $\to$ data\_memory:u\_dmem & 6.250 & 8.874 & -1.042 & 20.03 \\
+Monociclo & instruction\_memory:u\_imem $\to$ oob\_q & 12.500 & 17.998 & -1.006 & 19.10 \\
+Monociclo & instruction\_memory:u\_imem $\to$ register\_file:u\_rf regs[5][27] & 12.500 & 17.574 & -1.384 & 19.06 \\
+\midrule
+Pipeline & data\_memory\_pipe:u\_dmem $\to$ ex\_mem\_register:u\_ex\_mem mem\_alu\_result[2] & 10.000 & 14.988 & -1.315 & 16.40 \\
+Pipeline & mem\_wb\_register:u\_mem\_wb wb\_csr\_addr[10] $\to$ ex\_mem\_register:u\_ex\_mem mem\_alu\_result[28] & 10.000 & 16.157 & -0.114 & 16.37 \\
+\bottomrule
+\end{tabular}
+\end{table}

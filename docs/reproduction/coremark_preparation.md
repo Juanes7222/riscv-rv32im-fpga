@@ -19,6 +19,11 @@ los CRC y la comparación contra el modelo Python se comprueban durante la
 ejecución, como antes. El modo `--from-csv` conserva su carácter de lectura
 histórica y no recompila programas.
 
+La variante física de 2000 iteraciones se prepara con `make prepare-coremark`
+y también desde el preflight y el capturador de FPGA. Usa las mismas
+comprobaciones del ELF. La captura del estado CRC físico se describe en
+[CoreMark en FPGA](coremark_physical_crc.md).
+
 ## Error `missing CRC record`
 
 Los binarios antiguos podían usar `tohost=0x5000` y carecer del registro de CRC.

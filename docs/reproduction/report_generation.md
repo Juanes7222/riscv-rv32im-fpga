@@ -39,8 +39,10 @@ make report-quick REPORT_FLAGS=
 - Los ciclos e instrucciones proceden de `results/results_benchmarks.csv`.
   CPI, IPC y rendimiento se recalculan con los enteros originales. El speedup
   temporal empareja semillas presentes en ambas arquitecturas.
-- CoreMark se lee de `results/results_coremark.csv` y se deriva en la carpeta
-  del informe. El generador no reescribe su entrada ni la campaña original.
+- CoreMark usa la última lectura de `results/hardware_<arch>_coremark_v2.csv`
+  por arquitectura. Si no existe, conserva la fila histórica de
+  `results/results_coremark.csv`, marcada sin validación física acreditada.
+  El generador no reescribe estas entradas.
 - Los reportes exportados de caminos críticos son opcionales y deben
   identificarse con su implementación; una coincidencia de frecuencia no
   demuestra por sí sola su procedencia.
@@ -110,14 +112,14 @@ los CRC físicos dentro de `thesis`, lo que impedía llegar a la etapa que mide
 la FPGA. El nuevo orden no convierte un CRC simulado en evidencia física ni
 marca automáticamente como validadas las lecturas de contadores.
 
-El capturador `hardware_measure.py` actual registra ciclos e instrucciones;
-para CoreMark conserva el estado `terminated-unvalidated` y `CRC pending`.
-Esas lecturas por sí solas no eliminan el pendiente de CRC del informe.
-`results/results_coremark.csv` es la entrada de las ejecuciones físicas para
-el generador; sus filas históricas carecen de `coremark_functional_valid`.
-Ese campo debe corresponder a una validación física documentada, no añadirse
-para hacer pasar el comando. Si falta esa evidencia, el último paso de
-`full-campaign` seguirá rechazando la publicación como validada.
+El capturador `hardware_measure.py` recoge ciclos, instrucciones y, para
+CoreMark, el resultado de las comprobaciones CRC conservado en x5/t0. El método
+`crc-gated-t0-v1` y sus límites se describen en [captura de CoreMark](coremark_physical_crc.md).
+Una lectura sin ese estado sigue como `terminated-unvalidated`; una lectura
+de fallo no se convierte en éxito. El informe comprueba la observación, los
+archivos archivados y sus hashes; escribir únicamente
+`coremark_functional_valid=True` en un CSV no basta. Las réplicas deben haberse
+sintetizado con el mismo ELF de la ejecución física.
 
 Para regenerar las tablas y figuras disponibles sin repetir síntesis ni
 simulaciones, usar `make report-quick`. Una vez registrada toda la evidencia,
@@ -140,7 +142,8 @@ largas para evitar solapamientos.
 .venv/bin/python3 -m unittest \
   verification/test_report_generation.py \
   verification/test_campaign_integrity.py \
-  verification/test_campaign_order.py
+  verification/test_campaign_order.py \
+  verification/test_coremark_hardware.py
 ```
 
 Cubren selección de XML reciente, conservación de entradas, rechazo de

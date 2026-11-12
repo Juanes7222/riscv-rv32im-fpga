@@ -1,0 +1,23 @@
+{
+  "measurement": {
+    "architecture": "pipeline",
+    "program": "m_ext_stress.elf",
+    "result": "pass",
+    "cycle_count": 1209,
+    "instr_retired": 156,
+    "cpi": "7.75000000",
+    "tohost_addr": "0x708",
+    "counter_protocol": "retire-inclusive-v2",
+    "elf_sha256": "d6dc47bddf1de31c556c57a3f4220b686a26bf461af1247e08ee538c7fdc2ccd",
+    "rtl_sha256": "670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841",
+    "coremark_functional_valid": "",
+    "reference_valid": true
+  },
+  "coremark": null,
+  "reference": {
+    "valid": true,
+    "instructions": 156,
+    "registers_compared": 32,
+    "memory_bytes_compared": 32768
+  }
+}

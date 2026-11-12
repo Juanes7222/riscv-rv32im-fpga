@@ -1,0 +1,59 @@
+{
+  "measurement": {
+    "architecture": "single_cycle",
+    "program": "coremark_bad_crc.elf",
+    "result": "crc-fail",
+    "cycle_count": 329501,
+    "instr_retired": 329467,
+    "cpi": "1.00010320",
+    "tohost_addr": "0x6000",
+    "counter_protocol": "retire-inclusive-v2",
+    "elf_sha256": "402af25f4c54d9d1a93ebd3c5b62417854794c464140f7d2ab096a3519a965c5",
+    "rtl_sha256": "670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841",
+    "coremark_functional_valid": false,
+    "reference_valid": true
+  },
+  "coremark": {
+    "functional_valid": false,
+    "record_address": "0x6d50",
+    "seed_crc": 59893,
+    "observed": [
+      59156,
+      8151,
+      36410
+    ],
+    "expected": [
+      59157,
+      8151,
+      36410
+    ],
+    "final_crc": 59156,
+    "iterations": 1,
+    "errors": 1,
+    "internal_timing_valid": false,
+    "words": [
+      1129141809,
+      2,
+      59893,
+      59156,
+      8151,
+      36410,
+      59157,
+      8151,
+      36410,
+      59156,
+      1,
+      7,
+      1,
+      0,
+      0,
+      0
+    ]
+  },
+  "reference": {
+    "valid": true,
+    "instructions": 329467,
+    "registers_compared": 32,
+    "memory_bytes_compared": 4096
+  }
+}

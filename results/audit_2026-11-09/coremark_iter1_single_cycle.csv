@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,counter_protocol,elf_sha256,rtl_sha256,coremark_functional_valid,reference_valid
+single_cycle,coremark.elf,pass,329484,329450,1.00010320,0x6000,retire-inclusive-v2,9b8c780ebce9dec399df36396ad4d0131468d8238153a9bd8cca9839bc962842,670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841,True,True

@@ -1,0 +1,3 @@
+Expected failure before redirect-priority fix:
+retire 9: RTL PC=0x24, model PC=0x50
+The identical ELF passes with the fix; see retirement_window_pipeline.csv.

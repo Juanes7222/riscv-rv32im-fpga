@@ -1,0 +1,6 @@
+<testsuites name="results">
+  <testsuite name="all" package="all">
+    <property name="random_seed" value="1794328591" />
+    <testcase name="test_validation" classname="test_validation" file="/mnt/c/Users/juanb/Documents/GitHub/riscv-rv32im-fpga/verification/cocotb/common/test_validation.py" lineno="42" time="1.847712516784668" sim_time_ns="60220.0" ratio_time="32591.65019068712" />
+  </testsuite>
+</testsuites>

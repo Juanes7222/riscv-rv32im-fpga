@@ -1,2 +1,2 @@
-architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr
-pipeline,coremark.elf,pass,4419771,3153032,1.4018,0x6000
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,counter_protocol,elf_sha256,rtl_sha256,coremark_functional_valid,reference_valid
+pipeline,coremark.elf,pass,4030198,3153638,1.27795200,0x6000,retire-inclusive-v2,80f04913889c743dd84b59cab593943b473ac0f25085b3269807cfcd9c00de1d,670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841,True,True

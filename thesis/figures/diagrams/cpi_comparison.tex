@@ -8,14 +8,14 @@
   ybar,
   bar width=8pt,
   ylabel={CPI},
-  xtick={1,2},
-  xticklabels={{coremark\_iter1}, {coremark\_iter10}},
+  xtick={1,2,3,4,5,6},
+  xticklabels={{branch\_stress}, {coremark\_iter1}, {coremark\_iter10}, {load\_use\_stress}, {m\_ext\_stress}, {raw\_stress}},
   xmin=0.5,
   enlarge x limits=0.1,
   legend style={at={(0.5,-0.25)},anchor=north,legend columns=2},
 ]
-  \addplot coordinates {(1,1.000), (2,1.000)};
-  \addplot coordinates {(1,1.400), (2,1.402)};
+  \addplot coordinates {(1,1.000), (2,1.000), (3,1.000), (4,1.000), (5,7.581), (6,1.000)};
+  \addplot coordinates {(1,1.500), (2,1.274), (3,1.278), (4,1.891), (5,7.838), (6,1.127)};
   \legend{Monociclo,Pipeline}
 \end{axis}
 \end{tikzpicture}

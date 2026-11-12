@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,counter_protocol,elf_sha256,rtl_sha256,coremark_functional_valid,reference_valid
+pipeline,coremark_bad_crc.elf,crc-fail,419865,329467,1.27437649,0x6000,retire-inclusive-v2,402af25f4c54d9d1a93ebd3c5b62417854794c464140f7d2ab096a3519a965c5,670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841,False,True

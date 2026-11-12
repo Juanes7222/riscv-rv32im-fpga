@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,counter_protocol,elf_sha256,rtl_sha256,coremark_functional_valid,reference_valid
+single_cycle,branch_stress.elf,pass,4005,4005,1.00000000,0x708,retire-inclusive-v2,dd0230a5feddf7c463cf11092643c5add99b459482e703f25602987ddb112d97,670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841,,True

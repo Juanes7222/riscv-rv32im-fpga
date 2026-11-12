@@ -1,0 +1,129 @@
+# Worst setup paths of the processor clock, Slow 1100 mV 85 C model.
+#
+# Source: the project state left by the last build in synthesis/single_cycle/, which is
+# replica 5 of the campaign (seed 5). Regenerate with:
+#   cd synthesis/single_cycle && quartus_sta -t report_paths.tcl
+#
+# 'Relationship' is the constrained period: the pin is declared at 10 ns and the
+# single-cycle CPU PLL is analysed at 12.5 ns, both half of the real board
+# periods (constraints.sdc). The Fmax printed by the Timing Analyzer is
+# absolute and therefore comparable between the two designs.
+#
+# The RISE -> FALL and FALL -> RISE sections list the half-cycle transfers.
+# In the single-cycle they are the paths that fix the Fmax (ADR 048); in the
+# pipeline both memories read on the rising edge, so those sections are empty.
+#
+Info (332115): Path #1: Setup slack is -6.604 (VIOLATED)
+    Info (332115):    Slack        : -6.604 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a14~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.006
+    Info (332115):    Data Delay   : 17.998
+Info (332115): Path #2: Setup slack is -6.600 (VIOLATED)
+    Info (332115):    Slack        : -6.600 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a14~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q~DUPLICATE
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.004
+    Info (332115):    Data Delay   : 17.996
+Info (332115): Path #3: Setup slack is -6.560 (VIOLATED)
+    Info (332115):    Slack        : -6.560 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a2~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.015
+    Info (332115):    Data Delay   : 17.945
+Info (332115): Path #4: Setup slack is -6.558 (VIOLATED)
+    Info (332115):    Slack        : -6.558 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a14~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : register_file:u_rf|regs[5][27]~DUPLICATE
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.384
+    Info (332115):    Data Delay   : 17.574
+Info (332115): Path #5: Setup slack is -6.556 (VIOLATED)
+    Info (332115):    Slack        : -6.556 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a2~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q~DUPLICATE
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.013
+    Info (332115):    Data Delay   : 17.943
+Info (332115): Path #6: Setup slack is -6.555 (VIOLATED)
+    Info (332115):    Slack        : -6.555 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a16~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.006
+    Info (332115):    Data Delay   : 17.949
+Info (332115): Path #7: Setup slack is -6.555 (VIOLATED)
+    Info (332115):    Slack        : -6.555 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a14~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : register_file:u_rf|regs[5][27]
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.379
+    Info (332115):    Data Delay   : 17.576
+Info (332115): Path #8: Setup slack is -6.554 (VIOLATED)
+    Info (332115):    Slack        : -6.554 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a16~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.006
+    Info (332115):    Data Delay   : 17.948
+Info (332115): Path #9: Setup slack is -6.551 (VIOLATED)
+    Info (332115):    Slack        : -6.551 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a16~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q~DUPLICATE
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.004
+    Info (332115):    Data Delay   : 17.947
+Info (332115): Path #10: Setup slack is -6.550 (VIOLATED)
+    Info (332115):    Slack        : -6.550 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a16~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : instruction_memory:u_imem|oob_q~DUPLICATE
+    Info (332115):    Relationship : 12.500
+    Info (332115):    Clock Skew   : -1.004
+    Info (332115):    Data Delay   : 17.946
+=== RISE -> FALL ===
+Info (332115): Path #1: Setup slack is -3.766 (VIOLATED)
+    Info (332115):    Slack        : -3.766 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a20~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : data_memory:u_dmem|altsyncram:mem_b2_rtl_0|altsyncram_6ar1:auto_generated|ram_block1a0~portb_address_reg2
+    Info (332115):    Relationship : 6.250
+    Info (332115):    Clock Skew   : -1.042
+    Info (332115):    Data Delay   : 8.874
+Info (332115): Path #2: Setup slack is -3.672 (VIOLATED)
+    Info (332115):    Slack        : -3.672 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a20~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : data_memory:u_dmem|altsyncram:mem_b0_rtl_0|altsyncram_4ar1:auto_generated|ram_block1a0~portb_address_reg8
+    Info (332115):    Relationship : 6.250
+    Info (332115):    Clock Skew   : -1.276
+    Info (332115):    Data Delay   : 8.546
+Info (332115): Path #3: Setup slack is -3.654 (VIOLATED)
+    Info (332115):    Slack        : -3.654 (VIOLATED)
+    Info (332115):    From Node    : instruction_memory:u_imem|altsyncram:mem_rtl_0|altsyncram_a632:auto_generated|ram_block1a20~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : data_memory:u_dmem|altsyncram:mem_b1_rtl_0|altsyncram_5ar1:auto_generated|ram_block1a0~portb_address_reg2
+    Info (332115):    Relationship : 6.250
+    Info (332115):    Clock Skew   : -1.046
+    Info (332115):    Data Delay   : 8.758
+=== FALL -> RISE ===
+Info (332115): Path #1: Setup slack is -2.688 (VIOLATED)
+    Info (332115):    Slack        : -2.688 (VIOLATED)
+    Info (332115):    From Node    : data_memory:u_dmem|altsyncram:mem_b2_rtl_0|altsyncram_6ar1:auto_generated|ram_block1a0~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : register_file:u_rf|regs[5][27]~DUPLICATE
+    Info (332115):    Relationship : 6.250
+    Info (332115):    Clock Skew   : -1.135
+    Info (332115):    Data Delay   : 7.703
+Info (332115): Path #2: Setup slack is -2.685 (VIOLATED)
+    Info (332115):    Slack        : -2.685 (VIOLATED)
+    Info (332115):    From Node    : data_memory:u_dmem|altsyncram:mem_b2_rtl_0|altsyncram_6ar1:auto_generated|ram_block1a0~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : register_file:u_rf|regs[5][27]
+    Info (332115):    Relationship : 6.250
+    Info (332115):    Clock Skew   : -1.130
+    Info (332115):    Data Delay   : 7.705
+Info (332115): Path #3: Setup slack is -2.663 (VIOLATED)
+    Info (332115):    Slack        : -2.663 (VIOLATED)
+    Info (332115):    From Node    : data_memory:u_dmem|altsyncram:mem_b2_rtl_0|altsyncram_6ar1:auto_generated|ram_block1a0~PORT_B_WRITE_ENABLE_REG
+    Info (332115):    To Node      : register_file:u_rf|regs[4][27]
+    Info (332115):    Relationship : 6.250
+    Info (332115):    Clock Skew   : -1.124
+    Info (332115):    Data Delay   : 7.689

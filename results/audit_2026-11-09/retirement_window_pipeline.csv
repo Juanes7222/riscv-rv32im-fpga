@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,counter_protocol,elf_sha256,rtl_sha256,coremark_functional_valid,reference_valid
+pipeline,retirement_window.elf,pass,59,18,3.27777778,0x708,retire-inclusive-v2,dd8dbea9246b01ae5e0546d71e8fcd558382cd558f3dd39d48046f1419aaf7b4,670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841,,True

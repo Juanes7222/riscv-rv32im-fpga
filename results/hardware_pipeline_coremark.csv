@@ -1,0 +1,2 @@
+architecture,program,result,cycle_count,instr_retired,cpi,tohost_addr,seconds,source,date_utc,notes
+pipeline,coremark,pass,802319073,627612245,1.2784,0x6000,,vga_console,2026-11-08T02:46:08.691212+00:00,
