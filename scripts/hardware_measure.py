@@ -369,7 +369,7 @@ def compare_with_cocotb(values: dict, expected: dict | None) -> None:
 def measure_one(program: str, arch: str, out_csv: Path | None = None,
                 force: bool = False, elf: Path | None = None) -> None:
     """Measure one program on one architecture."""
-    elf = elf or elf_for(program)
+    elf = (elf or elf_for(program)).resolve()
     if program == COREMARK:
         if elf.resolve() == COREMARK_ELF.resolve():
             prepare_hardware_coremark(elf)
@@ -390,7 +390,7 @@ def measure_one(program: str, arch: str, out_csv: Path | None = None,
     print(f"\n{'═' * 60}")
     print(f"  {program.upper()}  on  {arch.upper()}")
     print(f"{'═' * 60}")
-    print(f"  ELF     : {elf.relative_to(REPO_ROOT)}")
+    print(f"  ELF     : {elf.relative_to(REPO_ROOT) if elf.is_relative_to(REPO_ROOT) else elf}")
     print(f"  tohost  : {tohost_addr:#x}")
     if expected:
         print(f"  Expected(cocotb): cycles={expected['cycle_count']}, "
