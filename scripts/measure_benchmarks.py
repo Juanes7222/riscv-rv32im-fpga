@@ -88,19 +88,23 @@ def validate_coremark_elf(elf_path: pathlib.Path, iterations: int) -> None:
                 raise ValueError(f"{elf_path}: {name} does not match {expected}")
 
 
+def prepare_coremark_elf(elf_path: pathlib.Path, iterations: int) -> None:
+    """Build a CRC-enabled CoreMark workload with explicit parameters."""
+    print(f"Preparing {elf_path.parent.name}: {iterations} iterations, CRC-enabled port", flush=True)
+    subprocess.run(["make", "-C", str(REPO_ROOT / "programs/coremark"),
+                    f"BUILD_DIR={elf_path.parent}", f"ITERATIONS={iterations}",
+                    "RUN_MODE=PERFORMANCE_RUN", "TOTAL_DATA_SIZE=2000", "all"],
+                   cwd=REPO_ROOT, check=True)
+    validate_coremark_elf(elf_path, iterations)
+
+
 def prepare_coremark_benchmarks(benchmarks: list) -> None:
     """Incrementally build and inspect every selected CoreMark variant."""
     for name, relative_path in benchmarks:
         if name not in COREMARK_ITERATIONS:
             continue
         elf_path = REPO_ROOT / relative_path
-        iterations = COREMARK_ITERATIONS[name]
-        print(f"Preparing {name}: {iterations} iterations, CRC-enabled port", flush=True)
-        subprocess.run(["make", "-C", str(REPO_ROOT / "programs/coremark"),
-                        f"BUILD_DIR={elf_path.parent}", f"ITERATIONS={iterations}",
-                        "RUN_MODE=PERFORMANCE_RUN", "TOTAL_DATA_SIZE=2000", "all"],
-                       cwd=REPO_ROOT, check=True)
-        validate_coremark_elf(elf_path, iterations)
+        prepare_coremark_elf(elf_path, COREMARK_ITERATIONS[name])
 
 
 def read_fmax(path=None) -> dict:

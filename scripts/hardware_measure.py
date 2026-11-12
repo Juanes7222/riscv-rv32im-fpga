@@ -2,8 +2,8 @@
 """Interactive hardware measurement on the DE1-SoC.
 
 Automates everything that can be automated (memory images, synthesis,
-programming) and only asks the user for the two values that must be read
-from the VGA console: CyclesToPass and InstrToPass.
+programming) and reads CyclesToPass and InstrToPass from the VGA console.
+CoreMark also requires the observed CRC-gated exit status in register x5/t0.
 
 SignalTap II cannot be built with Quartus Prime 25.1 (see ADR 042), so the
 counters are read from the visualisation module instead.
@@ -27,14 +27,14 @@ Modes:
   Show what is still pending without touching the board:
     python3 scripts/hardware_measure.py --status
 
-The result is appended to results/hardware_<arch>_<program>.csv.
+The result is appended to results/hardware_<arch>_<program>_v2.csv.
 
 A batch run skips a program when:
-  * results/hardware_<arch>_<program>.csv already exists, and
+  * results/hardware_<arch>_<program>_v2.csv already exists, and
   * its cycle_count / instr_retired match the cocotb reference in
     results/benchmark_<program>_<arch>.csv, or, for programs without a
     comparable reference (CoreMark runs a different iteration count on the
-    board), it was measured with the current RTL and the current ELF.
+    board), it has a matching archived CRC-gated physical observation.
 
 Use FORCE=1 to ignore existing CSVs and measure everything from scratch.
 """
@@ -55,6 +55,9 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from fpga_validate import _get_tohost_addr  # noqa: E402
 from campaign_state import (  # noqa: E402
     file_fingerprint, load_state, mark, matches, save_state, source_fingerprint,
+)
+from coremark_hardware import (  # noqa: E402
+    CRC_METHOD, ITERATIONS, check_observation, prepare_hardware_coremark, save_observation,
 )
 
 RESULTS = REPO_ROOT / "results"
@@ -169,6 +172,8 @@ def already_measured_ok(arch: str, program: str,
     row = last_hardware_row(arch, program)
     if row is None:
         return False, "not measured yet"
+    if row.get("architecture") != arch or row.get("program") != program:
+        return False, "measurement architecture or program does not match its CSV"
     try:
         cycles = int(row["cycle_count"])
         instructions = int(row["instr_retired"])
@@ -183,6 +188,8 @@ def already_measured_ok(arch: str, program: str,
         return False, "missing or mismatched source/program/bitstream provenance"
     if row.get("result") != "pass":
         return False, "termination recorded; functional evidence still pending"
+    if program == COREMARK:
+        return check_observation(row, RESULTS, inputs["rtl"])
     expected = expected_values(program, arch)
     if expected is not None:
         if (expected.get("rtl_sha256") != inputs["rtl"]
@@ -204,7 +211,7 @@ def make_env(tohost_addr: int) -> dict:
     }
 
 
-def prepare_and_program(elf: Path, arch: str, tohost_addr: int) -> None:
+def prepare_and_program(elf: Path, arch: str, tohost_addr: int) -> dict:
     """Steps 1-3: memory images, synthesis, program the FPGA."""
     imem_mem = REPO_ROOT / "build" / "imem.mem"
     dmem_mem = REPO_ROOT / "build" / "dmem.mem"
@@ -223,11 +230,26 @@ def prepare_and_program(elf: Path, arch: str, tohost_addr: int) -> None:
     print("\n[2/3] Synthesizing (a couple of minutes)...")
     run(["make", "build", f"ARCH={arch}"], extra_env=make_env(tohost_addr))
 
+    sof = REPO_ROOT / "synthesis" / arch / "output_files" / f"rv32im_{arch}.sof"
+    provenance = {**measurement_inputs("", elf), "sof": file_fingerprint(sof)}
+    command = [sys.executable, "scripts/check_mem_init.py", "--project", f"synthesis/{arch}"]
+    checked = subprocess.run(command, cwd=REPO_ROOT, capture_output=True, text=True)
+    print(checked.stdout, end="")
+    if checked.returncode != 0 or "PASS  IMEM:" not in checked.stdout:
+        sys.exit("Compiled memory image verification failed:\n" + checked.stderr)
+    directory = RESULTS / "hardware_evidence"
+    directory.mkdir(parents=True, exist_ok=True)
+    log = directory / f"memory_{provenance['sof']}.log"
+    log.write_text(checked.stdout + checked.stderr)
+    provenance["memory_check"] = str(log.relative_to(RESULTS))
+    provenance["memory_check_sha256"] = file_fingerprint(log)
+
     print("\n[3/3] Programming the FPGA...")
     run(["make", "program-direct", f"ARCH={arch}"], extra_env=make_env(tohost_addr))
+    return provenance
 
 
-def ask_vga_values(tohost_addr: int) -> dict:
+def ask_vga_values(tohost_addr: int, coremark: bool = False) -> dict:
     """Steps 6-7: read VGA console values and return the CSV row dict."""
     print("\n" + "=" * 60)
     print("  READ THE VGA CONSOLE NOW")
@@ -239,6 +261,17 @@ def ask_vga_values(tohost_addr: int) -> dict:
 
     cycles_raw = input("  CyclesToPass (decimal or 0xhex): ")
     instr_raw = input("  InstrToPass : (decimal or 0xhex) ")
+    crc_status = ""
+    if coremark:
+        print("  Read register x5/t0 in the Register File table after the counters freeze.")
+        print("  With this rebuilt port: 00000001 = CRC checks passed; 00000003 = failed.")
+        print("  The startup code preserves its CRC-gated exit status in x5/t0.")
+        status = input("  Observed x5/t0 (blank = CRC evidence pending): ").strip()
+        if status:
+            try:
+                crc_status = hex(_parse_int(status))
+            except ValueError:
+                sys.exit("  The observed x5/t0 value must be an integer.")
     seconds_raw = input("  Seconds observed (optional): ").strip()
     notes = input("  Notes (optional): ").strip()
 
@@ -247,10 +280,10 @@ def ask_vga_values(tohost_addr: int) -> dict:
         instructions = _parse_int(instr_raw)
     except ValueError:
         sys.exit("  Cycles and instructions must be integers.")
-    if instructions == 0:
-        sys.exit("  InstrToPass cannot be zero.")
+    if cycles <= 0 or instructions <= 0:
+        sys.exit("  CyclesToPass and InstrToPass must be positive.")
 
-    seconds_val = _parse_int(seconds_raw) if seconds_raw else ""
+    seconds_val = float(seconds_raw) if seconds_raw else ""
     cpi = cycles / instructions
 
     return {
@@ -259,14 +292,19 @@ def ask_vga_values(tohost_addr: int) -> dict:
         "cpi": f"{cpi:.4f}",
         "seconds": seconds_val,
         "notes": notes,
+        "crc_status": crc_status,
     }
 
 
-def save_csv(out_csv: Path, arch: str, program: str, tohost_addr: int, values: dict, elf: Path) -> None:
+def save_csv(out_csv: Path, arch: str, program: str, tohost_addr: int, values: dict, elf: Path,
+             provenance: dict) -> None:
     """Append one row to the hardware CSV."""
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     sof = REPO_ROOT / "synthesis" / arch / "output_files" / f"rv32im_{arch}.sof"
     sof_hash = file_fingerprint(sof)
+    current = {**measurement_inputs(program, elf), "sof": sof_hash}
+    if any(provenance[key] != value for key, value in current.items()):
+        raise ValueError("RTL, ELF or bitstream changed while the FPGA reading was being captured")
     archive = RESULTS / "hardware_bitstreams" / f"{sof_hash}.sof"
     archive.parent.mkdir(exist_ok=True)
     if not archive.exists():
@@ -291,12 +329,30 @@ def save_csv(out_csv: Path, arch: str, program: str, tohost_addr: int, values: d
         "date_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "notes": values["notes"],
     }
-    write_header = not out_csv.exists()
-    with open(out_csv, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
+    if program == COREMARK:
+        row.update(iterations=ITERATIONS, crc_status=values.get("crc_status", ""),
+                   crc_method=CRC_METHOD, coremark_functional_valid=False,
+                   memory_check=provenance["memory_check"],
+                   memory_check_sha256=provenance["memory_check_sha256"])
+        row["result"] = "pass" if row["crc_status"] == "0x1" else ("crc-fail" if row["crc_status"] else "terminated-unvalidated")
+        row["crc_evidence"] = save_observation(row, elf, RESULTS)
+        valid, reason = check_observation(row, RESULTS, row["rtl_sha256"])
+        row["coremark_functional_valid"] = valid
+        row["functional_validation"] = reason
+        row["result"] = "pass" if valid else ("crc-fail" if row["crc_status"] else "terminated-unvalidated")
+        print(f"  Physical CRC evidence: {reason}")
+    previous, fields = [], list(row)
+    if out_csv.exists():
+        with out_csv.open() as stream:
+            reader = csv.DictReader(stream)
+            previous = list(reader)
+            fields = list(dict.fromkeys([*(reader.fieldnames or []), *fields]))
+    temporary = out_csv.with_suffix(".csv.tmp")
+    with temporary.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows([*previous, row])
+    temporary.replace(out_csv)
 
 
 def compare_with_cocotb(values: dict, expected: dict | None) -> None:
@@ -314,6 +370,12 @@ def measure_one(program: str, arch: str, out_csv: Path | None = None,
                 force: bool = False, elf: Path | None = None) -> None:
     """Measure one program on one architecture."""
     elf = elf or elf_for(program)
+    if program == COREMARK:
+        if elf.resolve() == COREMARK_ELF.resolve():
+            prepare_hardware_coremark(elf)
+        else:
+            from measure_benchmarks import validate_coremark_elf
+            validate_coremark_elf(elf, ITERATIONS)
     if not force:
         skip, reason = already_measured_ok(arch, program, elf)
         if skip:
@@ -334,11 +396,11 @@ def measure_one(program: str, arch: str, out_csv: Path | None = None,
         print(f"  Expected(cocotb): cycles={expected['cycle_count']}, "
               f"instr={expected['instr_retired']}, CPI={expected['cpi']}")
 
-    prepare_and_program(elf, arch, tohost_addr)
-    values = ask_vga_values(tohost_addr)
+    provenance = prepare_and_program(elf, arch, tohost_addr)
+    values = ask_vga_values(tohost_addr, coremark=program == COREMARK)
 
     out_csv = out_csv or hardware_csv_path(arch, program)
-    save_csv(out_csv, arch, program, tohost_addr, values, elf)
+    save_csv(out_csv, arch, program, tohost_addr, values, elf, provenance)
     state = load_state()
     mark(state, f"hardware:{arch}:{program}", **measurement_inputs(program, elf))
     save_state(state)

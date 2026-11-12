@@ -27,6 +27,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from collect_results import TEST_SUITE_NAMES  # noqa: E402
 from campaign_state import source_fingerprint  # noqa: E402
+from coremark_hardware import ITERATIONS, check_observation, latest_measurements  # noqa: E402
 INPUT_RESULTS = REPO_ROOT / "results"
 RESULTS = INPUT_RESULTS
 TABLES = REPO_ROOT / "thesis" / "tables"
@@ -656,6 +657,8 @@ COREMARK_CSV = RESULTS / "results_coremark.csv"
 COREMARK_PROVENANCE = (
     "git_commit", "rtl_fingerprint", "date_utc", "sof_sha256",
     "fmax_mhz", "tohost_addr", "coremark_functional_valid", "elf_sha256", "counter_protocol",
+    "crc_method", "crc_status", "crc_evidence", "memory_check", "memory_check_sha256",
+    "physical_evidence_issue",
 )
 
 
@@ -666,31 +669,47 @@ def read_coremark_hardware() -> list:
     console shows them, and the clock the CPU ran at.  Everything else is
     derived, so the file only stores what was measured.
     """
-    if not COREMARK_INPUT_CSV.exists():
-        return []
+    measurements = []
+    if COREMARK_INPUT_CSV.exists():
+        with COREMARK_INPUT_CSV.open() as stream:
+            for row in csv.DictReader(stream):
+                row["coremark_functional_valid"] = "False"
+                row["physical_evidence_issue"] = "historical row without an auditable physical CRC observation"
+                measurements.append(row)
+    physical = latest_measurements(INPUT_RESULTS)
+    measurements = [row for row in measurements if row["architecture"] not in physical]
+    for arch, row in physical.items():
+        valid, reason = check_observation(row, INPUT_RESULTS, source_fingerprint())
+        if row.get("architecture") != arch:
+            valid, reason = False, "physical architecture does not match its CSV"
+        measurements.append({**row, "architecture": arch,
+                             "cycles": row["cycle_count"], "instructions": row["instr_retired"],
+                             "iterations": row.get("iterations") or ITERATIONS,
+                             "rtl_fingerprint": row.get("rtl_sha256", ""),
+                             "coremark_functional_valid": str(valid),
+                             "physical_evidence_issue": "" if valid else reason})
     rows = []
-    with open(COREMARK_INPUT_CSV) as fp:
-        for row in csv.DictReader(fp):
-            cycles = int(row["cycles"])
-            instructions = int(row["instructions"])
-            iterations = int(row["iterations"])
-            clock = float(row["clock_mhz"])
-            seconds = cycles / (clock * 1e6)
-            score = iterations / seconds
-            record = {
-                "arch": row["architecture"],
-                "iterations": iterations,
-                "cycles": cycles,
-                "instructions": instructions,
-                "clock_mhz": clock,
-                "seconds": seconds,
-                "score": score,
-                "per_mhz": score / clock,
-                "cpi": cycles / instructions if instructions else 0.0,
-            }
-            for key in COREMARK_PROVENANCE:
-                record[key] = row.get(key, "")
-            rows.append(record)
+    for row in measurements:
+        cycles = int(row["cycles"])
+        instructions = int(row["instructions"])
+        iterations = int(row["iterations"])
+        clock = float(row["clock_mhz"])
+        seconds = cycles / (clock * 1e6)
+        score = iterations / seconds
+        record = {
+            "arch": row["architecture"],
+            "iterations": iterations,
+            "cycles": cycles,
+            "instructions": instructions,
+            "clock_mhz": clock,
+            "seconds": seconds,
+            "score": score,
+            "per_mhz": score / clock,
+            "cpi": cycles / instructions if instructions else 0.0,
+        }
+        for key in COREMARK_PROVENANCE:
+            record[key] = row.get(key, "")
+        rows.append(record)
     return rows
 
 

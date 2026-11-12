@@ -313,17 +313,16 @@ verify-all-pipe:
 verify-full: verify-all-sc verify-all-pipe
 	@echo "All verification tests completed."
 
-# CoreMark smoke test (runs only when you have built the CoreMark ELF).
-# Build it first with:  make -C programs/coremark ITERATIONS=3 TOTAL_DATA_SIZE=120
+# The board and its smoke tests share the CRC-enabled 2000-iteration workload.
 COREMARK_ELF = build/coremark/coremark.elf
-COREMARK_BUILD = $(MAKE) -C programs/coremark ITERATIONS=3 TOTAL_DATA_SIZE=120
+
+.PHONY: prepare-coremark
+prepare-coremark:
+	@$(VENV_PY) scripts/coremark_hardware.py
 
 .PHONY: verify-coremark
 verify-coremark:
-	@if [ ! -f "$(COREMARK_ELF)" ]; then \
-		echo "CoreMark ELF not found, building it..."; \
-		$(COREMARK_BUILD) || exit 1; \
-	fi
+	@$(MAKE) --no-print-directory prepare-coremark
 	@echo "=== CoreMark smoke test (single_cycle) ==="
 	@PATH="$(VENV_BIN):$$PATH" $(MAKE) -C verification/cocotb/single_cycle COCOTB_TEST_MODULES=test_coremark_smoke TOPLEVEL=top_single_cycle VALIDATION_ELF=$(abspath $(COREMARK_ELF)) SMOKE_CYCLES=2000 COCOTB_RESULTS_FILE=$(abspath results/coremark_smoke_single_cycle.xml)
 	@echo "=== CoreMark smoke test (pipeline) ==="

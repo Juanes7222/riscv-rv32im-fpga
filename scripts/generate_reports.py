@@ -17,11 +17,15 @@ from pathlib import Path
 
 import collect_results as collector
 import thesis_artifacts as artifacts
+import coremark_hardware as physical
+import measure_benchmarks as benchmark_preparation
 from campaign_state import source_fingerprint, verification_fingerprint
 from replica_manifest import verified
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "build/reports/latest"
+GENERATOR_FILES = [Path(p) for p in (__file__, artifacts.__file__, collector.__file__,
+                                    physical.__file__, benchmark_preparation.__file__)]
 
 
 def digest(path):
@@ -62,7 +66,10 @@ def input_files(results, verification):
     files.update(verification / name / "results.xml"
                  for name in ("common", "single_cycle", "pipeline")
                  if (verification / name / "results.xml").exists())
-    files.update(Path(p) for p in (__file__, artifacts.__file__, collector.__file__))
+    for arch, row in physical.latest_measurements(results).items():
+        files.add(results / f"hardware_{arch}_coremark_v2.csv")
+        files.update(path for path in physical.observation_inputs(row, results) if path.is_file())
+    files.update(GENERATOR_FILES)
     return sorted(files)
 
 
@@ -111,9 +118,22 @@ def evidence_issues(replicas, benchmarks, verification, tests_ran=False):
             issues.append(f"{name}: retirement protocol missing or historical")
         if "coremark" in row["program"].lower() and row.get("coremark_functional_valid") != "True":
             issues.append(f"{name}: functional CRC evidence missing")
-    for row in artifacts.read_coremark_hardware():
+    hardware = {row["arch"]: row for row in artifacts.read_coremark_hardware()}
+    for arch in artifacts.ARCHES:
+        row = hardware.get(arch, {})
         if row.get("coremark_functional_valid") != "True":
-            issues.append(f"{row['arch']}: physical CoreMark CRC evidence missing")
+            reason = row.get("physical_evidence_issue") or "physical observation missing"
+            issues.append(f"{arch}: physical CoreMark CRC evidence missing or invalid ({reason})")
+            continue
+        for replica in (r for r in replicas if r["arch"] == arch):
+            directory = artifacts.INPUT_RESULTS / arch / f"replica_{replica['replica']}"
+            path = directory / "manifest.json"
+            if path.is_file():
+                manifest = json.loads(path.read_text())
+                programs = [value for name, value in manifest.get("inputs", {}).items()
+                            if name.endswith(".elf")]
+                if programs != [row["elf_sha256"]]:
+                    issues.append(f"{arch}/{directory.name}: synthesized workload differs from physical CoreMark ELF")
     return issues
 
 
@@ -149,6 +169,17 @@ def write_report(output, replicas, benchmarks, verification, issues):
         speedup = metric.get("speedup")
         lines.append(f"| {metric['program']} | {artifacts.fmt(speedup['mean'], 4) if speedup else '---'} | "
                      f"{artifacts.fmt(speedup['std'], 4) if speedup else '---'} |")
+    hardware = artifacts.read_coremark_hardware()
+    if hardware:
+        lines += ["", "## CoreMark en FPGA", "",
+                  "El método crc-gated-t0-v1 registra el resultado de las comprobaciones CRC "
+                  "mediante x5/t0 tras finalizar; no captura los CRC individuales ni valida "
+                  "el temporizador interno de CoreMark.", "",
+                  "| Arquitectura | Ciclos | Instrucciones | Resultado CRC acreditado |",
+                  "|---|---:|---:|---|"]
+        for row in hardware:
+            status = "Sí (x5/t0)" if row.get("coremark_functional_valid") == "True" else "Pendiente o inválido"
+            lines.append(f"| {row['arch']} | {row['cycles']} | {row['instructions']} | {status} |")
     lines += ["", "## Evidencia pendiente", ""]
     lines += [f"- {issue}" for issue in issues] or ["Sin incidencias detectadas por estas comprobaciones."]
     lines += ["", "## Archivos", "", "- `results/`: datos y resúmenes usados en este informe.",
@@ -214,7 +245,7 @@ def main(argv=None):
             configure(source, output, args.verification_dir.resolve())
             check_manifest(output)
             return artifacts.check_artifacts()
-        generator_files = [Path(__file__), Path(artifacts.__file__), Path(collector.__file__)]
+        generator_files = GENERATOR_FILES
         generator_hashes = {str(p): digest(p) for p in generator_files}
         tests_ok = collector.run_all_tests() if args.run_tests else True
         if any(digest(Path(name)) != expected for name, expected in generator_hashes.items()):

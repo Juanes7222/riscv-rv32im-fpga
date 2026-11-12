@@ -148,6 +148,8 @@ def stage_preflight(args) -> int:
     from measure_benchmarks import BENCHMARKS, COREMARK_ITERATIONS, prepare_coremark_benchmarks
     try:
         prepare_coremark_benchmarks(BENCHMARKS)
+        from coremark_hardware import prepare_hardware_coremark
+        prepare_hardware_coremark(BUILD / "coremark/coremark.elf")
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         problems.append(f"CoreMark preparation: {error}")
     for name in COREMARK_ITERATIONS:
