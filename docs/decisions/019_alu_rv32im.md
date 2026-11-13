@@ -2,7 +2,7 @@
 
 **Status:** Accepted (updated 2026-06-12 - division FSM corrected per ADR 031)  
 **Date:** 2026-05-02
-**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) - the division FSM, the `div_done` timing table, the `div_busy` formula, the combinational `next_quotient` / `next_partial` signals, and the corner-case CPI (now 2, not 1) are all governed by ADR 031. The combinational multiplier, the MULHSU 33-bit approach, the module interface (`clk`, `rst_n`, `div_busy`, `div_done` ports), and the radix-2 restoring algorithm description remain as stated here.
+**Superseded in part by:** [ADR 031](031_m_extension_test_failures_and_fsm_correction.md) - the division FSM, the `div_done` timing table, the `div_busy` formula, the combinational `next_quotient` / `next_partial` signals, and the corner-case CPI (now 2, not 1) are all governed by ADR 031. **Updated 2026-11-12:** the interface also has `hold` (ADR 044) and `alu_sum` (ADR 050). The combinational multiplier, the MULHSU 33-bit approach and the radix-2 restoring algorithm description remain as stated here.
 
 ## Context
 
@@ -26,14 +26,18 @@ Both operands are extended to 33 bits: `a` sign-extended, `b` zero-extended.
 Both 33-bit intermediates are `signed`. Product is `[63:32]` of the 66-bit result.
 
 **3. DIV/DIVU/REM/REMU are implemented as a radix-2 restoring divisor with
-fixed 32-cycle latency.** Effective CPI = 34 (see [ADR 008](008_m_extension_implementation.md)).
+fixed 32-cycle latency.** Effective CPI = 34 for a normal division and 2 for
+the division-by-zero / signed-overflow corner cases (ADR 031).
 
 **4. All combinational logic uses `always_comb`. All sequential logic uses
 `always_ff`.** Consistent with [ADR 010](010_systemverilog_style.md).
 
-**5. Intermediate signals `sub_res`, `raw_quot`, `raw_rem` are declared at
-module scope** and driven by a dedicated `always_comb` block to avoid Quartus
-inference issues with locally declared variables inside `always_ff` branches.
+**5. Intermediate signals are declared at module scope.** `sub_res`,
+`next_quotient` and `next_partial` are driven by a dedicated `always_comb`
+block to avoid Quartus inference issues with locally declared variables inside
+`always_ff` branches, and to make the post-update quotient and remainder
+available in the same cycle (ADR 031). The older `raw_quot` / `raw_rem`
+signals no longer exist.
 
 ## Rationale
 
@@ -60,47 +64,33 @@ with `b[32] = 0`. See [ADR 009](009_mulhsu_33bit_extension.md).
 **Radix-2 restoring division:**  
 A combinational `/` synthesized by Quartus produces a ~32-level carry chain,
 reducing Fmax to 20–30 MHz - making it a function of divider depth rather
-than the IF-->WB datapath under comparison. See [ADR 008](008_m_extension_implementation.md).
-
-**Module-scope intermediate signals:**  
+than the IF-->WB datapath under comparison. See [ADR 008](008_m_extension_implementation.md).**Module-scope intermediate signals:**
 Quartus Prime has inconsistent support for variables declared inside
-`begin...end` branches of `always_ff`. Moving `sub_res`, `raw_quot`, and
-`raw_rem` to module scope and driving them from `always_comb` produces
+`begin...end` branches of `always_ff`. Moving `sub_res`, `next_quotient` and
+`next_partial` to module scope and driving them from `always_comb` produces
 identical behavior while avoiding the inference issue.
 
 ## Normative RTL Specification
 
-See [alu_rv32im.md](../../rtl/shared/alu_rv32im.sv)
+See [alu_rv32im.sv](../../rtl/shared/alu_rv32im.sv)
 
-## div_done Timing
+## div_done Timing and Effective CPI
 
-`div_done` is a registered output (FF). It pulses high for exactly one clock
-cycle in two cases:
-1. **Normal division (CPI = 34):** fires on the DONE cycle - the same cycle
-   that `div_result` receives its correct final value and `div_state` returns
-   to IDLE.
-2. **Corner cases (CPI = 1):** fires on the IDLE cycle itself, immediately
-   after the result is set combinationally.
+Both are governed by [ADR 031](031_m_extension_test_failures_and_fsm_correction.md)
+and are summarised here for the reader:
 
-In both cases, `div_done` is asserted in the same cycle that `div_result` is
-correct and `div_busy` is either still high (normal) or never asserted (corner
-case). `top_single_cycle` uses `div_done` as the write enable gate (see
-[ADR 023](023_wr_en_gated.md)).
-
-## Effective CPI
-
-| Case | Cycles | CPI |
-|------|--------|-----|
-| Normal division (DIV/DIVU/REM/REMU) | 1 issue + 32 RUNNING + 1 DONE | **34** |
-| Corner case (div-by-zero, signed overflow) | 1 (resolved in IDLE) | **1** |
-| All other instructions | 1 | **1** |
+- `div_done` is a registered output that is set on entry to `DIV_DONE`, so it is
+  high on the writeback cycle together with the final `div_result`.
+- A normal division takes 1 fetch cycle + 32 `DIV_RUNNING` cycles + 1
+  `DIV_DONE` writeback cycle: **CPI = 34**.
+- Division by zero and signed overflow go `IDLE --> DONE --> IDLE`: **CPI = 2**.
+  The original revision of this ADR claimed 1; ADR 031 corrected it.
+- All other instructions retire in one cycle: **CPI = 1**.
 
 ## Consequences
 
-- `shared_modules.md` must reflect the `div_done` port addition.
+- `shared_modules.md` must reflect the `div_done`, `hold` and `alu_sum` ports.
 - `top_single_cycle.sv` uses `div_done` for `wr_en_gated` (ADR 023).
-- All FSM registers reset to zero, consistent with [ADR 015](015_register_file_reset_zero.md).
+- All FSM registers reset to zero, consistent with [ADR 016](016_register_file_reset_zero.md).
 - `div_done` resets to `1'b0` and is safe to use from the first clock cycle.
-- The `inside {}` operator requires Quartus Prime 18.1+, consistent with this
-  project's toolchain constraint.
-- Quartus will infer DSP blocks for `mul_ss`, `mul_uu`, and `mul_su`.
+- Quartus infers DSP blocks for `mul_ss`, `mul_uu` and `mul_su`.

@@ -1,7 +1,15 @@
 # ADR 021 - Data Memory: Word-Addressed Organization with Byte Enables
 
-**Status:** Accepted  
+**Status:** Accepted (updated 2026-11-12; superseded in part by
+[ADR 048](048_single_cycle_half_cycle_data_memory.md) for the array
+organization and the read timing)
 **Date:** 2026-05-02
+
+> **What changed since this ADR.** The byte-enable and read-extension tables
+> below still describe both memories exactly. The **array** does not: the
+> implementation is four byte-wide arrays, not one word-wide array, the index
+> follows `DMEM_DEPTH`, and the flow uses `DMEM_DEPTH = 1024` (ADR 047), not
+> 8192. The single-cycle read is no longer purely combinational (ADR 048).
 
 ## Context
 
@@ -12,14 +20,26 @@ widths efficiently on Cyclone V M10K blocks.
 
 ## Decision
 
-**1. The memory array is word-addressed:** the internal array is
-`logic [31:0] mem [0:DMEM_DEPTH-1]` where `DMEM_DEPTH = 8192`. The word
-address is `dm_addr[14:2]`; bits `[1:0]` select the byte or halfword within
-the word and are used only for sub-word access logic, not for array indexing.
+**1. The memory is organized as four byte-wide arrays:**
+
+```systemverilog
+(* ramstyle = "M10K" *) logic [7:0] mem0 [0:DMEM_DEPTH-1];  // lane 0, addr[1:0]=00
+(* ramstyle = "M10K" *) logic [7:0] mem1 [0:DMEM_DEPTH-1];  // lane 1
+(* ramstyle = "M10K" *) logic [7:0] mem2 [0:DMEM_DEPTH-1];  // lane 2
+(* ramstyle = "M10K" *) logic [7:0] mem3 [0:DMEM_DEPTH-1];  // lane 3
+```
+
+The word index is `dm_addr[$clog2(DMEM_DEPTH)+1:2]`, so it follows the
+parameter instead of a hardcoded 13-bit slice; bits `[1:0]` select the lane.
+`DMEM_DEPTH` is 1024 words in the synthesis flow and 8192 in the widest
+simulation configuration (ADR 047, `Makefile`, `verification/cocotb/common.mk`).
+The initial value is loaded with `$readmemh` from `mem_config.vh` when a data
+image exists (ADR 025).
 
 **2. Writes use byte enables:** a 4-bit byte enable signal `be[3:0]` is
-generated combinationally from `dm_ctrl` and `dm_addr[1:0]`. Only the
-enabled byte lanes are written to the memory array on the rising clock edge.
+generated combinationally from `dm_ctrl` and `dm_addr[1:0]`. Only the enabled
+lane array is written, on the rising clock edge. The program loader adds a
+second write port that asserts all four enables (ADR 054).
 
 **3. Write data is replicated before the memory array:** `rs2_data` is
 replicated across all four byte positions before being presented to the
@@ -103,10 +123,13 @@ correctly aligned.
 
 ## Consequences
 
-- `data_memory.sv` contains no M10K-specific primitives. It uses a standard
-  SystemVerilog array with byte enables; Quartus infers the M10K blocks
-  automatically from the array size and access pattern.
-- The module is shared between both microarchitectures without modification.
+- `data_memory.sv` contains no M10K-specific primitives. It uses standard
+  SystemVerilog arrays with byte enables (and a `ramstyle` attribute); Quartus
+  infers the M10K blocks automatically from the array size and access pattern.
+- The module is **not** shared between the two microarchitectures: the
+  single-cycle uses `rtl/single_cycle/data_memory.sv` (ADR 048 half-cycle read)
+  and the pipeline uses `rtl/pipeline/data_memory_pipe.sv` (synchronous read,
+  ADR 020). The byte-enable and extension contract of this ADR applies to both.
 - The combinational read extraction block is part of the critical load
   instruction path: `ALU --> data_memory --> (extract+extend) --> wb_mux`.
   Its depth is 1 mux level (byte/halfword selection) plus 1 sign-extension

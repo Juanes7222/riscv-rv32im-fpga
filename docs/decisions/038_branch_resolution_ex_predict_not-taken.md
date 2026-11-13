@@ -1,6 +1,7 @@
-# ADR 032: Branch Resolution in EX with Predict-Not-Taken Policy
+# ADR 038: Branch Resolution in EX with Predict-Not-Taken Policy
 
-- **Status:** Accepted
+- **Status:** Accepted (updated 2026-11-12: header number corrected from 032;
+  taken-branch penalty corrected from two cycles to one, see ADR 057)
 - **Date:** 2026-06-12
 
 ## Context
@@ -15,7 +16,7 @@ Because the experimental goal of the thesis is to compare throughput, Fmax, effe
 
 Conditional branches and unconditional jumps shall be resolved in the **EX** stage of the pipeline. The default frontend policy shall be **predict-not-taken**: unless a taken control transfer is confirmed in EX, instruction fetch shall continue sequentially with `PC + 4`.
 
-When an instruction in EX determines that a branch or jump is taken, `pcunit` shall load the branch target computed in that same stage as the next PC. In the same resolution event, the younger instructions currently in IF and ID shall be invalidated through `flush` signals applied to the corresponding pipeline registers, introducing the associated control-hazard penalty.
+When an instruction in EX determines that a branch or jump is taken, `pcunit` shall load the branch target computed in that same stage as the next PC. In the same resolution event, the younger instruction currently in ID shall be invalidated through `flush`, introducing the associated control-hazard penalty. The fetch stage has no separate IF/ID register: its boundary is the output register of the instruction memory (ADR 057), so the only wrong-path work is the word that was being decoded.
 
 The branch target shall be produced by hardware already present in EX, reusing the computation performed in that stage, and no dedicated branch-target adder shall be introduced in ID for early resolution. This keeps control evaluation out of the decode-stage critical path and avoids adding branch-specific datapath logic to ID.
 
@@ -32,16 +33,16 @@ This decision is also consistent with the previously established boundary betwee
 1. IF shall use `PC + 4` as the default next fetch address while `branch_taken_ex = 0`.
 2. A branch or jump decision shall be considered valid only in EX.
 3. When `branch_taken_ex = 1`, `pcunit_pipeline` shall select the target computed in EX as the next PC.
-4. When `branch_taken_ex = 1`, the instructions currently in IF and ID shall be invalidated through `flush`.
-5. Instruction invalidation by `flush` shall be implemented by writing an architecturally safe no-operation into the corresponding inter-stage register.
+4. When `branch_taken_ex = 1`, the instruction currently in ID shall be invalidated through `flush`; the word being fetched is discarded by presenting the target to the instruction memory in the same cycle.
+5. Instruction invalidation by `flush` shall be implemented by writing an architecturally safe no-operation (ADR 037) into the corresponding inter-stage register, or by the out-of-range/`fetch_valid` bubble when the flushed slot is the IF/ID boundary itself.
 6. `flush` and `stall` are semantically distinct signals. A `stall` preserves the current contents of an inter-stage register; a `flush` explicitly invalidates them.
 7. The data-hazard detection unit shall not redefine control-hazard policy; it may only request `stall` when required by data dependencies.
 8. JAL and JALR shall follow the same general EX-stage resolution policy, using the target computed in that stage.
 
 ## Consequences
 
-The taken-branch penalty shall be up to two cycles, because when a branch is resolved in EX there may already be younger instructions in IF and ID that must be discarded. This cost is accepted as part of the effective CPI of the pipelined design and shall be reported in the experimental evaluation as a direct consequence of the selected control-hazard policy.
+The taken-branch penalty shall be **one cycle**, because the address presented to the instruction memory is redirected in the same cycle in which the branch resolves; only the wrong-path word that sat in ID is lost. The two-cycle figure in the first version of this ADR assumed an explicit IF/ID register behind the memory and no longer applies (ADR 057). This cost is part of the effective CPI of the pipelined design and shall be reported in the experimental evaluation as a direct consequence of the selected control-hazard policy.
 
-`pcunit_pipeline` shall require explicit support for selecting between sequential flow and the taken-branch target, as well as correct interaction between `flush` and `stall`. Likewise, the IF/ID and ID/EX registers shall require explicit invalidation semantics, separate from their stall-retention behavior.
+`pcunit_pipeline` shall require explicit support for selecting between sequential flow and the taken-branch target, as well as correct interaction between `flush` and `stall`. The ID/EX register shall require explicit invalidation semantics, separate from its stall-retention behavior; the IF/ID boundary inherits its invalidation from `fetch_valid` and the out-of-range bubble.
 
 The main advantage of this decision is methodological and practical: the pipeline remains simple enough for incremental debugging, reuses the verified single-cycle design as a correctness reference, and preserves clean attribution of performance differences to controlled microarchitectural choices. The main disadvantage is the increase in effective CPI relative to earlier branch resolution, but this trade-off is acceptable within the scope and constraints of a single-student undergraduate thesis.

@@ -34,8 +34,9 @@ instruction image at their own addresses, and **every other allocated section**
 (`.rodata*`, `.data*`, `.bss*`, `.tohost`) builds the data image relative to
 the base of the data window. Each `.mem` file contains one 8-character
 hexadecimal word per line, with no address markers, padded to the full memory
-depth with `00002013` (NOP: `ADDI x0, x0, 0`) for the instruction image and
-zeros for the data image.
+depth with `00000013` (the canonical NOP, `ADDI x0, x0, 0`; ADR 037) for the
+instruction image and zeros for the data image. The legacy `elf_to_mem.py`
+uses the same value.
 
 The legacy `scripts/elf_to_mem.py` remains as a standalone flat-binary
 converter (one `.mem` from one `.bin`) but is no longer used by the build

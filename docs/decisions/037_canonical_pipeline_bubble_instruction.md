@@ -1,7 +1,11 @@
-# ADR 033: Canonical Bubble Instruction for Pipeline Flush and Stall Insertion
+# ADR 037: Canonical Bubble Instruction for Pipeline Flush and Stall Insertion
 
 - **Status:** Accepted
 - **Date:** 2026-06-12
+- **Updated:** 2026-11-12 - header number fixed (the file is 037; the first
+  version said 033) and the frontend note added. The pipeline's IF/ID boundary
+  is the instruction-memory output register, not the `if_id_register` module
+  (ADR 057); the bubble contract below applies to every register that exists.
 
 ## Context
 

@@ -822,7 +822,7 @@ module top_pipeline #(
 
     // WB stage                                                             //
 
-    // CSR write-enable gating (mirrors single-cycle ADR 027 logic):
+    // CSR write-enable gating (mirrors single-cycle ADR 030 logic):
     // CSRRS (csr_op==01) and CSRRC (csr_op==10) with rs1=x0 must not
     // write the CSR. For immediate forms, the equivalent is zimm=0 (rs1_addr==0).
     logic wb_csr_wr_gated;

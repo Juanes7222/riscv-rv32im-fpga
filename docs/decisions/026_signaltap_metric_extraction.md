@@ -4,6 +4,15 @@
 Prime 25.1; the counters are frozen in the console instead)  
 **Date:** 2026-05-04
 
+> **Note (2026-11-12):** the body below is kept as the historical proposal. The
+> module shipped as `perf_counters` in `rtl/shared/perf_counter.sv` (file name
+> singular), its outputs are `cycle_count`, `instr_retired`,
+> `program_done_synced`, `cycles_at_done` and `instr_at_done`, and it takes an
+> `enable` input; the sticky `program_done` lives in the top. The `.stp`
+> inventory of this document (`stp/perf_capture.stp`, `scripts/run_replica.py`)
+> no longer matches the tree. The capture actually used in hardware is described
+> in ADR 042.
+
 ## Context
 
 The experimental protocol requires automated extraction of

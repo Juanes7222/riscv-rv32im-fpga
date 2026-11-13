@@ -1,13 +1,13 @@
 # ADR 003 - RV32I First, Extension M as Second Iteration
 
-**Status:** Accepted (updated 2026-05-02 for consistency with ADR 018)  
+**Status:** Accepted (updated 2026-05-02 for consistency with ADR 019)  
 **Date:** 2026-04-24
 
 ## Context
 
 The target ISA is RV32IM. The M extension adds eight multiply and divide
 instructions. The ALU (`alu_rv32im.sv`) includes M-extension logic from the
-first implementation, gated by opcode (see [ADR 018](018_alu_rv32im.md)).
+first implementation, gated by opcode (see [ADR 019](019_alu_rv32im.md)).
 The question is whether the control unit enables M opcodes from the start or
 in a separate iteration after RV32I is verified.
 
@@ -42,6 +42,8 @@ iteration boundary - it includes M-extension logic from the first commit.
   to the control unit.
 - The first synthesis replica for Fmax measurement is performed after both
   milestones are complete (full RV32IM verification).
-- `alu_rv32im.sv` contains M-extension logic from the first commit and is
-  never modified between iterations. Only `control_unit.sv` changes between
-  iteration 1 and iteration 2.
+- `alu_rv32im.sv` contains M-extension logic from the first commit. The ALU
+  was modified later only for the division FSM correction (ADR 031), the step
+  mode hold input (ADR 044) and the dedicated adder output (ADR 050); none of
+  those changes moves an instruction between the RV32I and M iterations. The
+  iteration boundary itself changes only `control_unit.sv`.

@@ -16,7 +16,7 @@ module control_unit (
     output logic [2:0]  dm_ctrl,
     output logic [1:0]  ru_data_wr_src,
 
-    // Trap / CSR control (ADR 027)
+    // Trap / CSR control (ADR 030)
     output logic        trap_entry,
     output logic        mret_exec,
     output logic [11:0] csr_addr,

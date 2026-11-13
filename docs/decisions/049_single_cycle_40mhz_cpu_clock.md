@@ -1,8 +1,19 @@
 # ADR 049 - Single-cycle processor clock: 40 MHz from a dedicated PLL
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-11-12: the Fmax figures below are marked as
+the measurement of this decision's campaign)
 **Date:** 2026-11-03
 **Related:** ADR 048 (half-cycle data memory), ADR 050 (dedicated adder)
+
+> **About the numbers in this ADR.** 48.37 MHz (single-cycle) and 58.74 MHz
+> (pipeline) are the five-replica means of the campaign that produced this
+> decision. `results/results_report.md` reports 48.48 MHz / 60.60 MHz at 85 °C
+> with replica means of 49.10 / 62.15 MHz, and the comment in `cpu_pll.sv`
+> quotes 46.17 MHz from an earlier run. The four numbers are not comparable:
+> they come from different checkouts and, in the 46.17 case, from a partial
+> recompile. Cite them by campaign and take the current figure from the
+> results report. The decision itself (40 MHz, which all the figures clear with
+> margin) does not depend on which number is used.
 
 ## Context
 
@@ -85,7 +96,8 @@ of delay, an 18 % margin on the measured Fmax.
 ## Verification
 
 - Single-cycle cocotb suites at `IMEM_DEPTH = 4096`, `DMEM_DEPTH = 1024`:
-  111 common tests plus 48 single-cycle tests, all pass.
+  111 common tests plus 51 single-cycle tests, all pass. The counts are the
+  `results.xml` snapshot of the moment this ADR was written.
 - Synthesis: the PLL must appear at 40 MHz, the Fmax at the derived clock
   must stay around 48 MHz, and the documented margin must hold.
 - CoreMark `ITERATIONS = 10` on the single-cycle: 3 153 561 cycles /

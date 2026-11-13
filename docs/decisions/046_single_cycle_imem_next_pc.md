@@ -1,6 +1,7 @@
 # ADR 046 - Single-cycle instruction memory: registered read addressed with next_pc
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-11-12: test count, the loader write port and
+the data-memory paragraph)
 **Date:** 2026-10-28
 
 ## Context
@@ -53,6 +54,9 @@ always_ff @(posedge clk)
   keeps its meaning.
 - The out-of-range NOP mux sits after the output register, otherwise Quartus
   does not infer the block (same reason documented in `vga_rom_shadow.sv`).
+- The array gained the program loader's write port (`wr_en`, `wr_addr`,
+  `wr_data`) after this decision; it has priority over the `$readmemh` load and
+  is only enabled while the CPU is frozen (ADR 054).
 - `IMEM_DEPTH` is raised to 4096 (16 KB) in `Makefile` and in both
   `synthesis/*/setup.tcl`. The pipeline needs the same depth to run the same
   binary, and its instruction memory is already an M10K block RAM, so the two
@@ -80,8 +84,11 @@ protocol defensible for the single-cycle.
 - `instruction_memory` has `clk` and `fetch_en` ports; the async-ROM
   configuration note in `docs/reproduction/synthesis_protocol.md` no longer
   applies to it.
-- ADR 011 §4 is superseded by this record. ADRs 011 §1-3 (the pipeline still
-  needs the synchronous read it already has) remain valid.
+- ADR 011 §3 and §4 are superseded by this record: the single-cycle memory is
+  no longer a logic-cell async ROM of 2048 words, it is a registered M10K read
+  of 4096 words. ADR 011 §1-2 stay valid as the statement of the
+  asynchronous-read problem, and the pipeline memory keeps the synchronous read
+  ADR 011 described.
 - The instruction-level cocotb tests assume the instruction is available in the
   cycle the PC presents its address. They now call `prime_fetch()` after
   depositing the program, before the instruction step (ADR 034 pattern).
@@ -90,18 +97,19 @@ protocol defensible for the single-cycle.
   the critical path changes (the PC clock-to-out plus LUT-ROM read leaves it,
   the next-PC mux and the M10K address setup enter it). The direction of the
   change is not assumed here; it is measured with the standard five replicas.
-- **The data memory remains the binding constraint for CoreMark.** It is still
-  an asynchronous 512-word array in logic cells (8 969 ALMs) and its address
-  slice is hardcoded to 13 bits (`addr[14:2]`) while `DMEM_DEPTH` is a
-  parameter. CoreMark's linker map places `.tohost` at 0x5000, `.data` at 0x6000
-  and the stack at 0x7000, all outside a 512-word array. Running CoreMark on the
-  single-cycle needs a second decision on the data memory (M10K with a load-use
-  interlock, or a smaller benchmark image).
+- **The data memory is no longer the binding constraint.** ADR 048 replaced the
+  asynchronous word array with four byte-lane M10K arrays read on the falling
+  half-cycle and raised the window to `DMEM_DEPTH = 1024` words (ADR 047). The
+  paragraph that closed this ADR originally (async array of 512 words, 8 969
+  ALMs, CoreMark's `.tohost` at 0x5000 outside the array) described the state
+  before ADR 048 and is kept here only as the reason that decision was made.
 
 ## Verification
 
-`verification/cocotb/single_cycle` (Icarus, 48 tests: 37 RV32I + 8 RV32M CPI
-tests, 3 step-mode tests) and `verification/cocotb/common` (111 tests: RV32I,
-RV32M, RV32MI, ALU, branch unit, model-vs-DUT) pass with the registered read.
+`verification/cocotb/single_cycle` (Icarus, 51 tests: 37 RV32I + 8 RV32M CPI
+tests, 3 step-mode tests, 3 loader tests) and `verification/cocotb/common`
+(111 tests: RV32I, RV32M, RV32MI, ALU, branch unit, model-vs-DUT) pass with the
+registered read. The counts are the ones in the current `results.xml`; they are
+snapshot values, not a contract.
 The DIV tests exercise the `fetch_en` hold; the JALR and branch tests exercise
 the next-PC address path.

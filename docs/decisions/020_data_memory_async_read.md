@@ -59,10 +59,16 @@ satisfies this requirement without modification.
   path for Fmax measurement.
 - Write operations remain synchronous in both versions: memory is updated on
   the rising clock edge when `dm_wr == 1`.
-- Read-during-write behavior (same address, same cycle): the read port
-  returns the **old data** (value before the write). This is correct for both
-  microarchitectures. The pipeline resolves load-use hazards via the
-  forwarding unit, not via memory bypass.
+- Read-during-write behavior differs between the two designs and is
+  intentional (ADR 048):
+  - **Pipeline:** the read is registered, so a load that addresses the word
+    being stored reads the value from before the store. Load-use hazards are
+    resolved by the hazard unit and the forwarding network, not by memory
+    bypass.
+  - **Single-cycle:** the read address is captured on the falling edge, i.e.
+    **after** the rising-edge store, so a load to the same word sees the **new**
+    value. This is the half-cycle behaviour ADR 048 introduced; the earlier
+    text of this ADR claimed the opposite.
 - Natural alignment is assumed. Misaligned accesses produce undefined results;
   no exception is raised.
 

@@ -1,6 +1,7 @@
 # ADR 031 - M-Extension Test Failures and Division FSM Correction
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-11-12: the test counts below are the snapshot
+of this ADR's run)
 **Date:** 2026-06-12
 **Depends on:** ADR 008 (M extension), ADR 019 (alu_rv32im), ADR 023 (wr_en_gated), ADR 029 (cocotb directory structure)
 **Supersedes:** the div_done timing tables in ADR 019 and ADR 023; the division FSM description in ADR 008.
@@ -263,6 +264,12 @@ updated; the consequences section below records this.
 ---
 
 ## Test results
+
+> The counts in this section (45 tests in `common/`) are the state of the suite
+> when the division fix was made. Today `verification/cocotb/common/` reports
+> 111 tests and `verification/cocotb/single_cycle/` 51; both include the 8 RV32M
+> tests described here. Take the current numbers from `results.xml`, not from
+> this section.
 
 Before the fix: 0/8 RV32M tests pass (test_rv32m_mul killed at 5 ns,
 remaining tests 0 ns because the simulator was already dead).

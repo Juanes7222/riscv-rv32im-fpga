@@ -1,6 +1,6 @@
 # ADR 053 — Redirect priority and explicit retirement validity
 
-**Status:** Accepted  
+**Status:** Accepted (updated 2026-11-12: `tail_loop_halt` documented)
 **Date:** 2026-11-09
 
 ## Evidence
@@ -28,6 +28,15 @@ completion occurs in WB; single-cycle completion occurs at execution. Both live
 and captured counters include the completing instruction and then remain frozen.
 The pipeline cycle count includes fill/drain overhead; single-cycle counting
 starts after the initial synchronous fetch. Loader reset clears the counters.
+
+**Tail-loop halt.** The pipeline freezes itself when the final `j .` of the
+program commits (`tail_loop_halt`, sticky, OR-ed into `step_hold_effective` in
+`top_pipeline.sv`). Without it, the fetch of the word after the jump would be
+counted and the window would not close at the end of the image. The freeze is
+the complement of the `tohost` pulse, not a replacement for it: `tohost`
+provides the measurement values, `tail_loop_halt` keeps the counters from
+advancing past them. The single-cycle does not need it because its PC holds at
+the self-loop with the same effect.
 
 CoreMark captures observed and upstream expected CRCs into a `CMV1` memory
 record. Its startup reports `tohost=1` only for functional success and `3` for

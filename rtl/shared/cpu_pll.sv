@@ -2,9 +2,11 @@
 //
 // The single-cycle processor keeps CPI = 1 with a 4 KB M10K data memory whose
 // read address is captured on the falling edge (ADR 048).  Its critical path
-// is the multiply writeback (ADR 050), which measures 46.17 MHz, so it cannot
-// run from CLOCK_50 like the pipeline; it runs from this 40 MHz output, which
-// leaves 13 % of margin on that path (ADR 049).
+// is the multiply writeback (ADR 050), which measures 48.48 MHz at 85 C
+// (replica mean 49.10 MHz) in results/results_report.md; the 46.17 MHz of an
+// earlier run is kept only as a historical figure.  It cannot run from
+// CLOCK_50 like the pipeline, so it runs from this 40 MHz output, which leaves
+// about 17 % of margin on that path (ADR 049).
 //
 // Configuration: F_out = F_in x multiply_by / divide_by = 50 x 24 / 30 = 40 MHz
 // with VCO = 50 x 24 / 1 = 1200 MHz (within 600-1600 MHz).

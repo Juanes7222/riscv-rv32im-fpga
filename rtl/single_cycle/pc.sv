@@ -6,7 +6,7 @@ module pc (
     input  logic [31:0] alu_res,
     input  logic        div_busy,
 
-    // ADR 027: Trap / MRET support
+    // ADR 030: Trap / MRET support
     input  logic        trap_entry,
     input  logic        mret_exec,
     input  logic [31:0] trap_target,

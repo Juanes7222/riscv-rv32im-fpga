@@ -1,8 +1,16 @@
 # ADR 039 - Pipeline Critical Bug Fixes (stall/flush separation, register propagation, trap flush)
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-11-12: the frontend no longer has an
+explicit `if_id_register`, see ADR 057, and the numbering of 037/038 is fixed)
 **Date:** 2026-06-17
-**Depends on:** ADR 034 (instruction-level test pattern), ADR 037 (canonical bubble), ADR 038 (branch in EX)
+**Depends on:** ADR 034 (instruction-level test pattern), ADR 037 (canonical bubble), ADR 038 (branch in EX),
+ADR 057 (frontend without `if_id_register`)
+
+> **Reading note:** every mention of `if_id_register` below refers to the
+> original frontend. Today the IF/ID boundary is the output register of the
+> instruction memory plus `id_pc`/`fetch_valid` (ADR 057); the stall and flush
+> semantics described here apply to `id_pc` and `fetch_valid`, and the
+> `id_ex_register` wiring is unchanged.
 
 ---
 
@@ -151,9 +159,9 @@ top-level's wiring reflects this asymmetry:
   the standard test cases. Out of scope for this ADR; will be
   fixed when M-extension model-vs-DUT tests are written.
 
-- **Numbering of ADRs 037 and 038**: the file headers say "ADR 033" and
-  "ADR 032" respectively; the filenames say 037 and 038. The file
-  headers are wrong. Out of scope for this ADR.
+- **Numbering of ADRs 037 and 038**: the file headers said "ADR 033" and
+  "ADR 032"; the filenames are 037 and 038. Fixed on 2026-11-12 in both files
+  and in the index, so the headers now match the filenames.
 
 - **`ex_div_done` declared but unused**: the comment in
   `top_pipeline.sv` (lines 154-160) explains the intentional choice

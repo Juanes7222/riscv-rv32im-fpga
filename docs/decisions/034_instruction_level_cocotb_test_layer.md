@@ -1,6 +1,7 @@
 # ADR 034 - Instruction-Level Cocotb Test Layer (test_alu_rv32i)
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-11-12: the `regs[0]` note now matches the
+architectural reset documented in [ADR 016](016_register_file_reset_zero.md))
 **Date:** 2026-06-12
 **Depends on:** ADR 029 (cocotb directory structure), ADR 032 (single_cycle cpi_one test layer), ADR 033 (rv32mi test layer + CSR extension)
 
@@ -96,9 +97,10 @@ The `_setup_and_execute` helper (in the same file, ~30 lines):
    step 2 clock cycles (the DUT resets all regs to 0 and PC to
    0), deassert `rst_n` to 1.
 3. Set `dut.u_rf.regs[k] = initial_value` for each input register.
-   Also set `dut.u_rf.regs[0] = 0` explicitly (the DUT's reset
-   loop is `for (i=1; i<32; i++)`, so `regs[0]` is never
-   initialised).
+   Also set `dut.u_rf.regs[0] = 0` explicitly. x0 has no storage
+   (ADR 016): the reset loop covers `i = 1..31` and the read port
+   forces `rs1_data = 0` when `rs1_addr == 0`, so a hierarchical read
+   of `regs[0]` is X until the test seeds it.
 4. Set `dut.u_imem.mem[0] = instruction` to load the test
    instruction at PC=0.
 5. `await Timer(2, unit="ns")` - let the simulator apply the
@@ -175,14 +177,14 @@ always_ff @(posedge clk) begin
 end
 ```
 
-The reset loop starts at `i=1`. `regs[0]` is never initialised by
-reset, so its internal storage is X (the SystemVerilog `logic`
-default). The hardwired read port `rs1_data = (rs1_addr == 5'b0)
-? 32'b0 : regs[rs1_addr]` correctly returns 0 for reads of x0,
-but the test reads `regs[0]` directly via hierarchy and sees X.
-
-The test explicitly initialises `regs[0] = 0` in the helper
-*after* reset, so the "writes to x0 are ignored" assertion works.
+The reset loop starts at `i=1`, because x0 is not a stored register
+(ADR 016): the read port `rs1_data = (rs1_addr == 5'b0) ? 32'b0 :
+regs[rs1_addr]` returns 0 for every architectural read of x0, so the
+array element is irrelevant to the ISA. The test nevertheless reads
+`regs[0]` directly through the hierarchy, where the element is X until
+something writes it; it seeds the element with 0 in the helper *after*
+reset so the "writes to x0 are ignored" assertion works. This is a
+read of a non-architectural location, not a functional bug.
 The "no other register was modified" loop excludes `regs[0]`
 because x0 is not modified by any instruction (writes are
 ignored per the ISA spec) - the exclusion is a no-side-effect

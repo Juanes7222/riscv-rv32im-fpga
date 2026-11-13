@@ -16,7 +16,7 @@ in [ADR 004](../decisions/004_shared_modules_boundary.md).
 **Type:** Combinational (RV32I + MUL/MULH/MULHSU/MULHU); multi-cycle FSM for DIV/DIVU/REM/REMU  
 **Description:** Performs all RV32I and RV32M integer operations. Division and
 remainder operations use a radix-2 restoring divisor (ADR 008). The `div_busy`
-output signals that the result is not yet valid. See [ADR 018](../decisions/018_alu_rv32im.md)
+output signals that the result is not yet valid. See [ADR 018](../decisions/019_alu_rv32im.md)
 for the normative RTL specification and full design rationale.
 
 ### Ports
@@ -218,9 +218,9 @@ The pipelined processor uses `rtl/pipeline/instruction_memory_pipe.sv`
 accesses. On loads, the result is sign- or zero-extended to 32 bits as
 specified by `dm_ctrl`. On stores, only the relevant byte lanes are written
 using byte enables. Both versions are four byte-lane M10K arrays. See
-[ADR 019](../decisions/019_data_memory_async_read.md),
-[ADR 020](../decisions/020_data_memory_organization.md),
-[ADR 021](../decisions/021_dm_ctrl_funct3.md) and
+[ADR 020](../decisions/020_data_memory_async_read.md),
+[ADR 021](../decisions/021_data_memory_organization.md),
+[ADR 047](../decisions/047_data_memory_window_and_split_images.md) and
 [ADR 048](../decisions/048_single_cycle_half_cycle_data_memory.md).
 
 ### Ports
@@ -233,6 +233,15 @@ using byte enables. Both versions are four byte-lane M10K arrays. See
 | `dm_wr` | input | 1 | Write enable |
 | `dm_ctrl` | input | 3 | funct3 direct - encodes access size and load sign mode (ADR 021) |
 | `rd_data` | output | 32 | Read data, combinational, extended to 32 bits |
+| `dbg_wr_be` | output | 4 | Byte enables of the pending write, for the console shadow |
+| `dbg_wr_data` | output | 32 | Replicated write data of the pending write, for the console shadow |
+| `wr_en_loader` | input | 1 | Program-loader write enable (single-cycle only) |
+| `wr_addr_loader` | input | 32 | Program-loader word address (single-cycle only) |
+| `wr_data_loader` | input | 32 | Program-loader write data (single-cycle only) |
+
+The pipeline top does not use the loader ports: it muxes the loader in front of
+the existing write port (`dmem_wr_eff`/`dmem_addr_eff`/`dmem_wdata_eff`)
+(ADR 054).
 
 ### dm_ctrl Encoding
 

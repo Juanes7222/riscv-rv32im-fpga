@@ -66,7 +66,7 @@ cd riscv-rv32im-fpga
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-make -C verification/riscv-tests all        # build the ISA test programs
+make riscv-tests                             # build the ISA test programs
 make verify-full                             # run every cocotb suite
 
 make setup ARCH=pipeline                      # create the Quartus project

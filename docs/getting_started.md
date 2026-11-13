@@ -63,21 +63,19 @@ The `riscv-tests` binaries are consumed by the cocotb suites, so they have to ex
 before any simulation runs:
 
 ```bash
-make -C verification/riscv-tests all
+make riscv-tests
 ```
 
 This compiles the RV32I, RV32M and RV32MI suites into `build/riscv-tests/`. The
 linker script used for the build places the reset vector at `0x00000000` and exports a
-`tohost` symbol, which is what the testbench monitors to decide pass or fail. See
+`tohost` symbol inside the 4 KB data window, which is what the testbench monitors to
+decide pass or fail. The address is per ELF: cocotb reads it from the symbol table and
+the FPGA flow passes it as `TOHOST_ADDR` (ADR 051). See
 [ADR 027](../docs/decisions/027_riscv-tests_compilation.md) for the rationale.
 
-> **Known gap.** The project-local build harness for the submodule — the custom
-> `link.ld` and the `Makefile` that drives the compilation — is not currently tracked
-> in the parent repository, because the submodule's own `.gitignore` excludes
-> `/Makefile` and the parent cannot commit files inside a submodule path. A fresh
-> clone therefore cannot rebuild the suite from scratch until those two files are
-> moved outside the submodule (for example to `verification/riscv-tests-build/`) and
-> tracked there.
+The project-local harness — `link.ld` and the `Makefile` — lives in
+`verification/riscv-tests-build/`, outside the submodule, so it is tracked by the
+parent repository. The submodule only supplies the test sources and `env/p/`.
 
 ## 5. Running the verification suites
 

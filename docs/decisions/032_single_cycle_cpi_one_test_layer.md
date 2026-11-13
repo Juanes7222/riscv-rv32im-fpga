@@ -226,11 +226,11 @@ record.
   propagation, this line can be removed.
 
 - **The hierarchy read of `cycle_count` and `instr_retired`
-  is a known Icarus-only limitation.** Switching to a
-  Verilator-based CI would require promoting these signals to
-  top-level outputs (a 3-line change to `top_single_cycle.sv`,
-  no synthesis pinout change required because the new outputs
-  can be left unconnected in the synthesis `setup.tcl`).
+  is an Icarus feature, not a portable contract.** Verilator does not
+  support dotted hierarchical access to signals that are not public, so a
+  future Verilator CI would need either `--public-flat-rw` or top-level
+  outputs for these two counters (left unconnected in the synthesis
+  `setup.tcl`, so no pinout impact). The project stays on Icarus today.
 
 - **No new cocotb infrastructure test is added.** The
   `test_cpi_one` layer exercises the existing `perf_counter`

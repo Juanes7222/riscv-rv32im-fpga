@@ -14,7 +14,8 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Convert a RISC-V flat binary (.bin) to a $readmemh-compatible "
-            ".mem file. Words beyond the binary are padded with NOP (0x00002013)."
+            ".mem file. Words beyond the binary are padded with the canonical NOP
+            (0x00000013)."
         )
     )
     parser.add_argument(
@@ -35,8 +36,8 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 # Words beyond the program are padded with the canonical NOP (0x00000013 =
-# ADDI x0, x0, 0). 0x00002013 (SLTI x0, x0, 0) also writes only x0 and is
-# architecturally a NOP, but it is not the canonical RISC-V NOP encoding.
+# ADDI x0, x0, 0). Any encoding that writes only x0 is architecturally
+# inert, but 0x00000013 is the encoding ADR 037 fixes as the canonical one.
 
 
 def validate_inputs(bin_path: Path, depth: int) -> None:

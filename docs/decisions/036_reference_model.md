@@ -137,7 +137,7 @@ implementation choice that diverges from a full-featured trap unit:
    Note: this means an exception handler that wants to resume *after*
    the trapping instruction must advance `mepc` by 4 before `MRET`.
 
-2. **`mtvec` low 2 bits forced to 0 (direct mode).** Per ADR 006,
+2. **`mtvec` low 2 bits forced to 0 (direct mode).** Per ADR 030,
    the DUT does not support vectored trap handling. The model's
    `trap_target` property is `self.mtvec & ~0x3`.
 
@@ -255,19 +255,20 @@ A Python model:
 - Is 10-100x faster than simulation, so property-based tests
   (random programs, many instructions) are tractable.
 
-### Why match the DUT's non-standard conventions
+### Why the model mirrors the DUT's documented conventions
 
 The model is a **verification artifact**, not a fresh spec
 implementation. Its purpose is to be a known-good oracle for
-the DUT. If the model uses the spec's convention and the DUT
-uses a different convention, every test will fail and the
-verification provides no signal.
+the DUT. Where the DUT makes a documented, legal choice (for
+example `mtvec` in direct mode, ADR 030), the model mirrors it;
+otherwise every test would fail and the verification would
+provide no signal.
 
-The non-standard `mepc = pc + 4` choice in the DUT is a
-documented design decision. The model matches it. If the DUT
-is ever fixed, the model is fixed in lockstep. The ADR
-documents the convention so future maintainers understand
-why the model diverges from the RISC-V spec.
+`mepc` is **not** one of those divergences: both the DUT and the
+model save the PC of the trapping instruction, as the RISC-V
+spec requires. The earlier revision of this ADR claimed a
+`mepc = pc + 4` convention; that claim was wrong and has been
+removed.
 
 ### Why the importlib workaround is acceptable
 
@@ -363,15 +364,15 @@ register per test.
   test file's header comment. A proper fix in cocotb upstream
   is preferred but out of scope.
 
-- **The model matches the DUT's non-standard `mepc = pc + 4`
-  trap convention.** This is documented in `csr.py` and
-  in this ADR. If the DUT is fixed, the model is fixed
-  in lockstep.
+- **The model matches the DUT's trap convention, including the
+  spec-compliant `mepc = PC of the trapping instruction`.** This
+  is documented in `csr.py` and in this ADR. The DUT and the
+  model must change together if that convention ever changes.
 
 - **The model does not cover M-extension multi-cycle timing
   in the cocotb test.** The model is single-step; the DUT
-  takes 1/34 cycles for MUL/DIV. A future ADR (likely 037)
-  will add a `test_model_vs_dut_m_extension.py` that steps
+  takes 1/34 cycles for MUL/DIV. A future ADR will add a
+  `test_model_vs_dut_m_extension.py` that steps
   the DUT multiple times per model step.
 
 - **The reference model is reusable for the pipeline DUT.**

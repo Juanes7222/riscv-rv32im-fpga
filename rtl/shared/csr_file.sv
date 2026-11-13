@@ -1,4 +1,4 @@
-// Minimal Machine-mode CSR file for trap handling (ADR 027 + ADR 033).
+// Minimal Machine-mode CSR file for trap handling (ADR 030 + ADR 033).
 // Implements the CSRs required by the riscv-tests rv32mi suite:
 //   - mstatus (0x300), mtvec (0x305), mscratch (0x340), mepc (0x341),
 //     mcause (0x342), mtval (0x343): the standard trap-related CSRs.

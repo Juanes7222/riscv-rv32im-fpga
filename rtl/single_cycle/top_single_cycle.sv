@@ -40,12 +40,12 @@ module top_single_cycle #(
     localparam [1:0] WB_ALU = 2'b00;
     localparam [1:0] WB_MEM = 2'b01;
     localparam [1:0] WB_PC4 = 2'b10;
-    localparam [1:0] WB_CSR = 2'b11;    // ADR 027
+    localparam [1:0] WB_CSR = 2'b11;    // ADR 030
 
-    // Processor clock: 40 MHz from the 50 MHz oscillator.  The measured Fmax
-    // of this microarchitecture is 46.17 MHz (the multiply writeback, ADR
-    // 050), so CLOCK_50 would leave no margin (ADR 049).  The VGA pixel PLL
-    // below keeps taking the 50 MHz pin.
+    // Processor clock: 40 MHz from the 50 MHz oscillator.  The multiply
+    // writeback (ADR 050) measures 48.48 MHz at 85 C (mean 49.10 MHz) in
+    // results/results_report.md, so CLOCK_50 would leave no margin (ADR 049).
+    // The VGA pixel PLL below keeps taking the 50 MHz pin.
     logic clk_cpu;
     logic cpu_pll_locked;
 
@@ -79,7 +79,7 @@ module top_single_cycle #(
     logic [4:0]  rs1_addr;
     logic [4:0]  rs2_addr;
     logic [6:0]  funct7;
-    logic [11:0] instr_31_20;   // ADR 027: CSR address / ECALL funct12
+    logic [11:0] instr_31_20;   // ADR 030: CSR address / ECALL funct12
 
     // Control signals
     logic        ru_wr;
@@ -92,7 +92,7 @@ module top_single_cycle #(
     logic [2:0]  dm_ctrl;
     logic [1:0]  ru_data_wr_src;
 
-    // ADR 027: Trap / CSR control signals
+    // ADR 030: Trap / CSR control signals
     logic        trap_entry;
     logic        mret_exec;
     logic [11:0] csr_addr;
@@ -168,17 +168,17 @@ module top_single_cycle #(
 
     assign alu_b = alub_src ? imm_out : rs2_data;
 
-    // ADR 027: CSR write data mux - rs1_data vs zimm for immediate forms
+    // ADR 030: CSR write data mux - rs1_data vs zimm for immediate forms
     assign csr_wdata = csr_imm ? {27'b0, instruction[19:15]} : rs1_data;
 
-    // ADR 027: Gate csr_wr for CSRRS/CSRRC with rs1 == x0 (read-only per spec)
+    // ADR 030: Gate csr_wr for CSRRS/CSRRC with rs1 == x0 (read-only per spec)
     // CSRRS = funct3[2:0] == 3'b010, CSRRC = funct3[2:0] == 3'b011
     // For these, if rs1 == 0, the CSR is not written.
     assign csr_wr = csr_wr_raw &
                     ~( (funct3 == 3'b010 || funct3 == 3'b011) &&
                         (rs1_addr == 5'b0) );
 
-    // ADR 027: rd_data mux - adds WB_CSR path, removes hardcoded OP_SYSTEM=0
+    // ADR 030: rd_data mux - adds WB_CSR path, removes hardcoded OP_SYSTEM=0
     always_comb begin
         case (ru_data_wr_src)
             WB_ALU:  rd_data = alu_res;
@@ -433,7 +433,7 @@ module top_single_cycle #(
         .wr_data_loader(loader_dmem_wr_data)
     );
 
-    // ADR 027: CSR register file with trap logic
+    // ADR 030: CSR register file with trap logic
     csr_file u_csr (
         .clk         (clk_cpu),
         .rst_n       (rst_n_cpu),

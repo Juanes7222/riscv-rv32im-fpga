@@ -1,6 +1,8 @@
 # ADR 028 - Pass/Fail Convention: tohost Symbol Monitoring in cocotb
 
-**Status:** Accepted  
+**Status:** Accepted (updated 2026-11-12 to match the implemented testbench;
+superseded in part by [ADR 032](032_single_cycle_cpi_one_test_layer.md), which
+reads the DUT by hierarchy instead of adding top-level ports)  
 **Date:** 2026-05-11  
 **Depends on:** ADR 012 (tohost mentioned), ADR 027 (linker script defines tohost)
 
@@ -21,10 +23,11 @@ at `mtvec`; the test itself executes `ecall` (see ADR 030). The testbench
 monitors the data memory write bus for a write to the `tohost` symbol to
 determine pass/fail.
 
-The `tohost` symbol address is fixed by the linker script (ADR 027). Its byte
-address equals `_end - 4`, but the exact value depends on the size of each
-test's `.text` section. The testbench cannot hardcode this address; it must
-read it from the ELF symbol table.
+The `tohost` symbol lives inside the `.tohost` section that the linker script
+places in the data window (ADR 027). Its byte address depends on the size of
+each test's `.text` section, so it changes from one ELF to another (for example
+`0x6c0` for `add` with the current script, `0x2c0`-range for shorter tests).
+The testbench cannot hardcode it; it must read the ELF symbol table.
 
 ---
 
@@ -41,9 +44,9 @@ fail <--> captured value != 1 (non-zero means TESTNUM assertion failed)
 timeout <--> no write to tohost within MAX_CYCLES
 
 
-`MAX_CYCLES` is set to `200_000` cycles. This is sufficient for the longest
-riscv-tests binary (division corner cases) at the worst-case simulated
-frequency, with a 10x safety margin.
+`MAX_CYCLES` is a per-test budget, passed to `monitor_tohost`: 200 000 cycles
+for the ALU/branch tests, 500 000 for the division corner cases (ADR 031), and
+larger values for CoreMark. The budget is a safety margin, not a measurement.
 
 ---
 
@@ -64,13 +67,14 @@ def get_tohost_addr(elf_path: str) -> int:
 
 ### Monitoring loop (inside cocotb coroutine)
 
-```python
-tohost_word_addr = tohost_byte_addr >> 2  # word-addressed DMEM (ADR 021)
+The data-memory address is a **byte** address (ADR 021), so the comparison is
+against `tohost_byte_addr` directly, not against a word index:
 
-for _ in range(MAX_CYCLES):
+```python
+for _ in range(max_cycles):
     await RisingEdge(dut.clk)
-    if (dut.dmwr.value == 1 and
-        dut.dm_addr.value == tohost_word_addr):
+    if (int(dut.dm_wr.value) == 1 and
+        int(dut.dm_addr.value) == tohost_byte_addr):
         result = int(dut.dm_wdata.value)
         if result == 1:
             # PASS
@@ -79,20 +83,22 @@ for _ in range(MAX_CYCLES):
 # TIMEOUT if loop exhausted
 ```
 
-### Signal names (top_single_cycle.sv interface)
+### Signal names (top_single_cycle.sv)
 
-| Signal     | Direction | Width | Meaning                        |
-|------------|-----------|-------|--------------------------------|
-| `clk`      | in        | 1     | processor clock                |
-| `rstn`     | in        | 1     | active-low reset               |
-| `dmwr`     | out       | 1     | data memory write enable       |
-| `dm_addr`  | out       | 32    | data memory address (byte)     |
-| `dm_wdata` | out       | 32    | data memory write data         |
+| Signal     | Kind    | Width | Meaning                        |
+|------------|---------|-------|--------------------------------|
+| `clk`      | in      | 1     | processor clock                |
+| `rst_n`    | in      | 1     | active-low reset               |
+| `dm_wr`    | signal  | 1     | data memory write enable       |
+| `dm_addr`  | signal  | 32    | data memory address (byte)     |
+| `dm_wdata` | signal  | 32    | data memory write data         |
 
-> **Note:** if `top_single_cycle.sv` does not currently expose `dm_addr` and
-> `dm_wdata` as top-level output ports, they must be added. This is the only
-> RTL change required before cocotb verification can begin. It does not affect
-> synthesis (Quartus will leave unconnected outputs unrouted without error).
+`dm_wr` is an internal signal of the top. `dm_addr` and `dm_wdata` are internal
+aliases (`alu_sum` and `rs2_data`) marked `synthesis keep`; they are **not**
+top-level ports. The cocotb monitor reads them through the Icarus hierarchy
+(`dut.dm_addr`, `dut.dm_wdata`), which is the approach ADR 032 fixed. Adding
+128 pins to the DE1-SoC pinout for debug signals is not required and was
+rejected there.
 
 ### Testbench template (per-test)
 
@@ -105,10 +111,10 @@ from .tohost import get_tohost_addr, monitor_tohost
 @cocotb.test()
 async def test_rv32i_add(dut):
     cocotb.start_soon(Clock(dut.clk, 10, units="ns").start())
-    dut.rstn.value = 0
+    dut.rst_n.value = 0
     await Timer(40, units="ns")
-    dut.rstn.value = 1
-    result = await monitor_tohost(dut, ELF_PATH, MAX_CYCLES=200_000)
+    dut.rst_n.value = 1
+    result = await monitor_tohost(dut, ELF_PATH, max_cycles=200_000)
     assert result == "pass", f"FAIL: testnum={result}"
 ```
 
@@ -117,8 +123,8 @@ async def test_rv32i_add(dut):
 ## Consequences
 
 - `pyelftools` is added as a Python dependency (`pip install pyelftools`).  
-- `top_single_cycle.sv` must expose `dm_addr` and `dm_wdata` as outputs (one
-  RTL change, zero synthesis impact).  
+- `dm_addr` and `dm_wdata` stay internal and are read by hierarchy; no top-level
+  ports are added (ADR 032).  
 - The same monitoring coroutine is reused unmodified for the pipeline; only the
   DUT module name changes.  
 - Timeout failures are reported as a distinct outcome (not as FAIL) so they are

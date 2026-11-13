@@ -1,6 +1,7 @@
 # ADR 044: Step mode - freezing the processor for the VGA console
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-11-12: the Fmax figures are marked historical,
+and the freeze sources added after this ADR are documented)
 **Date:** 2026-10-20
 **Related:** ADR 004 (shared module boundary), ADR 023 (register file write
 inhibit during division), ADR 031 (division FSM correction), ADR 042
@@ -18,6 +19,13 @@ second: the console cannot be read.
 
 The console needs a way to stop the processor while the values on the
 screen are inspected, and to advance it one instruction at a time.
+
+The two Fmax numbers quoted next (52.97 / 52.82 MHz) are the measurement of
+this decision's campaign, on the console configuration (IMEM 2048 / DMEM 512).
+They are historical: `results/results_report.md` reports 60.60 MHz at 85 °C and
+a replica mean of 62.15 MHz for the pipeline, and 48.48 / 49.10 MHz for the
+single-cycle. What still holds is the policy, not the absolute figure: the
+freeze must not degrade Fmax by more than about 1 %.
 
 The obvious implementation is to gate the clock with the freeze request.
 That is rejected: a gated clock inserts the enable logic into the global
@@ -69,6 +77,7 @@ clock) and get a `step_hold` signal, high while the processor is frozen.
 | `rtl/single_cycle/pc.sv` | new input `step_hold`: holds the program counter |
 | `top_single_cycle` | new ports `key_step`, `step_mode` |
 | `top_pipeline` | new ports `key_step`, `step_mode` |
+| both tops | later also gained `key_load` and `sw[3:0]` for the program loader (ADR 054); the step-mode port list above is not the complete set of board inputs |
 
 `alu_rv32im.hold` is tied to `1'b0` in the pipeline, whose behaviour stays
 bit-identical to before (see the limitations below).
@@ -91,7 +100,10 @@ register file, the CSRs and the performance counters:
 **Pipeline.** The freeze is OR-ed into the clock enable of every pipeline
 register and of the PC unit:
 
-* the IF/ID, ID/EX, EX/MEM and MEM/WB registers hold their contents,
+* the pipeline registers (ID/EX, EX/MEM, MEM/WB) hold their contents, and the
+  IF/ID boundary - the output register of the instruction memory plus
+  `id_pc`/`fetch_valid` - is held through `pipe_stall` (ADR 057). There is no
+  separate `if_id_register` in the current frontend,
 * the PC unit holds the program counter,
 * the flushes (branch, trap and load-use bubbles) are **suppressed**
   while the pipeline is frozen. They are combinational functions of the
@@ -100,6 +112,31 @@ register and of the PC unit:
   release cycle, when the pipeline advances again,
 * the register file write enable, the CSR write enable and the counter
   enable are qualified with `~step_hold`.
+
+### Freeze sources added after this ADR
+
+`step_hold` is not the only source of the freeze. Both tops compute the
+effective signal as an OR:
+
+```systemverilog
+// single-cycle
+assign step_hold_effective = step_hold | power_on_pause;
+// pipeline
+assign step_hold_effective = step_hold | power_on_pause | tail_loop_halt;
+```
+
+- **`power_on_pause`** is a four-clock counter after reset release that keeps the
+  processor at the reset vector so the console can show the initial state before
+  execution begins (the registered instruction memory also needs its fill cycle,
+  ADR 052). It does not depend on `SW[9]`. In simulation the single-cycle
+  omits it (`SIMULATION` is defined for Icarus by the CPU PLL model), so the
+  cocotb tests see the PC start immediately; the pipeline keeps it.
+- **`tail_loop_halt`** is a sticky flag set when the pipeline commits the final
+  `j .` of a program: the benchmark has written `tohost` and further fetches
+  would only count words past the image. It freezes the pipeline so the
+  measurement window closes exactly at the end of the program (ADR 053).
+
+Everything below applies to `step_hold_effective`, not only to `SW[9]`.
 
 ## Rationale
 

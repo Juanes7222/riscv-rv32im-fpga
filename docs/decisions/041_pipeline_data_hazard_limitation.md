@@ -1,13 +1,19 @@
 # ADR 041: Pipeline data-hazard limitation - producer 3+ cycles ahead
 
-**Status:** Superseded by commit `06260fc` (WB-to-ID forwarding)
+**Status:** Superseded by ADR 056 (WB-to-ID forwarding, MEM-RAW restricted to
+loads). Implemented in commit `06260fc`; formally replaced by
+[ADR 056](056_wb_to_id_forwarding.md).
 **Date:** 2026-06-17
-**Superseded on:** 2026-06-19
+**Superseded on:** 2026-06-19 (implementation) / 2026-11-12 (ADR)
 
-**This ADR documents a pipeline deadlock that was resolved by replacing
-the WB-RAW stall with WB-to-ID forwarding and restricting MEM-RAW
-stalls to load instructions only. See the "Resolution" section at the
-end.**
+**This ADR documents a pipeline deadlock that was resolved by replacing the
+WB-RAW stall with WB-to-ID forwarding and restricting MEM-RAW stalls to load
+instructions only. ADR 056 is the decision of record; the body below keeps the
+history of the deadlock and of the first fix.**
+
+The "~56.6 MHz" figure in the Resolution section is a historical measurement of
+that campaign. The current pipeline figures are in `results/results_report.md`
+(60.60 MHz at 85 °C, replica mean 62.15 MHz).
 
 ---
 

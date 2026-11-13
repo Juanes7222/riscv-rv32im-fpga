@@ -134,11 +134,12 @@ riscv-tests (rv32ui) provide additional random coverage.
 
 ### Why a separate test file, not added to test_alu_rv32i.py
 
-AGENTS.md specifies test grouping:
-
-> "Group related tests by instruction or feature in one file:
->  test_alu_rv32i.py, test_branch.py, test_load_store.py,
->  test_hazards.py"
+The verification layer groups tests by feature, and the file layout follows
+that convention (`test_alu_rv32i.py`, `test_branch.py`, `test_rv32mi.py`, ...).
+The first version of this ADR attributed the rule to a quote in `AGENTS.md`;
+that quote does not exist in the file. The convention is real in the tree, so
+the decision stands, but it rests on the existing layout rather than on a
+written rule.
 
 `test_alu_rv32i.py` is for ALU operations (R-type, I-type ALU,
 U-type). Branches are a different feature (control flow vs data
@@ -152,7 +153,7 @@ The helpers `_step` and `_reset` are duplicated from
 to `conftest.py` (which is already imported by both files via
 `from conftest import start_clock`).
 
-The refactor is deferred to a future ADR (likely 036) because:
+The refactor is deferred to a future ADR (number not assigned yet) because:
 
 - `conftest.py` is named after pytest's conftest convention, but
   it is also used by cocotb tests in this project. The semantics

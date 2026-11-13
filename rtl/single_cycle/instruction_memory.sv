@@ -14,7 +14,7 @@
 `include "../shared/mem_config.vh"
 
 module instruction_memory #(
-    parameter int unsigned IMEM_DEPTH = 1024
+    parameter int unsigned IMEM_DEPTH = 4096
 )(
     input  logic        clk,
     input  logic        fetch_en,   // 0 holds the output register (DIV, step mode)

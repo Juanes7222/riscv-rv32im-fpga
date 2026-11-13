@@ -40,12 +40,16 @@ the registered read absorb the fetch without adding a stage or a stall.
 
 > **Superseded in part by ADR 046.** The single-cycle instruction memory now
 > uses a registered read addressed with the next PC and is inferred as M10K.
-> ADR 011 §1-3 (the pipeline still needs the synchronous read it already has)
-> remain valid.
+> What remains valid is §2 (the pipeline's IF stage needs the read it already
+> has) and the M10K physics in §3. §1 and §4 argue that a registered read is
+> incompatible with the single-cycle; ADR 046 shows that the incompatibility
+> was an artefact of addressing with the current PC, and both arguments are
+> left below only as the record of the original decision.
 
 ## Rationale
 
-**1. Required by the single-cycle datapath.**  
+**1. Required by the single-cycle datapath.** *(Superseded by ADR 046, see the
+note at the end of this section.)*
 In the single-cycle processor, the entire instruction execution - fetch,
 decode, execute, memory access, write-back - occurs within a single clock
 cycle. A synchronous instruction memory would require the PC to be presented
@@ -71,16 +75,15 @@ from an unpacked array) cannot be absorbed into an M10K block; Quartus Prime
 implements it in logic cells (LUTs and flip-flops) regardless of any
 `ramstyle = "M10K"` attribute.
 
-For the single-cycle processor, this is an acceptable trade-off. The instruction
-memory is small enough (2048 words for synthesis, 16384 for simulation) that
-the logic-cell implementation fits within the device logic budget. The critical
-path through the combinational memory read is part of the overall single-cycle
-datapath and is measured directly by the Timing Analyzer.
+For the single-cycle processor this trade-off was accepted at the time: the
+instruction memory was small enough (2048 words for synthesis, 16384 for
+simulation) for a logic-cell implementation to fit. ADR 046 reversed that
+because CoreMark needs 4096 words and the logic-cell array does not route at
+that size; the single-cycle memory is now a registered M10K read of 4096 words.
 
-The pipelined processor, in contrast, uses `instruction_memory_pipe.sv` which
-describes a synchronous read. Quartus Prime maps this to M10K blocks (64 blocks
-for 16384 words), using the embedded memory efficiently instead of consuming
-logic cells.
+The pipelined processor uses `instruction_memory_pipe.sv`, which describes a
+synchronous read. Quartus Prime maps it to M10K blocks, using the embedded
+memory instead of consuming logic cells.
 
 **4. Not feasible to convert single-cycle to synchronous read.**  
 Adding a register between the instruction memory output and the decode logic

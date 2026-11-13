@@ -1,6 +1,7 @@
 # ADR 017 - Immediate Generator: Interface and Implementation
 
-**Status:** Accepted  
+**Status:** Accepted (updated 2026-11-12: the implementation note records a
+deviation that does not change behaviour)
 **Date:** 2026-05-02
 
 ## Context
@@ -28,6 +29,13 @@ not module configuration points.
 **3. Output is declared as `output logic`.**  
 The output is driven by an `always_comb` block. Per ADR 010, all signals are
 `logic`.
+
+> **Implementation note (2026-11-12).** The RTL does not keep the complete
+> extraction inside one `always_comb` block: `sign_bit`, `i_imm_raw`, `s_imm_raw`,
+> `b_imm_raw`, `u_imm_raw` and `j_imm_raw` are computed as separate continuous
+> assignments and only the final selection is in `always_comb`. The behaviour is
+> identical; the split was needed because Icarus mishandled the part-selects
+> inside the block. This ADR remains authoritative for the encoding itself.
 
 ## Rationale
 

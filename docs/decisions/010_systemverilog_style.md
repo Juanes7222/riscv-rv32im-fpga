@@ -43,6 +43,12 @@ reading across modules.
 - All prototype modules (control unit, ALU, branch unit) must be updated to
   replace `reg` with `logic` and `always @(*)` with `always_comb` before
   committing to `rtl/`.
+- **Known exceptions (2026-11-12).** The rule is not met by every file: the
+  generated `screen_writer_*.sv` console writers, `seven_segment.sv` and
+  `program_loader.sv` use `wire`/`reg`. The writers are produced by
+  `scripts/gen_screen_writer.py`, and the other two predate the style review.
+  New hand-written RTL must still follow this ADR; bringing the exceptions in
+  line is pending work, not a licence to use Verilog constructs elsewhere.
 - The Quartus project settings must specify SystemVerilog as the HDL version
   for all `.sv` files.
 - Icarus Verilog must be invoked with the `-g2012` flag (or equivalent) to

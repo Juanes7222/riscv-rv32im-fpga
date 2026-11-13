@@ -49,7 +49,12 @@ modules to override them, which would silently produce incorrect decode logic.
 
 ## Normative RTL Specification
 
-See [control_unit.sv](../../rtl/monocycle/control_unit.sv)
+See [control_unit.sv](../../rtl/single_cycle/control_unit.sv)
+
+The module also carries the trap and CSR outputs added by
+[ADR 030](030_csr_and_trap_handling.md) (`instr_31_20`, `trap_entry`,
+`mret_exec`, `csr_addr`, `csr_wr`, `csr_op`, `csr_imm`). The decode rules of
+this ADR are unchanged; only the port list grew.
 
 
 ## M-Extension Decode Note

@@ -50,8 +50,8 @@ pending branch is applied on the release cycle instead of being lost.
 top_pipeline
 │
 ├── pc_unit              (rtl/pipeline/pc_unit.sv)
-├── instruction_memory   (rtl/pipeline/instruction_memory_pipe.sv)  ← M10K synchronous ROM
-├── if_id_register       (rtl/pipeline/if_id_register.sv)
+├── instruction_memory   (rtl/pipeline/instruction_memory_pipe.sv)  ← M10K synchronous ROM;
+│                          its output register is the IF/ID boundary (ADR 057)
 ├── control_unit         (rtl/pipeline/control_unit.sv)
 ├── hazard_detection_unit(rtl/pipeline/hazard_detection.sv)
 ├── imm_gen              (rtl/shared/imm_gen.sv)
@@ -83,7 +83,7 @@ the pipeline registers satisfy the synchronous-read requirement.
 |---------|--------|------|-------|
 | Program counter | `pc_unit` | Register (FF) | 32 bits |
 | Instruction memory | `instruction_memory_pipe` | M10K synchronous ROM | IMEM_DEPTH x 32 bits |
-| IF/ID register | `if_id_register` | Pipeline register | `{pc, instruction}` = 64 bits |
+| IF/ID boundary | `instruction_memory_pipe` output register + `id_pc`/`fetch_valid` | M10K output register + 33 FFs | 32 (word) + 32 (`id_pc`) + 1 (`fetch_valid`) |
 | Register file | `register_file` | Register array (FF) | 32 x 32 bits |
 | ID/EX register | `id_ex_register` | Pipeline register | control+bus = ~175 bits |
 | EX/MEM register | `ex_mem_register` | Pipeline register | control+bus = ~175 bits |
@@ -94,7 +94,15 @@ the pipeline registers satisfy the synchronous-read requirement.
 
 The data memory read-data bypasses the MEM/WB register - the registered
 output of `data_memory_pipe` feeds the WB writeback mux combinationally,
-avoiding an extra cycle of latency on loads ([ADR 041](../decisions/041_pipeline_data_hazard_limitation.md)).
+avoiding an extra cycle of latency on loads
+([ADR 041](../decisions/041_pipeline_data_hazard_limitation.md)).
+
+There is no separate `if_id_register` instance. The IF/ID boundary is the
+instruction-memory output register plus `id_pc` and `fetch_valid`, which is what
+makes a taken branch cost one cycle instead of two
+([ADR 057](../decisions/057_pipeline_frontend_without_if_id_register.md)). The
+`if_id_register.sv` file remains in the tree as the reference implementation of
+the removed stage; the stall/flush rows below apply to `id_pc`/`fetch_valid`.
 
 ---
 

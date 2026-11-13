@@ -2,8 +2,14 @@
 
 **Status:** Accepted
 **Date:** 2026-10-19
-**Related:** ADR 040 (pipeline forwarding hazards), ADR 041 (pipeline
-data-hazard limitation)
+**Related:** ADR 040 (original forwarding hazards; now superseded by ADR 056),
+ADR 041 (original data-hazard limitation; now superseded by ADR 056),
+ADR 057 (frontend without `if_id_register`)
+
+> **Reading note (2026-11-12):** the `id_ex_flush` / `flush` / `stall` wiring
+> described below is the current one. The IF/ID slots it mentions are no longer
+> a module: the boundary is the instruction-memory output register plus
+> `id_pc`/`fetch_valid` (ADR 057).
 
 ---
 

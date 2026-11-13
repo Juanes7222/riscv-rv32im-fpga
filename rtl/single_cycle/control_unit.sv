@@ -1,5 +1,5 @@
 // Control unit: combinational decode of opcode, funct3, funct7 into datapath controls.
-// ADR 027: added trap/CSR signals for ECALL, MRET, and CSR instruction handling.
+// ADR 030: added trap/CSR signals for ECALL, MRET, and CSR instruction handling.
 module control_unit (
     input  logic [6:0]  opcode,
     input  logic [2:0]  funct3,
@@ -16,7 +16,7 @@ module control_unit (
     output logic [2:0]   dm_ctrl,
     output logic [1:0]   ru_data_wr_src,
 
-    // Trap / CSR control (ADR 027)
+    // Trap / CSR control (ADR 030)
     output logic         trap_entry,   // ECALL / EBREAK
     output logic         mret_exec,    // MRET
     output logic [11:0]  csr_addr,     // CSR register address
@@ -72,7 +72,7 @@ module control_unit (
     localparam [1:0] WB_ALU = 2'b00;
     localparam [1:0] WB_MEM = 2'b01;
     localparam [1:0] WB_PC4 = 2'b10;
-    localparam [1:0] WB_CSR = 2'b11;    // ADR 027: CSR read data
+    localparam [1:0] WB_CSR = 2'b11;    // ADR 030: CSR read data
 
     // Intermediate signals - workaround for Icarus bit-select in always_comb
     logic        funct7_5;
@@ -212,7 +212,7 @@ module control_unit (
             end
 
             OP_SYSTEM: begin
-                // ADR 027: Full trap/CSR handling
+                // ADR 030: Full trap/CSR handling
                 if (funct3 == 3'b000) begin
                     // Environment call / trap return
                     case (instr_31_20)

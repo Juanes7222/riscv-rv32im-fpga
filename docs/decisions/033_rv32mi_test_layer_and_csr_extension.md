@@ -44,16 +44,16 @@ introduced, was not built and not run. Adding it would:
 
 ### Decision 1 - Build `rv32mi` ELFs
 
-Add a `rv32mi` target to `verification/riscv-tests/Makefile` that
-compiles 15 of the 16 riscv-tests `rv32mi-p-*` ELFs. The `pmpaddr`
-test is omitted because the DUT does not implement PMP.
+A `rv32mi` target in `verification/riscv-tests-build/Makefile` (reached from
+`make riscv-tests`, ADR 027) compiles 15 of the 16 riscv-tests `rv32mi-p-*`
+ELFs. The `pmpaddr` test is omitted because the DUT does not implement PMP.
 
-The CFLAGS are extended from `-march=rv32im_zicsr` to
-`-march=rv32im_zicsr_zicntr` because `instret_overflow.S` and
-`zicntr.S` reference the Zicntr extension's cycle / instret CSRs
-(they compile but the DUT returns 0 for those CSRs since the
-counters are exposed via `perf_counters` not the CSR file - see
-ADR 024).
+The CFLAGS are `-march=rv32im_zicsr_zicntr` because `instret_overflow.S` and
+`zicntr.S` reference the Zicntr extension's cycle / instret CSRs. They compile
+and pass against the DUT even though the CSR file returns 0 for
+`cycle`/`instret` (the real counters are `rtl/shared/perf_counter.sv`, ADR 024).
+The two tests only require that the reads do not trap and that `instret`
+behaves consistently; they do not require the counters to advance.
 
 ### Decision 2 - Extend the CSR file with 8 new registers
 
@@ -292,19 +292,20 @@ the single-cycle architectural invariant.
   the corresponding trap path in RTL, (b) move the test from
   `EXPECTED_FAIL` to `EXPECTED_PASS`, and (c) update the ADR.
 
-- **The CSR file now has 12 read/write-able registers**
+- **The CSR file now has 7 read/write-able registers**
   (mstatus, mtvec, mscratch, mepc, mcause, mtval, mcounteren)
   **plus 5 read-only** (misa, mvendorid, marchid, mimpid,
-  mhartid). All reset to defined values; all honour the
+  mhartid), 12 in total. All reset to defined values; all honour the
   CSRRW / CSRRS / CSRRC / CSRRWI / CSRRSI / CSRRCI
   semantics, including the `rs1=x0` / `uimm=0` "no write"
   rule. The "no write" gating is in `top_single_cycle.sv`'s
   `csr_wr` (see ADR 030 §"Limitations" / §"Consequences").
 
-- **The `verification/riscv-tests/Makefile` now has three
-  targets** (`rv32i`, `rv32m`, `rv32mi`) **and a default
-  `all` that builds all three.** The Makefile's `clean`
-  target removes all three build directories.
+- **The riscv-tests build now has three targets** (`rv32i`,
+  `rv32m`, `rv32mi`) **and a default `all` that builds all three.**
+  They live in `verification/riscv-tests-build/Makefile` and are reached
+  from the repository root through `make riscv-tests` (ADR 027); `clean`
+  removes the three build directories.
 
 - **`cocotb/common/Makefile`'s `COCOTB_TEST_MODULES` now
   includes `test_rv32mi`.** The `PYTHONPATH` workaround

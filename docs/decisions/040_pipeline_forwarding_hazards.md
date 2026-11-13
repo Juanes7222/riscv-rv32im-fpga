@@ -1,14 +1,18 @@
 # ADR 040 - Pipeline Forwarding Hazard Detection (MEM-RAW and WB-RAW)
 
-**Status:** Superseded by commit `06260fc` (WB-to-ID forwarding)
+**Status:** Superseded by ADR 056 (WB-to-ID forwarding, MEM-RAW restricted to
+loads). The decision was first implemented in commit `06260fc`; the ADR that
+formally replaces this one is [ADR 056](056_wb_to_id_forwarding.md).
 **Date:** 2026-06-17
-**Superseded on:** 2026-06-19
+**Superseded on:** 2026-06-19 (implementation) / 2026-11-12 (ADR)
 **Depends on:** ADR 039 (pipeline critical bug fixes)
 
 **This ADR documents the original forwarding hazard detection and its
-limitations. The limitation was resolved in commit `06260fc` by replacing
-the WB-RAW stall with WB-to-ID forwarding and restricting MEM-RAW stalls
-to load instructions only. See the "Current state" section at the end.**
+limitations. The limitation was resolved by replacing the WB-RAW stall with
+WB-to-ID forwarding and restricting MEM-RAW stalls to load instructions only;
+ADR 056 is the decision of record. The body below is kept as the record of the
+problem and of the first fix, and must not be used as the description of the
+current hazard unit.**
 
 ---
 
@@ -223,8 +227,10 @@ deadlock was WB-to-ID forwarding (commit `06260fc`).
   load-use stall and MEM-RAW stall, and for ALU instructions
   via EX/MEM→EX and MEM/WB→EX forwarding plus WB-to-ID
   forwarding.
-- All 80/80 pipeline tests pass (37 rv32i, 8 rv32m, 15 rv32mi,
-  4 smoke, 1 debug, 7 hazards, 4 control, 4 CPI).
+- All 80/80 pipeline tests of that moment passed (37 rv32i, 8 rv32m, 15 rv32mi
+  and the 20 pipeline-specific tests: 4 smoke, 1 debug, 7 hazards, 4 control,
+  4 CPI). The current suite reports 88; see
+  `verification/cocotb/pipeline/results.xml`.
 - All 4 stress tests pass (RAW hazard stress, load-use stress,
   branch stress, M-extension stress).
 - The fix was localised to the hazard_detection unit and the

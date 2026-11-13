@@ -61,7 +61,7 @@ with intermediate (incorrect) values of `div_result`. Although functionally
 harmless (the final write overwrites them), it was architecturally unclean.
 `div_done` provides exactly one write, at exactly the right cycle, with zero
 incorrect intermediate writes. This requires adding `div_done` to
-`alu_rv32im` (ADR 018) but keeps the register file semantically correct at
+`alu_rv32im` (ADR 019) but keeps the register file semantically correct at
 every clock edge.
 
 ## Normative Signal Definition
@@ -89,9 +89,9 @@ register_file u_rf (
 
 ## Consequences
 
-- No changes to `register_file` or `control_unit`. ADR 014 and ADR 022 remain
-  closed.
-- `alu_rv32im` adds `div_done` output port (ADR 018 updated).
+- No changes to `register_file` or `control_unit`. ADR 015, ADR 016 and
+  ADR 022 remain closed.
+- `alu_rv32im` adds `div_done` output port (ADR 019 updated).
 - `shared_modules.md` must reflect `div_done` in the `alu_rv32im` port table.
 - `is_div` adds approximately 4 LUT inputs and does not affect Fmax.
 - The `inside {}` operator requires Quartus Prime 18.1+.
@@ -99,4 +99,4 @@ register_file u_rf (
   division stall is managed by the hazard unit with bubble insertion; the WB
   stage only fires for valid retiring instructions.
 - Corner cases produce exactly 1 write (CPI = 1) because `div_done` pulses
-  in the IDLE cycle itself (see ADR 018 for timing detail).
+  in the IDLE cycle itself (see ADR 031 for the corrected timing detail).

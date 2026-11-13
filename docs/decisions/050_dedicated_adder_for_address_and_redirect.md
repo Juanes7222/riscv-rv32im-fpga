@@ -1,6 +1,7 @@
 # ADR 050 - Dedicated adder for the load/store address and the branch target
 
-**Status:** Accepted
+**Status:** Accepted (updated 2026-11-12: the table below is marked as the
+measurement of this campaign)
 **Date:** 2026-11-03
 **Related:** ADR 048 (half-cycle data memory), ADR 049 (single-cycle CPU clock)
 
@@ -28,7 +29,9 @@ The Timing Analyzer cannot know that: it times every input arc of the mux into
 the register that captures it, so the multiplier ended up inside the timing
 path of the data memory address register and of the redirect target.
 
-The effect was measured, with the same seeds, on the same project:
+The effect was measured, with the same seeds, on the same project. The table is
+the campaign's result (see the note in ADR 049 about the other reported
+figures):
 
 | Design | Critical path before | Fmax before | Fmax after |
 |---|---|---|---|
@@ -85,11 +88,15 @@ needs the multiplier result) and everything else.
 
 ## Verification
 
-- `make verify-all-sc IMEM_DEPTH=4096 DMEM_DEPTH=1024`: 111 + 48 tests pass.
-- `make verify-all-pipe IMEM_DEPTH=4096 DMEM_DEPTH=1024`: 83 + 111 tests pass.
+- `make verify-all-sc IMEM_DEPTH=4096 DMEM_DEPTH=1024`: 111 + 51 tests pass.
+  (The counts in this section are the `results.xml` snapshot of this campaign.)
+- `make verify-all-pipe IMEM_DEPTH=4096 DMEM_DEPTH=1024`: 88 + 111 tests pass.
 - CoreMark at `ITERATIONS = 10`: single-cycle 3 153 561 cycles /
   3 153 527 instructions / CPI = 1.0000; pipeline 4 419 771 cycles /
   3 153 032 instructions / CPI = 1.4018. Both are the same numbers as
   before the change.
-- Synthesis: the single-cycle reports 48.37 MHz and the pipeline 58.74 MHz
-  after place-and-route, against 28-29 MHz and 47-49 MHz before.
+- Synthesis: the single-cycle reported 48.37 MHz and the pipeline 58.74 MHz
+  after place-and-route, against 28-29 MHz and 47-49 MHz before. **These are
+  the figures of this campaign.** `results/results_report.md` reports 48.48 /
+  60.60 MHz at 85 °C with replica means of 49.10 / 62.15 MHz; cite them by
+  campaign rather than mixing them with the table above (annex, 2026-11-12).
