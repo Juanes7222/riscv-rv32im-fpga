@@ -8,9 +8,9 @@ each clock cycle updates exactly ONE character cell, one group per cycle.
 A cell is rewritten once per full rotation of the groups, which is far
 faster than a VGA frame (16.7 ms).
 
-Every displayed value is first captured into a snapshot register bank.
-The bank is loaded once per sweep, so all characters of a sweep -- and
-therefore every field on screen -- describe a single machine state.
+Processor signals cross through one acknowledged, source-held snapshot.
+Each rendering group then captures that coherent bus once per sweep, so
+the characters of each field describe one source state.
 Sampling the live signals per character would assemble a multi-digit
 field from as many different instants as it has characters.
 
@@ -266,11 +266,11 @@ def derived_wires(snapshots: Set[str], live_access: bool = False) -> List[List[T
         # access, so the address and the access have to come from the same
         # instant, and the snapshot bank cannot deliver that.
         memory.append(('mem_access_live', [
-            f"({mem_instr}[6:0] == 7'b{LOAD_OPCODE:07b}) ||",
-            f"({mem_instr}[6:0] == 7'b{STORE_OPCODE:07b})",
+            f"(cdc_{mem_instr}[6:0] == 7'b{LOAD_OPCODE:07b}) ||",
+            f"(cdc_{mem_instr}[6:0] == 7'b{STORE_OPCODE:07b})",
         ]))
         memory.append(('mem_store_live', [
-            f"({mem_instr}[6:0] == 7'b{STORE_OPCODE:07b})",
+            f"(cdc_{mem_instr}[6:0] == 7'b{STORE_OPCODE:07b})",
         ]))
 
     return [block for block in (stages, memory) if block]
@@ -981,6 +981,8 @@ def generate_rtl(data: dict, mode: str) -> str:
                 f"The table '{t['lower']}' follows the signal '{t['follow']}', "
                 'which this design neither samples nor derives.'
             )
+        if t['follow'] in snapshots:
+            t['follow'] = f"cdc_{t['follow']}"
         t['blocks'] = table_blocks(t)
 
     # The derived wires the attribute expressions may reference.
@@ -1020,6 +1022,25 @@ def generate_rtl(data: dict, mode: str) -> str:
         f"    input logic [{port_widths[n]-1}:0] {n},"
         for n in port_names
     )
+
+    cdc_width = sum(port_widths.values())
+    cdc_declarations = '\n'.join(
+        f"    logic [{port_widths[n]-1}:0] cdc_{n};" for n in port_names
+    )
+    cdc_payload = ', '.join(port_names)
+    cdc_outputs = ', '.join(f'cdc_{n}' for n in port_names)
+    cdc_block = f"""    // All processor fields are captured together in their source domain.
+    localparam int SNAPSHOT_WIDTH = {cdc_width};
+    logic [SNAPSHOT_WIDTH-1:0] cdc_payload;
+{cdc_declarations}
+    debug_snapshot_cdc #(.WIDTH(SNAPSHOT_WIDTH)) u_capture (
+        .src_clk(cpu_clk), .src_reset_n(cpu_rst_n),
+        .data_in({{{cdc_payload}}}),
+        .dst_clk(clk), .dst_reset_n(rst_n),
+        .data_out(cdc_payload), .data_valid()
+    );
+    assign {{{cdc_outputs}}} = cdc_payload;
+"""
 
     # The ports of the memory shadows the tables read.  The address is a
     # byte address, like the one of the shadow.
@@ -1087,7 +1108,7 @@ def generate_rtl(data: dict, mode: str) -> str:
         )
 
         load = '\n'.join(
-            f"                    snap_{src} <= {src};"
+            f"                    snap_{src} <= cdc_{src};"
             for _, src in g['snap']
         )
         # A group of rewrite fields samples no signal, so it loads nothing.
@@ -1178,6 +1199,8 @@ module screen_writer_{mode} #(
 ) (
     input logic        clk,
     input logic        rst_n,
+    input logic        cpu_clk,
+    input logic        cpu_rst_n,
 
     // Processor signals (all values to be displayed)
 {input_ports}
@@ -1189,6 +1212,8 @@ module screen_writer_{mode} #(
     output logic [12:0] vmem_wr_addr,
     output logic [15:0] vmem_wr_data
 );
+
+{cdc_block}
 
     // Field address map (from fields.json)
 {chr(10).join(g['params'] for g in groups if g['params'])}
@@ -1216,7 +1241,7 @@ module screen_writer_{mode} #(
     logic [12:0] reg_addr;
     logic [2:0]  reg_col;
 
-    // Snapshot bank - the whole screen is rendered from one instant
+    // Each rendering group holds one coherent source-domain snapshot.
 {snap_decls}
 
     // Derived signals used by the attribute expressions; a signal may come

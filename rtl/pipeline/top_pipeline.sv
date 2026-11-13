@@ -8,7 +8,7 @@ module top_pipeline #(
     parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
 )(
     input  logic        clk,        // 50 MHz - DE1-SoC PIN_AF14
-    input  logic        rst_n,      // Active-low synchronous reset - KEY[0]
+    input  logic        rst_n,      // Active-low asynchronous board reset - KEY[0]
     input  logic        key_step,   // KEY[1] raw pin, active low: 0 while pressed
     input  logic        key_load,   // KEY[2] raw pin, active low: 0 while pressed (program load)
     input  logic [3:0]  sw,         // SW[0:3]: program selector for the loader
@@ -44,7 +44,7 @@ module top_pipeline #(
     logic        loader_reset_pulse;
 
     always_ff @(posedge clk) begin
-        if (!rst_n) begin
+        if (!rst_n_int) begin
             load_done_q <= 1'b0;
         end else begin
             load_done_q <= loader_load_done;
@@ -52,28 +52,10 @@ module top_pipeline #(
     end
     assign loader_reset_pulse = loader_load_done & ~load_done_q;
 
-    // Power-on reset: the FPGA configures with KEY[0] released, so rst_n never
-    // pulses by itself.  Without this the pipeline registers power up to 0
-    // instead of the architectural bubble (0x13), and the retirement counter
-    // counts three phantom 0x00000000 words before the first real instruction.
-    // An external reset already leaves the CPU in a defined state, so it
-    // satisfies the POR immediately and adds no cycles to a testbench.
-    logic [4:0] por_cnt;
-    logic       por_done;
-    logic       rst_n_int;
-
-    always_ff @(posedge clk) begin
-        if (!rst_n) begin
-            por_cnt  <= '0;
-            por_done <= 1'b1;
-        end else if (!por_done) begin
-            por_cnt  <= por_cnt + 5'd1;
-            if (por_cnt == 5'h1F)
-                por_done <= 1'b1;
-        end
-    end
-
-    assign rst_n_int = rst_n & por_done;   // CPU-domain reset
+    logic rst_n_int;
+    reset_release_sync u_cpu_reset (
+        .clk(clk), .async_reset_n(rst_n), .reset_n(rst_n_int)
+    );
 
     assign rst = ~rst_n_int | loader_reset_pulse;
 
@@ -429,7 +411,7 @@ module top_pipeline #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_loader (
         .clk          (clk),
-        .rst_n        (rst_n),
+        .rst_n        (rst_n_int),
         .step_hold    (step_hold_effective),
         .prog_sel     (sw[3:0]),
         .key_load     (key_load),
@@ -900,16 +882,12 @@ module top_pipeline #(
     logic [9:0]  vga_vcount;
     logic        vga_video_on;
 
-    // System reset synchronized into the pixel-clock domain.  The controller
-    // uses a synchronous reset, so the counters start from a known state.
-    logic [1:0]  vga_rst_sync;
-    logic        vga_rst;
-
-    always_ff @(posedge vga_pixel_clk) begin
-        vga_rst_sync <= {vga_rst_sync[0], ~rst_n};
-    end
-
-    assign vga_rst = vga_rst_sync[1];
+    logic vga_reset_n;
+    logic vga_rst;
+    reset_release_sync u_video_reset (
+        .clk(vga_pixel_clk), .async_reset_n(rst_n & pll_locked), .reset_n(vga_reset_n)
+    );
+    assign vga_rst = ~vga_reset_n;
 
     vga_controller_1280x720 u_vga (
         .clk      (vga_pixel_clk),
@@ -954,6 +932,8 @@ module top_pipeline #(
         .DMEM_DEPTH (DMEM_DEPTH),
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_writer (
+        .cpu_clk (clk),
+        .cpu_rst_n (rst_n_int),
         .clk              (vga_pixel_clk),
         .rst_n            (~vga_rst),
 

@@ -20,12 +20,26 @@ module program_loader #(
     output logic        dmem_wr_en
 );
 
-    logic [1:0] key_sync;
+    (* async_reg = "true", preserve *) logic key_meta, key_sync;
+    logic key_previous;
+    (* async_reg = "true", preserve *) logic [3:0] selector_meta, selector_sync;
     always_ff @(posedge clk) begin
-        if (!rst_n) key_sync <= 2'b11;
-        else        key_sync <= {key_sync[0], key_load};
+        if (!rst_n) begin
+            key_meta <= 1'b1;
+            key_sync <= 1'b1;
+            key_previous <= 1'b1;
+            selector_meta <= '0;
+            selector_sync <= '0;
+        end else begin
+            key_meta <= key_load;
+            key_sync <= key_meta;
+            key_previous <= key_sync;
+            // The operator holds the selector stable before pressing LOAD.
+            selector_meta <= prog_sel;
+            selector_sync <= selector_meta;
+        end
     end
-    wire key_press = key_sync[1] & ~key_sync[0];
+    wire key_press = key_previous & ~key_sync;
 
     typedef enum logic [1:0] {S_IDLE, S_COPY, S_DONE} state_t;
     state_t state, state_n;
@@ -43,7 +57,8 @@ module program_loader #(
             load_done  <= 1'b0;
         end else begin
             state      <= state_n;
-            prog_sel_q <= (state == S_IDLE) ? prog_sel : prog_sel_q;
+            if (state == S_IDLE && key_press && step_hold)
+                prog_sel_q <= selector_sync;
 
             if (state == S_COPY) begin
                 imem_i <= imem_i + 1'b1;

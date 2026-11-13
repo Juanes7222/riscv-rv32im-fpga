@@ -57,6 +57,8 @@ SHARED_SRCS = \
     $(RTL_ROOT)/shared/csr_file.sv
 
 SHARED_VGA_SRCS = \
+    $(RTL_ROOT)/shared/reset_release_sync.sv \
+    $(RTL_ROOT)/shared/debug_snapshot_cdc.sv \
     $(RTL_ROOT)/shared/vga_pll.sv \
     $(RTL_ROOT)/shared/cpu_pll.sv \
     $(RTL_ROOT)/shared/vga_text_mode.sv \

@@ -61,7 +61,9 @@ async def apply_reset(dut) -> None:
     for _ in range(RESET_CYCLES):
         await RisingEdge(dut.clk)
     dut.rst_n.value = 1
-    await RisingEdge(dut.clk)
+    # Wait for local reset release and the first active fetch edge.
+    for _ in range(3):
+        await RisingEdge(dut.clk)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -80,9 +82,8 @@ async def step_clock(dut) -> None:
 async def reset_dut(dut, hold_cycles: int = 2) -> None:
     """Assert reset and hold for `hold_cycles` clock cycles, then deassert.
 
-    Does NOT step the clock after deasserting reset. The test must do that
-    itself, AFTER setting up the state, so that the test instruction is
-    at PC=0 when the DUT exits reset (see ADR 034 for the full rationale)."""
+    Waits for the two local release edges, leaving the initial fetch pending.
+    Tests can then initialize registers and memory before prime_fetch."""
     init_board_inputs(dut)
     dut.rst_n.value = 0
     await Timer(2, unit="ns")
@@ -90,6 +91,10 @@ async def reset_dut(dut, hold_cycles: int = 2) -> None:
         await step_clock(dut)
     await Timer(2, unit="ns")
     dut.rst_n.value = 1
+    # Complete local release before a test initializes architectural state.
+    # Neither edge executes an instruction while the reset chain drains.
+    for _ in range(2):
+        await step_clock(dut)
 
 
 async def prime_fetch(dut) -> None:

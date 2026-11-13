@@ -12,6 +12,8 @@ module screen_writer_pipeline #(
 ) (
     input logic        clk,
     input logic        rst_n,
+    input logic        cpu_clk,
+    input logic        cpu_rst_n,
 
     // Processor signals (all values to be displayed)
     input logic [31:0] alu_a,
@@ -83,6 +85,75 @@ module screen_writer_pipeline #(
     output logic [12:0] vmem_wr_addr,
     output logic [15:0] vmem_wr_data
 );
+
+    // All processor fields are captured together in their source domain.
+    localparam int SNAPSHOT_WIDTH = 2212;
+    logic [SNAPSHOT_WIDTH-1:0] cdc_payload;
+    logic [31:0] cdc_alu_a;
+    logic [31:0] cdc_alu_b;
+    logic [4:0] cdc_alu_op;
+    logic [31:0] cdc_alu_res;
+    logic [1:0] cdc_alua_src;
+    logic [0:0] cdc_alub_src;
+    logic [4:0] cdc_br_op;
+    logic [0:0] cdc_branch;
+    logic [0:0] cdc_branch_flush;
+    logic [63:0] cdc_cycles_at_done;
+    logic [31:0] cdc_data_wr;
+    logic [31:0] cdc_dm_addr;
+    logic [2:0] cdc_dm_ctrl;
+    logic [31:0] cdc_dm_rdata;
+    logic [31:0] cdc_dm_wdata;
+    logic [0:0] cdc_dm_wr;
+    logic [31:0] cdc_ex_alu_result;
+    logic [0:0] cdc_ex_branch_taken;
+    logic [31:0] cdc_ex_imm;
+    logic [31:0] cdc_ex_instruction;
+    logic [31:0] cdc_ex_pc;
+    logic [31:0] cdc_ex_rs1_data;
+    logic [31:0] cdc_ex_rs2_data;
+    logic [0:0] cdc_flush;
+    logic [2:0] cdc_funct3;
+    logic [6:0] cdc_funct7;
+    logic [0:0] cdc_halted;
+    logic [31:0] cdc_id_instruction;
+    logic [31:0] cdc_id_pc;
+    logic [31:0] cdc_if_instruction;
+    logic [31:0] cdc_if_pc;
+    logic [31:0] cdc_imm_out;
+    logic [2:0] cdc_imm_src;
+    logic [63:0] cdc_instr_at_done;
+    logic [63:0] cdc_instr_retired;
+    logic [31:0] cdc_instruction;
+    logic [0:0] cdc_load_use_hazard;
+    logic [31:0] cdc_mem_alu_result;
+    logic [31:0] cdc_mem_instruction;
+    logic [31:0] cdc_mem_rs1_data;
+    logic [31:0] cdc_mem_rs2_data;
+    logic [31:0] cdc_next_pc;
+    logic [6:0] cdc_opcode;
+    logic [31:0] cdc_pc;
+    logic [4:0] cdc_rd_addr;
+    logic [4:0] cdc_rs1_addr;
+    logic [31:0] cdc_rs1_data;
+    logic [4:0] cdc_rs2_addr;
+    logic [31:0] cdc_rs2_data;
+    logic [1:0] cdc_ru_data_wr_src;
+    logic [0:0] cdc_ru_wr;
+    logic [0:0] cdc_stall;
+    logic [0:0] cdc_trap_flush;
+    logic [31:0] cdc_wb_instruction;
+    logic [4:0] cdc_wb_rd_addr;
+    logic [31:0] cdc_wb_rd_data;
+    logic [1023:0] cdc_reg_values;
+    debug_snapshot_cdc #(.WIDTH(SNAPSHOT_WIDTH)) u_capture (
+        .src_clk(cpu_clk), .src_reset_n(cpu_rst_n),
+        .data_in({alu_a, alu_b, alu_op, alu_res, alua_src, alub_src, br_op, branch, branch_flush, cycles_at_done, data_wr, dm_addr, dm_ctrl, dm_rdata, dm_wdata, dm_wr, ex_alu_result, ex_branch_taken, ex_imm, ex_instruction, ex_pc, ex_rs1_data, ex_rs2_data, flush, funct3, funct7, halted, id_instruction, id_pc, if_instruction, if_pc, imm_out, imm_src, instr_at_done, instr_retired, instruction, load_use_hazard, mem_alu_result, mem_instruction, mem_rs1_data, mem_rs2_data, next_pc, opcode, pc, rd_addr, rs1_addr, rs1_data, rs2_addr, rs2_data, ru_data_wr_src, ru_wr, stall, trap_flush, wb_instruction, wb_rd_addr, wb_rd_data, reg_values}),
+        .dst_clk(clk), .dst_reset_n(rst_n),
+        .data_out(cdc_payload), .data_valid()
+    );
+    assign {cdc_alu_a, cdc_alu_b, cdc_alu_op, cdc_alu_res, cdc_alua_src, cdc_alub_src, cdc_br_op, cdc_branch, cdc_branch_flush, cdc_cycles_at_done, cdc_data_wr, cdc_dm_addr, cdc_dm_ctrl, cdc_dm_rdata, cdc_dm_wdata, cdc_dm_wr, cdc_ex_alu_result, cdc_ex_branch_taken, cdc_ex_imm, cdc_ex_instruction, cdc_ex_pc, cdc_ex_rs1_data, cdc_ex_rs2_data, cdc_flush, cdc_funct3, cdc_funct7, cdc_halted, cdc_id_instruction, cdc_id_pc, cdc_if_instruction, cdc_if_pc, cdc_imm_out, cdc_imm_src, cdc_instr_at_done, cdc_instr_retired, cdc_instruction, cdc_load_use_hazard, cdc_mem_alu_result, cdc_mem_instruction, cdc_mem_rs1_data, cdc_mem_rs2_data, cdc_next_pc, cdc_opcode, cdc_pc, cdc_rd_addr, cdc_rs1_addr, cdc_rs1_data, cdc_rs2_addr, cdc_rs2_data, cdc_ru_data_wr_src, cdc_ru_wr, cdc_stall, cdc_trap_flush, cdc_wb_instruction, cdc_wb_rd_addr, cdc_wb_rd_data, cdc_reg_values} = cdc_payload;
+
 
     // Field address map (from fields.json)
     localparam logic [12:0] ADDR_CYCLES_AT_DONE = 13'd218;
@@ -401,7 +472,7 @@ module screen_writer_pipeline #(
     // hardware: the index is truncated to the depth of the array, so an
     // access beyond the memory lands in a lower word and the table marks
     // the word the hardware really used.
-    wire [13:0] tbl_data_memory_hit_word = (dm_addr >> 2) & TBL_DATA_MEMORY_WORD_MASK;
+    wire [13:0] tbl_data_memory_hit_word = (cdc_dm_addr >> 2) & TBL_DATA_MEMORY_WORD_MASK;
     // The window base: the word sits in the middle of the table.
     wire [13:0] tbl_data_memory_new_base = (tbl_data_memory_hit_word > TBL_DATA_MEMORY_MIDDLE)
                                     ? (tbl_data_memory_hit_word - TBL_DATA_MEMORY_MIDDLE) : 14'd0;
@@ -425,7 +496,7 @@ module screen_writer_pipeline #(
     logic [12:0] reg_addr;
     logic [2:0]  reg_col;
 
-    // Snapshot bank - the whole screen is rendered from one instant
+    // Each rendering group holds one coherent source-domain snapshot.
     logic [31:0] snap_alu_a;
     logic [31:0] snap_alu_b;
     logic [4:0] snap_alu_op;
@@ -500,9 +571,9 @@ module screen_writer_pipeline #(
                              (snap_mem_instruction[6:0] == 7'b0100011);
     wire mem_write_access = snap_dm_wr;
     wire mem_read_access  = mem_access && !mem_write_access;
-    wire mem_access_live  = (mem_instruction[6:0] == 7'b0000011) ||
-                             (mem_instruction[6:0] == 7'b0100011);
-    wire mem_store_live   = (mem_instruction[6:0] == 7'b0100011);
+    wire mem_access_live  = (cdc_mem_instruction[6:0] == 7'b0000011) ||
+                             (cdc_mem_instruction[6:0] == 7'b0100011);
+    wire mem_store_live   = (cdc_mem_instruction[6:0] == 7'b0100011);
 
     // Instruction decode of the instruction in flight.
     wire [31:0] dec_instr  = panel_instruction;
@@ -884,25 +955,25 @@ module screen_writer_pipeline #(
                     // Load the bank at the end of a sweep, so the next sweep
                     // renders every character from the same captured instant.
                     if (ctr_proc == N_PROC - 1) begin
-                    snap_cycles_at_done <= cycles_at_done;
-                    snap_instr_at_done <= instr_at_done;
-                    snap_halted <= halted;
-                    snap_ru_data_wr_src <= ru_data_wr_src;
-                    snap_pc <= pc;
-                    snap_rs1_addr <= rs1_addr;
-                    snap_rs2_addr <= rs2_addr;
-                    snap_rd_addr <= rd_addr;
-                    snap_instruction <= instruction;
-                    snap_next_pc <= next_pc;
-                    snap_data_wr <= data_wr;
-                    snap_ru_wr <= ru_wr;
-                    snap_if_pc <= if_pc;
-                    snap_if_instruction <= if_instruction;
-                    snap_branch <= branch;
-                    snap_rs1_data <= rs1_data;
-                    snap_rs2_data <= rs2_data;
-                    snap_mem_alu_result <= mem_alu_result;
-                    snap_wb_instruction <= wb_instruction;
+                    snap_cycles_at_done <= cdc_cycles_at_done;
+                    snap_instr_at_done <= cdc_instr_at_done;
+                    snap_halted <= cdc_halted;
+                    snap_ru_data_wr_src <= cdc_ru_data_wr_src;
+                    snap_pc <= cdc_pc;
+                    snap_rs1_addr <= cdc_rs1_addr;
+                    snap_rs2_addr <= cdc_rs2_addr;
+                    snap_rd_addr <= cdc_rd_addr;
+                    snap_instruction <= cdc_instruction;
+                    snap_next_pc <= cdc_next_pc;
+                    snap_data_wr <= cdc_data_wr;
+                    snap_ru_wr <= cdc_ru_wr;
+                    snap_if_pc <= cdc_if_pc;
+                    snap_if_instruction <= cdc_if_instruction;
+                    snap_branch <= cdc_branch;
+                    snap_rs1_data <= cdc_rs1_data;
+                    snap_rs2_data <= cdc_rs2_data;
+                    snap_mem_alu_result <= cdc_mem_alu_result;
+                    snap_wb_instruction <= cdc_wb_instruction;
                     end
                 end
                 GRP_PROC1: begin
@@ -910,31 +981,31 @@ module screen_writer_pipeline #(
                     // Load the bank at the end of a sweep, so the next sweep
                     // renders every character from the same captured instant.
                     if (ctr_proc1 == N_PROC1 - 1) begin
-                    snap_imm_out <= imm_out;
-                    snap_imm_src <= imm_src;
-                    snap_wb_rd_addr <= wb_rd_addr;
-                    snap_wb_rd_data <= wb_rd_data;
-                    snap_opcode <= opcode;
-                    snap_funct3 <= funct3;
-                    snap_funct7 <= funct7;
-                    snap_id_pc <= id_pc;
-                    snap_id_instruction <= id_instruction;
-                    snap_ex_pc <= ex_pc;
-                    snap_dm_addr <= dm_addr;
-                    snap_ex_instruction <= ex_instruction;
-                    snap_dm_wdata <= dm_wdata;
-                    snap_ex_rs1_data <= ex_rs1_data;
-                    snap_dm_rdata <= dm_rdata;
-                    snap_ex_rs2_data <= ex_rs2_data;
-                    snap_dm_ctrl <= dm_ctrl;
-                    snap_stall <= stall;
-                    snap_ex_imm <= ex_imm;
-                    snap_dm_wr <= dm_wr;
-                    snap_load_use_hazard <= load_use_hazard;
-                    snap_branch_flush <= branch_flush;
-                    snap_trap_flush <= trap_flush;
-                    snap_flush <= flush;
-                    snap_alu_a <= alu_a;
+                    snap_imm_out <= cdc_imm_out;
+                    snap_imm_src <= cdc_imm_src;
+                    snap_wb_rd_addr <= cdc_wb_rd_addr;
+                    snap_wb_rd_data <= cdc_wb_rd_data;
+                    snap_opcode <= cdc_opcode;
+                    snap_funct3 <= cdc_funct3;
+                    snap_funct7 <= cdc_funct7;
+                    snap_id_pc <= cdc_id_pc;
+                    snap_id_instruction <= cdc_id_instruction;
+                    snap_ex_pc <= cdc_ex_pc;
+                    snap_dm_addr <= cdc_dm_addr;
+                    snap_ex_instruction <= cdc_ex_instruction;
+                    snap_dm_wdata <= cdc_dm_wdata;
+                    snap_ex_rs1_data <= cdc_ex_rs1_data;
+                    snap_dm_rdata <= cdc_dm_rdata;
+                    snap_ex_rs2_data <= cdc_ex_rs2_data;
+                    snap_dm_ctrl <= cdc_dm_ctrl;
+                    snap_stall <= cdc_stall;
+                    snap_ex_imm <= cdc_ex_imm;
+                    snap_dm_wr <= cdc_dm_wr;
+                    snap_load_use_hazard <= cdc_load_use_hazard;
+                    snap_branch_flush <= cdc_branch_flush;
+                    snap_trap_flush <= cdc_trap_flush;
+                    snap_flush <= cdc_flush;
+                    snap_alu_a <= cdc_alu_a;
                     end
                 end
                 GRP_PROC2: begin
@@ -942,18 +1013,18 @@ module screen_writer_pipeline #(
                     // Load the bank at the end of a sweep, so the next sweep
                     // renders every character from the same captured instant.
                     if (ctr_proc2 == N_PROC2 - 1) begin
-                    snap_mem_rs1_data <= mem_rs1_data;
-                    snap_alu_b <= alu_b;
-                    snap_mem_rs2_data <= mem_rs2_data;
-                    snap_alu_res <= alu_res;
-                    snap_ex_alu_result <= ex_alu_result;
-                    snap_alu_op <= alu_op;
-                    snap_br_op <= br_op;
-                    snap_mem_instruction <= mem_instruction;
-                    snap_alua_src <= alua_src;
-                    snap_alub_src <= alub_src;
-                    snap_ex_branch_taken <= ex_branch_taken;
-                    snap_instr_retired <= instr_retired;
+                    snap_mem_rs1_data <= cdc_mem_rs1_data;
+                    snap_alu_b <= cdc_alu_b;
+                    snap_mem_rs2_data <= cdc_mem_rs2_data;
+                    snap_alu_res <= cdc_alu_res;
+                    snap_ex_alu_result <= cdc_ex_alu_result;
+                    snap_alu_op <= cdc_alu_op;
+                    snap_br_op <= cdc_br_op;
+                    snap_mem_instruction <= cdc_mem_instruction;
+                    snap_alua_src <= cdc_alua_src;
+                    snap_alub_src <= cdc_alub_src;
+                    snap_ex_branch_taken <= cdc_ex_branch_taken;
+                    snap_instr_retired <= cdc_instr_retired;
                     end
                 end
                 GRP_PROC3: begin
@@ -964,7 +1035,7 @@ module screen_writer_pipeline #(
                     // Load the bank at the end of a sweep, so the next sweep
                     // renders every character from the same captured instant.
                     if (ctr_regs == N_REGS - 1) begin
-                    snap_reg_values <= reg_values;
+                    snap_reg_values <= cdc_reg_values;
                     end
                     // Stage 1: select the register row of this character.
                     reg_value <= snap_reg_values[32*ctr_regs[7:3] +: 32];

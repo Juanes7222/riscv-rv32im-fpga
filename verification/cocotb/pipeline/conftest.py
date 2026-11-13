@@ -71,7 +71,9 @@ async def apply_reset(dut) -> None:
     for _ in range(RESET_CYCLES):
         await RisingEdge(dut.clk)
     dut.rst_n.value = 1
-    await RisingEdge(dut.clk)
+    # Wait for local reset release and the first active fetch edge.
+    for _ in range(3):
+        await RisingEdge(dut.clk)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -101,6 +103,10 @@ async def reset_dut(dut, hold_cycles: int = 2) -> None:
         await step_clock(dut)
     await Timer(2, unit="ns")
     dut.rst_n.value = 1
+    # Complete local release before a test initializes architectural state.
+    # Neither edge executes an instruction while the reset chain drains.
+    for _ in range(2):
+        await step_clock(dut)
     for _ in range(16):
         if not int(dut.power_on_pause.value):
             break

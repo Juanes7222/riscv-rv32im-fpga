@@ -325,6 +325,7 @@ module tb_vga_panel;
         .DMEM_DEPTH (512),
         .IMEM_DEPTH (2048)
     ) u_pipe (
+        .cpu_clk(clk), .cpu_rst_n(rst_n),
         .clk(clk),
         .rst_n(rst_n),
         .alu_a(32'd0), .alu_b(32'd0), .alu_op(5'd0), .alu_res(32'd0),
@@ -355,6 +356,7 @@ module tb_vga_panel;
         .DMEM_DEPTH (512),
         .IMEM_DEPTH (2048)
     ) u_sc (
+        .cpu_clk(clk), .cpu_rst_n(rst_n),
         .clk(clk),
         .rst_n(rst_n),
         .alu_a(32'd0), .alu_b(32'd0), .alu_op(5'd0), .alu_res(32'd0),

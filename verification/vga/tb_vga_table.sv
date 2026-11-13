@@ -44,14 +44,14 @@ module tb_vga_table;
     localparam int SWEEP_GUARD = 30000;
 
     // The place of the tables on the two screens, read from the template:
-    // the pipeline console shows them at row 9, the single-cycle console at
+    // the pipeline console shows them at row 8, the single-cycle console at
     // row 12, and the address column comes right behind the border.
-    localparam int PIPE_ROW0 = 9 * SCREEN_W + 118;
-    localparam int SC_ROW0   = 12 * SCREEN_W + 32;
+    localparam int PIPE_ROW0 = 8 * SCREEN_W + 118;
+    localparam int SC_ROW0   = 12 * SCREEN_W + 33;
 
     // The program table sits left of the data table.
-    localparam int PROG_PIPE_ROW0 = 9 * SCREEN_W + 102;
-    localparam int PROG_SC_ROW0   = 12 * SCREEN_W + 16;
+    localparam int PROG_PIPE_ROW0 = 8 * SCREEN_W + 102;
+    localparam int PROG_SC_ROW0   = 12 * SCREEN_W + 17;
 
     localparam int DUT_PIPE = 0;
     localparam int DUT_SC   = 1;
@@ -439,6 +439,7 @@ module tb_vga_table;
         .DMEM_DEPTH (DEPTH),
         .IMEM_DEPTH (IDEPTH)
     ) u_pipe (
+        .cpu_clk(clk), .cpu_rst_n(rst_n),
         .clk(clk),
         .rst_n(rst_n),
         .alu_a(32'd0), .alu_b(32'd0), .alu_op(5'd0), .alu_res(32'd0),
@@ -469,6 +470,7 @@ module tb_vga_table;
         .DMEM_DEPTH (DEPTH),
         .IMEM_DEPTH (IDEPTH)
     ) u_sc (
+        .cpu_clk(clk), .cpu_rst_n(rst_n),
         .clk(clk),
         .rst_n(rst_n),
         .alu_a(32'd0), .alu_b(32'd0), .alu_op(5'd0), .alu_res(32'd0),

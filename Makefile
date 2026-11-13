@@ -667,3 +667,7 @@ help:
 .PHONY: verify-audit
 verify-audit:
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/check_audit_fixes.py
+
+.PHONY: verify-timing
+verify-timing:
+	bash verification/run_timing_checks.sh

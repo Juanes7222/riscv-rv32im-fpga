@@ -4,7 +4,7 @@ module top_single_cycle #(
     parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
 )(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14 (CPU runs at 40 MHz, ADR 049)
-    input logic rst_n,    // Active-low synchronous reset - KEY[0]
+    input logic rst_n,    // Active-low asynchronous board reset - KEY[0]
     input logic key_step, // KEY[1] raw pin, active low: 0 while pressed
     input logic key_load, // KEY[2] raw pin, active low: 0 while pressed (program load)
     input logic [3:0] sw, // SW[0:3]: program selector for the loader
@@ -53,7 +53,9 @@ module top_single_cycle #(
     // reset, so a power-up that skips the button would otherwise run the
     // processor on an unlocked clock.
     logic rst_n_cpu;
-    assign rst_n_cpu = rst_n & cpu_pll_locked;
+    reset_release_sync u_cpu_reset (
+        .clk(clk_cpu), .async_reset_n(rst_n & cpu_pll_locked), .reset_n(rst_n_cpu)
+    );
 
     cpu_pll u_cpu_pll (
         .clk_in  (clk),
@@ -499,16 +501,12 @@ module top_single_cycle #(
     logic [9:0]  vga_vcount;
     logic        vga_video_on;
 
-    // System reset synchronized into the pixel-clock domain.  The controller
-    // uses a synchronous reset, so the counters start from a known state.
-    logic [1:0]  vga_rst_sync;
-    logic        vga_rst;
-
-    always_ff @(posedge vga_pixel_clk) begin
-        vga_rst_sync <= {vga_rst_sync[0], ~rst_n};
-    end
-
-    assign vga_rst = vga_rst_sync[1];
+    logic vga_reset_n;
+    logic vga_rst;
+    reset_release_sync u_video_reset (
+        .clk(vga_pixel_clk), .async_reset_n(rst_n & pll_locked), .reset_n(vga_reset_n)
+    );
+    assign vga_rst = ~vga_reset_n;
 
     vga_controller_1280x720 u_vga (
         .clk      (vga_pixel_clk),
@@ -573,6 +571,8 @@ module top_single_cycle #(
         .DMEM_DEPTH (DMEM_DEPTH),
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_writer (
+        .cpu_clk (clk_cpu),
+        .cpu_rst_n (rst_n_cpu),
         .clk          (vga_pixel_clk),
         .rst_n        (~vga_rst),
         .pc           (pc),

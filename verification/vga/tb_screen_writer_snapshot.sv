@@ -61,7 +61,7 @@ module tb_screen_writer_snapshot;
     localparam logic [31:0] REG_PATTERN = 32'hA5A5A5A5;
 
     // Address of the dm_wr field, taken from synthesis/single_cycle/fields.json.
-    localparam logic [12:0] ADDR_DM_WR = 13'd4574;
+    localparam logic [12:0] ADDR_DM_WR = 13'd4576;
     // Attribute of the dm_wr field: body colour, and the hot colour of a
     // write in progress (foreground 11 on background 3).
     localparam logic [7:0] ATTR_BASE = 8'h09;
@@ -312,6 +312,7 @@ module tb_screen_writer_snapshot;
     end
 
     screen_writer_single_cycle u_dut (
+        .cpu_clk(clk), .cpu_rst_n(rst_n),
         .clk(clk),
         .rst_n(rst_n),
         .pc(pc),
