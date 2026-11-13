@@ -1,5 +1,8 @@
 # Correcciones de reinicio y transferencia a la consola
 
+> Update 2026-11-13: the pending VGA interface is addressed by [ADR 059](decisions/059_vga_output_timing.md). The results below describe the earlier reset/CDC candidates.
+
+
 Se corrigieron el uso del reinicio externo en la lógica del procesador y la
 captura directa de señales del procesador desde el reloj de vídeo. La decisión
 y el contrato temporal se describen en [ADR 058](decisions/058_reset_release_and_console_cdc.md).

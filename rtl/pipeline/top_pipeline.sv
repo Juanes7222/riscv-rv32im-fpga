@@ -867,8 +867,6 @@ module top_pipeline #(
     logic [12:0] vmem_rd_addr;
     logic [15:0] vmem_rd_data;
 
-    assign vga_clock   = vga_pixel_clk;
-    assign vga_blank_n = vga_video_on;
     assign vga_sync_n  = 1'b0;
 
     vga_pll u_vga_pll (
@@ -881,6 +879,8 @@ module top_pipeline #(
     logic [10:0] vga_hcount;
     logic [9:0]  vga_vcount;
     logic        vga_video_on;
+    logic vga_hsync_raw, vga_vsync_raw;
+    logic [7:0] pixel_r, pixel_g, pixel_b;
 
     logic vga_reset_n;
     logic vga_rst;
@@ -892,8 +892,8 @@ module top_pipeline #(
     vga_controller_1280x720 u_vga (
         .clk      (vga_pixel_clk),
         .reset    (vga_rst),
-        .hsync    (vga_hsync),
-        .vsync    (vga_vsync),
+        .hsync    (vga_hsync_raw),
+        .vsync    (vga_vsync_raw),
         .hcount   (vga_hcount),
         .vcount   (vga_vcount),
         .video_on (vga_video_on)
@@ -923,9 +923,18 @@ module top_pipeline #(
         .vcount     (vga_vcount),
         .video_on   (vga_video_on),
         .char_data  (vmem_rd_data),
-        .vga_r      (vga_r),
-        .vga_g      (vga_g),
-        .vga_b      (vga_b)
+        .vga_r      (pixel_r),
+        .vga_g      (pixel_g),
+        .vga_b      (pixel_b)
+    );
+
+    vga_output_stage u_video_output (
+        .pixel_clk(vga_pixel_clk), .reset(vga_rst),
+        .pixel_r(pixel_r), .pixel_g(pixel_g), .pixel_b(pixel_b),
+        .video_on(vga_video_on), .hsync(vga_hsync_raw), .vsync(vga_vsync_raw),
+        .vga_r(vga_r), .vga_g(vga_g), .vga_b(vga_b),
+        .vga_blank_n(vga_blank_n), .vga_hsync(vga_hsync), .vga_vsync(vga_vsync),
+        .vga_clock(vga_clock)
     );
 
     screen_writer_pipeline #(

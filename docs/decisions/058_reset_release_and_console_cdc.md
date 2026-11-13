@@ -1,5 +1,8 @@
 # ADR 058 - Local reset release and coherent console transfers
 
+> Update 2026-11-13: the pending VGA interface is addressed by [ADR 059](059_vga_output_timing.md). The results below describe the earlier reset/CDC candidates.
+
+
 Status: Accepted, verified in simulation and on fitted candidate netlists.
 Date: 2026-11-13.
 Supersedes the direct state sampling and global timing exclusions of ADR 055.

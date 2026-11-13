@@ -11,6 +11,12 @@ file mkdir $report_directory
 create_timing_netlist -model slow -temperature 85 -voltage 1100
 read_sdc
 update_timing_netlist
+set dac_ports [get_ports {vga_r[*] vga_g[*] vga_b[*] vga_blank_n}]
+set sync_ports [get_ports {vga_hsync vga_vsync}]
+if {[get_collection_size $dac_ports] != 25} { error "Expected 25 DAC data/control ports" }
+if {[get_collection_size $sync_ports] != 2} { error "Expected two monitor sync ports" }
+set dac_clock [get_clocks vga_dac_clock]
+if {[get_collection_size $dac_clock] != 1} { error "Missing forwarded DAC clock" }
 report_clocks -file [file join $report_directory clocks.rpt]
 report_sdc -ignored -file [file join $report_directory constraints.rpt]
 report_ucp -file [file join $report_directory unconstrained.rpt]
@@ -35,6 +41,16 @@ foreach model {slow fast} {
             -npaths 10 -detail full_path \
             -file [file join $report_directory "${corner}_payload.rpt"]]
         puts $summary "$corner\tpayload_setup\t$result"
+        foreach analysis {setup hold} {
+            set result [report_timing -$analysis -to $dac_ports \
+                -npaths 50 -detail full_path \
+                -file [file join $report_directory "${corner}_dac_${analysis}.rpt"]]
+            puts $summary "$corner\tdac_$analysis\t$result"
+            set result [report_timing -$analysis -to $sync_ports \
+                -npaths 10 -detail full_path \
+                -file [file join $report_directory "${corner}_sync_${analysis}.rpt"]]
+            puts $summary "$corner\tsync_$analysis\t$result"
+        }
         set result [report_min_pulse_width -nworst 10 \
             -file [file join $report_directory "${corner}_pulse_width.rpt"]]
         puts $summary "$corner\tpulse_width\t$result"

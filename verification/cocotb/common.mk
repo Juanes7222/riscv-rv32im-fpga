@@ -62,6 +62,7 @@ SHARED_VGA_SRCS = \
     $(RTL_ROOT)/shared/vga_pll.sv \
     $(RTL_ROOT)/shared/cpu_pll.sv \
     $(RTL_ROOT)/shared/vga_text_mode.sv \
+    $(RTL_ROOT)/shared/vga_output_stage.sv \
     $(RTL_ROOT)/shared/vga_controller.sv \
     $(RTL_ROOT)/shared/vga_font_rom.sv \
     $(RTL_ROOT)/shared/video_memory.sv \
