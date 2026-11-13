@@ -47,18 +47,18 @@ WRITER_pipeline     = screen_writer_pipeline.sv
 SCREEN_MIF    = $(SYNTH_DIR)/screen.mif
 SCREEN_WRITER = $(RTL_ROOT)/$(ARCH)/$(WRITER_$(ARCH)).sv
 
-# Memory depths for synthesis.  The instruction memory is an M10K block RAM
-# (ADR 046), so its depth is cheap; 4096 words (16 KB) holds CoreMark's .text.
-# The data memory is still an asynchronous logic-cell array: 1024 words
-# (4 KB) is the minimum that holds CoreMark's 2 KB working block plus its
-# stack (ADR 047), and it is what every program now uses.  cocotb overrides
-# both via environment variables (16384 / 8192).
+# Memory depths for synthesis.  Both memories are M10K block RAMs (ADR 046,
+# ADR 048).  4096 instruction words (16 KB) hold CoreMark's .text and 1024 data
+# words (4 KB) hold its 2 KB working block plus the stack (ADR 047).  cocotb
+# overrides both via environment variables (16384 / 8192).
 IMEM_DEPTH := 4096
 DMEM_DEPTH := 1024
 
-# Address at which the RTL freezes the performance counters.  The riscv-tests and
-# the synthetic programs put tohost at 0x708; CoreMark's packed data map puts
-# it at 0x6000 (ADR 047), so its bitstream needs TOHOST_ADDR=0x6000.
+# Address at which the RTL freezes the performance counters.  The synthetic
+# programs put tohost at 0x708; riscv-tests export a per-ELF `tohost` symbol
+# and fpga_validate.py passes the value it reads from the ELF (ADR 051);
+# CoreMark's packed data map puts it at 0x6000 (ADR 047), so its bitstream
+# needs TOHOST_ADDR=0x6000.
 TOHOST_ADDR ?= 0x00000708
 export TOHOST_ADDR
 # WSL only forwards the variables named in WSLENV to the Windows Quartus
@@ -283,6 +283,12 @@ program-direct: check-sof
 
 .PHONY: build-program
 build-program: build program
+
+
+.PHONY: riscv-tests
+riscv-tests:
+	@echo "Building riscv-tests (rv32ui, rv32um, rv32mi)..."
+	@$(MAKE) -C verification/riscv-tests-build all
 
 
 .PHONY: verify
@@ -622,6 +628,7 @@ help:
 	@echo "  screen             Regenerate the VGA console artifacts (.mif, writers)"
 	@echo ""
 	@echo "Verification"
+	@echo "  riscv-tests        Build the riscv-tests ELFs (rv32ui, rv32um, rv32mi)"
 	@echo "  verify             Run architecture-specific cocotb tests"
 	@echo "  verify-common      Run shared RV32IM instruction tests"
 	@echo "  verify-all         Run common and architecture-specific tests"
