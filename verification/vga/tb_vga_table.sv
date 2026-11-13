@@ -130,6 +130,14 @@ module tb_vga_table;
                               + (ROW_BYTES - 1);
     end
 
+    // No dynamic field owns the first cell of either template.
+    always @(posedge clk) begin
+        if (pipe_wr_en && (!rst_n || pipe_wr_addr == 0))
+            $fatal(1, "Pipeline writer overwrote static header or wrote during reset");
+        if (sc_wr_en && (!rst_n || sc_wr_addr == 0))
+            $fatal(1, "Single-cycle writer overwrote static header or wrote during reset");
+    end
+
     // The fake shadows: they answer with the word address they are asked
     // for, so the expected character of every row is known.  They register
     // the answer, like the real shadows do.

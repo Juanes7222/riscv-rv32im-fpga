@@ -352,6 +352,7 @@ module screen_writer_single_cycle #(
     localparam logic [415:0] REG_ADDR = {13'd6887, 13'd6727, 13'd6567, 13'd6407, 13'd6247, 13'd6087, 13'd5927, 13'd5767, 13'd5607, 13'd5447, 13'd5287, 13'd5127, 13'd4967, 13'd4807, 13'd4647, 13'd4487, 13'd4327, 13'd4167, 13'd4007, 13'd3847, 13'd3687, 13'd3527, 13'd3367, 13'd3207, 13'd3047, 13'd2887, 13'd2727, 13'd2567, 13'd2407, 13'd2247, 13'd2087, 13'd1927};
     logic [31:0] reg_value;
     logic [12:0] reg_addr;
+    logic        reg_valid;
     logic [2:0]  reg_col;
 
     // Each rendering group holds one coherent source-domain snapshot.
@@ -688,6 +689,7 @@ module screen_writer_single_cycle #(
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             grp_ctr <= '0;
+            reg_valid <= 1'b0;
             reg_value <= '0;
             reg_addr  <= '0;
             reg_col   <= '0;
@@ -807,6 +809,7 @@ module screen_writer_single_cycle #(
                     snap_reg_values <= cdc_reg_values;
                     end
                     // Stage 1: select the register row of this character.
+                    reg_valid <= 1'b1;
                     reg_value <= snap_reg_values[32*ctr_regs[7:3] +: 32];
                     reg_addr  <= REG_ADDR[13*ctr_regs[7:3] +: 13];
                     reg_col   <= ctr_regs[2:0];
@@ -1108,7 +1111,7 @@ module screen_writer_single_cycle #(
             end
             GRP_REGS: begin
                 // Stage 2: the character inside the row selected by stage 1.
-                wr_en   = 1'b1;
+                wr_en   = reg_valid;
                 wr_addr = reg_addr + {10'd0, reg_col};
                 wr_data = hex_digit(reg_value, 7 - reg_col);
                 wr_attr = 8'h0D;
@@ -1165,7 +1168,7 @@ module screen_writer_single_cycle #(
         endcase
     end
 
-    assign vmem_wr_en   = wr_en;
+    assign vmem_wr_en   = rst_n && wr_en;
     assign vmem_wr_addr = wr_addr;
     assign vmem_wr_data = {wr_attr, wr_data};
 

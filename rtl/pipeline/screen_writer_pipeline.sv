@@ -494,6 +494,7 @@ module screen_writer_pipeline #(
     localparam logic [415:0] REG_ADDR = {13'd6332, 13'd6172, 13'd6012, 13'd5852, 13'd5692, 13'd5532, 13'd5372, 13'd5212, 13'd5052, 13'd4892, 13'd4732, 13'd4572, 13'd4412, 13'd4252, 13'd4092, 13'd3932, 13'd3772, 13'd3612, 13'd3452, 13'd3292, 13'd3132, 13'd2972, 13'd2812, 13'd2652, 13'd2492, 13'd2332, 13'd2172, 13'd2012, 13'd1852, 13'd1692, 13'd1532, 13'd1372};
     logic [31:0] reg_value;
     logic [12:0] reg_addr;
+    logic        reg_valid;
     logic [2:0]  reg_col;
 
     // Each rendering group holds one coherent source-domain snapshot.
@@ -861,6 +862,7 @@ module screen_writer_pipeline #(
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             grp_ctr <= '0;
+            reg_valid <= 1'b0;
             reg_value <= '0;
             reg_addr  <= '0;
             reg_col   <= '0;
@@ -1038,6 +1040,7 @@ module screen_writer_pipeline #(
                     snap_reg_values <= cdc_reg_values;
                     end
                     // Stage 1: select the register row of this character.
+                    reg_valid <= 1'b1;
                     reg_value <= snap_reg_values[32*ctr_regs[7:3] +: 32];
                     reg_addr  <= REG_ADDR[13*ctr_regs[7:3] +: 13];
                     reg_col   <= ctr_regs[2:0];
@@ -1549,7 +1552,7 @@ module screen_writer_pipeline #(
             end
             GRP_REGS: begin
                 // Stage 2: the character inside the row selected by stage 1.
-                wr_en   = 1'b1;
+                wr_en   = reg_valid;
                 wr_addr = reg_addr + {10'd0, reg_col};
                 wr_data = hex_digit(reg_value, 7 - reg_col);
                 wr_attr = 8'h0D;
@@ -1606,7 +1609,7 @@ module screen_writer_pipeline #(
         endcase
     end
 
-    assign vmem_wr_en   = wr_en;
+    assign vmem_wr_en   = rst_n && wr_en;
     assign vmem_wr_addr = wr_addr;
     assign vmem_wr_data = {wr_attr, wr_data};
 

@@ -1132,13 +1132,14 @@ def generate_rtl(data: dict, mode: str) -> str:
             counter_fsm.append(f"""                GRP_{gname}: begin
                     ctr_{lower} <= (ctr_{lower} == N_{gname} - 1) ? '0 : ctr_{lower} + 1'b1;
 {load_block}                    // Stage 1: select the register row of this character.
+                    reg_valid <= 1'b1;
                     reg_value <= snap_{REG_BUS}[32*ctr_{lower}[7:3] +: 32];
                     reg_addr  <= REG_ADDR[13*ctr_{lower}[7:3] +: 13];
                     reg_col   <= ctr_{lower}[2:0];
                 end""")
             case_blocks.append(f"""            GRP_{gname}: begin
                 // Stage 2: the character inside the row selected by stage 1.
-                wr_en   = 1'b1;
+                wr_en   = reg_valid;
                 wr_addr = reg_addr + {{10'd0, reg_col}};
                 wr_data = hex_digit(reg_value, 7 - reg_col);
                 wr_attr = {group_attribute(g['fields'], snapshots, local_wires)};
@@ -1239,6 +1240,7 @@ module screen_writer_{mode} #(
     localparam logic [{REG_COUNT * 13 - 1}:0] REG_ADDR = {{{reg_addr_array}}};
     logic [31:0] reg_value;
     logic [12:0] reg_addr;
+    logic        reg_valid;
     logic [2:0]  reg_col;
 
     // Each rendering group holds one coherent source-domain snapshot.
@@ -1279,6 +1281,7 @@ module screen_writer_{mode} #(
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             grp_ctr <= '0;
+            reg_valid <= 1'b0;
             reg_value <= '0;
             reg_addr  <= '0;
             reg_col   <= '0;
@@ -1308,7 +1311,7 @@ module screen_writer_{mode} #(
         endcase
     end
 
-    assign vmem_wr_en   = wr_en;
+    assign vmem_wr_en   = rst_n && wr_en;
     assign vmem_wr_addr = wr_addr;
     assign vmem_wr_data = {{wr_attr, wr_data}};
 
