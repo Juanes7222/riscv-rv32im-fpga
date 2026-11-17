@@ -38,6 +38,7 @@ FIT_SUMMARY = $(SYNTH_DIR)/output_files/$(PROJECT).fit.summary
 VENV_PY = .venv/bin/python3
 VENV_BIN = $(CURDIR)/.venv/bin
 REPORT_DIR ?= build/reports/latest
+VGA_TIMING_DIR ?= build/vga_timing/$(ARCH)
 REPORT_FLAGS ?= --render
 
 # Screen console artifacts.  The .mif carries the memory dump of the program
@@ -246,6 +247,8 @@ replica: check-project check-elf mem $(MEM_CONFIG_VH)
 	@set -o pipefail; { \
 		$(call quartus_compile,build.tcl,$(REPLICA)); \
 	} 2>&1 | tee "$(REPLICA_DIR)/compile.log"
+	@$(VENV_PY) scripts/vga_timing.py --project "$(SYNTH_DIR)" \
+		--output "$(REPLICA_DIR)/vga_timing" --quartus-sta "$(QUARTUS_STA)"
 	@cp -p "$(STA_RPT)" "$(REPLICA_DIR)/timing.rpt"
 	@cp -p "$(FIT_SUMMARY)" "$(REPLICA_DIR)/fit.summary"
 	@cp -p "$(SOF_FILE)" "$(REPLICA_DIR)/$(PROJECT).sof"
@@ -514,6 +517,8 @@ thesis-quick:
 # Pass FORCE=1 to redo every measurement.
 .PHONY: full-campaign
 full-campaign:
+	@python3 verification/test_vga_timing.py
+	@$(MAKE) --no-print-directory verify-timing
 	@$(MAKE) --no-print-directory thesis FORCE=$(FORCE)
 	@$(MAKE) --no-print-directory verify-coremark
 	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
@@ -661,6 +666,8 @@ help:
 	@echo "  validate-campaign  Require complete evidence and regenerate the final report"
 	@echo "  check-artifacts    Check report hashes and recompute metrics, tables and figures"
 	@echo "  hardware-status    Show pending hardware measurements"
+	@echo "  vga-timing         Check a current fit and sweep hypothetical VGA board loads/skew"
+	@echo "                     Use a new VGA_TIMING_DIR for each diagnostic run."
 	@echo ""
 
 # Functional CRCs, full register/DMEM comparison, NOPs and common retirement boundary.
@@ -671,3 +678,9 @@ verify-audit:
 .PHONY: verify-timing
 verify-timing:
 	bash verification/run_timing_checks.sh
+
+# Analyse an already fitted, current project without rebuilding it.
+.PHONY: vga-timing
+vga-timing:
+	@$(VENV_PY) scripts/vga_timing.py --project "$(SYNTH_DIR)" \
+		--output "$(VGA_TIMING_DIR)" --quartus-sta "$(QUARTUS_STA)"

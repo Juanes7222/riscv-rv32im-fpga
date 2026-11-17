@@ -67,6 +67,10 @@ def finalize(directory):
             raise SystemExit(f"Input changed during compilation: {name}")
     required = ["timing.rpt", "fit.summary", "compile.log", "fmax.txt",
                 f"rv32im_{manifest['architecture']}.sof"]
+    from vga_timing import check_evidence
+    proof = check_evidence(directory / "vga_timing", manifest["fingerprint"],
+                           directory / f"rv32im_{manifest['architecture']}.sof")
+    required += ["vga_timing/manifest.json"] + ["vga_timing/" + name for name in proof["artifacts"]]
     prepared = datetime.fromisoformat(manifest["prepared_at"]).timestamp()
     for name in required:
         artifact = directory / name
@@ -89,6 +93,10 @@ def verified(directory, fingerprint, elf=None, tohost_addr=None):
         manifest = json.loads((directory / "manifest.json").read_text())
         required = {"timing.rpt", "fit.summary", "compile.log", "fmax.txt",
                     "inputs.tar.gz", f"rv32im_{manifest['architecture']}.sof"}
+        from vga_timing import check_evidence
+        proof = check_evidence(directory / "vga_timing", fingerprint,
+                               directory / f"rv32im_{manifest['architecture']}.sof")
+        required |= {"vga_timing/manifest.json"} | {"vga_timing/" + name for name in proof["artifacts"]}
         if not required.issubset(manifest["artifacts"]):
             return False
         if elf is not None:
