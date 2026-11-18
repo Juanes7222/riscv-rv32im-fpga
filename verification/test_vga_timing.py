@@ -1,13 +1,18 @@
 """Exercise rejection of incomplete, stale and silently ineffective VGA evidence."""
 import csv
 import json
+import os
+import shutil
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import vga_timing as vga
+import replica_manifest as replica
 
 
 class VgaEvidenceTests(unittest.TestCase):
@@ -105,6 +110,89 @@ class VgaEvidenceTests(unittest.TestCase):
         (self.output / 'summary.csv').write_text('altered')
         with self.assertRaisesRegex(ValueError, 'Altered VGA evidence'):
             vga.check_evidence(self.output, 'test', sof)
+
+    def replica_fixture(self):
+        """Create fresh reports with source snapshots intentionally one day old."""
+        vga.summarize(self.output)
+        directory = self.output / 'replica'
+        proof = directory / 'vga_timing'
+        proof.mkdir(parents=True)
+        for path in self.output.iterdir():
+            if path.is_file():
+                shutil.copy2(path, proof / path.name)
+        archive = proof / 'sources'
+        archive.mkdir()
+        constraint_name = 'synthesis/single_cycle/constraints.sdc'
+        inputs = {constraint_name: vga.sha256(replica.ROOT / constraint_name)}
+        sources = (vga.TCL, Path(vga.__file__), replica.ROOT / constraint_name)
+        old = (datetime.now(timezone.utc) - timedelta(days=1)).timestamp()
+        for source in sources:
+            target = archive / source.name
+            shutil.copy2(source, target)
+            os.utime(target, (old, old))
+        sof = directory / 'rv32im_single_cycle.sof'
+        sof.write_bytes(b'compiled candidate')
+        for name in ('timing.rpt', 'fit.summary', 'compile.log', 'inputs.tar.gz'):
+            (directory / name).write_text('fresh generated evidence\n')
+        (directory / 'fmax.txt').write_text('40.0\n')
+        manifest = dict(source_fingerprint='test', sof_sha256=vga.sha256(sof), nominal_pass=True,
+                        analysis_sources={p.relative_to(vga.ROOT).as_posix(): vga.sha256(p)
+                                          for p in (vga.TCL, Path(vga.__file__))},
+                        artifacts={p.relative_to(proof).as_posix(): vga.sha256(p)
+                                   for p in proof.rglob('*') if p.is_file()})
+        (proof / 'manifest.json').write_text(json.dumps(manifest))
+        (directory / 'manifest.json').write_text(json.dumps(dict(
+            architecture='single_cycle', fingerprint='test', inputs=inputs, status='prepared',
+            prepared_at=(datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat())))
+        return directory, old
+
+    def test_old_source_snapshots_with_matching_content_are_accepted(self):
+        directory, _ = self.replica_fixture()
+        snapshot = directory / 'vga_timing/sources/constraints.sdc'
+        original_time = snapshot.stat().st_mtime
+        with patch.object(replica, 'source_fingerprint', return_value='test'):
+            replica.finalize(directory)
+        self.assertTrue(replica.verified(directory, 'test'))
+        self.assertEqual(snapshot.stat().st_mtime, original_time)
+
+    def test_old_generated_timing_report_is_still_rejected(self):
+        directory, old = self.replica_fixture()
+        os.utime(directory / 'timing.rpt', (old, old))
+        with patch.object(replica, 'source_fingerprint', return_value='test'):
+            with self.assertRaisesRegex(SystemExit, 'Stale evidence: .*timing.rpt'):
+                replica.finalize(directory)
+
+    def test_old_generated_vga_report_is_still_rejected(self):
+        directory, old = self.replica_fixture()
+        os.utime(directory / 'vga_timing/summary.csv', (old, old))
+        with patch.object(replica, 'source_fingerprint', return_value='test'):
+            with self.assertRaisesRegex(SystemExit, 'Stale evidence: .*summary.csv'):
+                replica.finalize(directory)
+
+    def test_archived_source_must_match_the_actual_recorded_input(self):
+        for name in ('constraints.sdc', 'vga_timing.py', 'report_vga_sensitivity.tcl'):
+            with self.subTest(source=name):
+                with tempfile.TemporaryDirectory() as temporary:
+                    original = self.output
+                    self.output = Path(temporary)
+                    try:
+                        # Reuse the valid raw report fixture without its replica.
+                        for path in original.iterdir():
+                            if path.is_file():
+                                shutil.copy2(path, self.output / path.name)
+                        directory, _ = self.replica_fixture()
+                        proof = directory / 'vga_timing'
+                        changed = proof / 'sources' / name
+                        changed.write_text('different source\n')
+                        manifest_path = proof / 'manifest.json'
+                        manifest = json.loads(manifest_path.read_text())
+                        manifest['artifacts']['sources/' + name] = vga.sha256(changed)
+                        manifest_path.write_text(json.dumps(manifest))
+                        with patch.object(replica, 'source_fingerprint', return_value='test'):
+                            with self.assertRaisesRegex(SystemExit, 'Archived source does not match'):
+                                replica.finalize(directory)
+                    finally:
+                        self.output = original
 
 
 if __name__ == '__main__':

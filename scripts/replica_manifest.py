@@ -71,12 +71,28 @@ def finalize(directory):
     proof = check_evidence(directory / "vga_timing", manifest["fingerprint"],
                            directory / f"rv32im_{manifest['architecture']}.sof")
     required += ["vga_timing/manifest.json"] + ["vga_timing/" + name for name in proof["artifacts"]]
+    # Source snapshots retain their original mtime through copy2. Match their
+    # bytes to the recorded inputs; only generated evidence must be recent.
+    recorded_inputs = {name.replace("\\", "/"): expected
+                       for name, expected in manifest["inputs"].items()}
+    source_snapshots = {
+        "vga_timing/sources/constraints.sdc":
+            recorded_inputs[f"synthesis/{manifest['architecture']}/constraints.sdc"],
+        **{f"vga_timing/sources/{Path(name).name}": expected
+           for name, expected in proof["analysis_sources"].items()},
+    }
+    for name in source_snapshots:
+        if name not in required:
+            raise SystemExit(f"Missing archived source: {name}")
     prepared = datetime.fromisoformat(manifest["prepared_at"]).timestamp()
     for name in required:
         artifact = directory / name
         if not artifact.is_file() or artifact.stat().st_size == 0:
             raise SystemExit(f"Missing or empty evidence: {artifact}")
-        if artifact.stat().st_mtime < prepared:
+        if name in source_snapshots:
+            if sha256(artifact) != source_snapshots[name]:
+                raise SystemExit(f"Archived source does not match recorded input: {artifact}")
+        elif artifact.stat().st_mtime < prepared:
             raise SystemExit(f"Stale evidence: {artifact}")
     manifest["artifacts"] = {name: sha256(directory / name) for name in required}
     manifest["artifacts"]["inputs.tar.gz"] = sha256(directory / "inputs.tar.gz")

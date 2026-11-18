@@ -9,7 +9,7 @@
     "tohost_addr": "0x708",
     "counter_protocol": "retire-inclusive-v2",
     "elf_sha256": "d6dc47bddf1de31c556c57a3f4220b686a26bf461af1247e08ee538c7fdc2ccd",
-    "rtl_sha256": "670b04604b443b517bb2e306c6f15728517021f0261cd3042dcd1690e424e841",
+    "rtl_sha256": "94c478e515da704c298d26560273d24b05d871ba3d45543d31859e324dbd9d60",
     "coremark_functional_valid": "",
     "reference_valid": true
   },
