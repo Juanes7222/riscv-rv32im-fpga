@@ -26,6 +26,8 @@ module mem_wb_register (
     input  logic [31:0] mem_pc,
     // CSR / trap
     input  logic        mem_trap_entry,
+    input  logic [4:0]  mem_trap_cause,
+    input  logic [31:0] mem_trap_value,
     input  logic        mem_mret_exec,
     input  logic [11:0] mem_csr_addr,
     input  logic        mem_csr_wr,
@@ -45,6 +47,8 @@ module mem_wb_register (
     output logic [31:0] wb_pc,
     // CSR / trap outputs
     output logic        wb_trap_entry,
+    output logic [4:0]  wb_trap_cause,
+    output logic [31:0] wb_trap_value,
     output logic        wb_mret_exec,
     output logic [11:0] wb_csr_addr,
     output logic        wb_csr_wr,
@@ -65,6 +69,8 @@ module mem_wb_register (
             wb_pc_plus4        <= '0;
             wb_pc              <= '0;
             wb_trap_entry      <= 1'b0;
+            wb_trap_cause <= '0;
+            wb_trap_value <= '0;
             wb_mret_exec       <= 1'b0;
             wb_csr_addr        <= '0;
             wb_csr_wr          <= 1'b0;
@@ -83,6 +89,8 @@ module mem_wb_register (
             wb_pc_plus4        <= mem_pc_plus4;
             wb_pc              <= mem_pc;
             wb_trap_entry      <= mem_trap_entry;
+            wb_trap_cause <= mem_trap_cause;
+            wb_trap_value <= mem_trap_value;
             wb_mret_exec       <= mem_mret_exec;
             wb_csr_addr        <= mem_csr_addr;
             wb_csr_wr          <= mem_csr_wr;

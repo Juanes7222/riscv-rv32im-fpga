@@ -96,6 +96,9 @@ module top_single_cycle #(
 
     // ADR 030: Trap / CSR control signals
     logic        trap_entry;
+    logic [4:0]  trap_cause;
+    logic [31:0] trap_value;
+    logic        dm_wr_decoded;
     logic        mret_exec;
     logic [11:0] csr_addr;
     logic        csr_wr_raw;
@@ -152,10 +155,18 @@ module top_single_cycle #(
     assign funct7      = instruction[31:25];
     assign instr_31_20 = instruction[31:20];
 
+    exception_unit u_exceptions (
+        .valid(fetch_valid), .instruction(instruction), .pc(pc),
+        .data_address(alu_sum), .control_taken(branch),
+        .control_target(mask_pc_lsb ? {alu_sum[31:1], 1'b0} : alu_sum),
+        .trap(trap_entry), .cause(trap_cause), .value(trap_value)
+    );
+    assign dm_wr = dm_wr_decoded && !trap_entry;
+
     // Write-enable gate for division
     assign is_div = (alu_op == ALU_DIV || alu_op == ALU_DIVU ||
                         alu_op == ALU_REM || alu_op == ALU_REMU);
-    assign wr_en_gated = ru_wr & (~is_div | div_done);
+    assign wr_en_gated = ru_wr & (~is_div | div_done) & ~trap_entry;
 
      assign ledr = pc[9:0];
 
@@ -275,7 +286,7 @@ module top_single_cycle #(
         .rst_n                (rst_n_cpu),
         .enable               (~step_hold_effective & fetch_valid),
         .div_busy             (div_busy),
-        .valid_wb             (1'b0),
+        .valid_wb             (~trap_entry),
         .program_done_pulse   (program_done_pulse),
         .cycle_count          (cycle_count),
         .instr_retired        (instr_retired),
@@ -365,10 +376,10 @@ module top_single_cycle #(
         .alub_src       (alub_src),
         .alu_op         (alu_op),
         .br_op          (br_op),
-        .dm_wr          (dm_wr),
+        .dm_wr          (dm_wr_decoded),
         .dm_ctrl        (dm_ctrl),
         .ru_data_wr_src (ru_data_wr_src),
-        .trap_entry     (trap_entry),
+        .trap_entry     (),
         .mret_exec      (mret_exec),
         .csr_addr       (csr_addr),
         .csr_wr         (csr_wr_raw),
@@ -441,12 +452,14 @@ module top_single_cycle #(
         .rst_n       (rst_n_cpu),
         .csr_addr    (csr_addr),
         .csr_wdata   (csr_wdata),
-        .csr_wr      (csr_wr & ~step_hold_effective),
+        .csr_wr      (csr_wr && !trap_entry && fetch_valid && !step_hold_effective),
         .csr_op      (csr_op),
         .csr_rdata   (csr_rdata),
-        .trap_entry  (trap_entry),
+        .trap_entry  (trap_entry && fetch_valid && !step_hold_effective),
+        .trap_cause  (trap_cause),
+        .trap_value  (trap_value),
         .trap_pc     (pc),            // mepc = PC of the trapping instruction
-        .mret_exec   (mret_exec),
+        .mret_exec   (mret_exec && fetch_valid && !step_hold_effective),
         .trap_target (trap_target),
         .mepc_value  (mepc_value)
     );
@@ -457,7 +470,7 @@ module top_single_cycle #(
     );
 
     seven_segment u_seven_seg1 (
-        .val     (instruction[7:4]), 
+        .val     (instruction[7:4]),
         .display (seven_seg_display1)
     );
 

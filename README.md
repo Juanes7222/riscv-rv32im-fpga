@@ -4,12 +4,30 @@ Two microarchitectures of the same RISC-V RV32IM processor, written in SystemVer
 and synthesized for the Intel Cyclone V DE1-SoC board: a **single-cycle** core and a
 **five-stage pipelined** core.
 
-The point of the repository is the comparison. Both cores share the same ALU, register
-file, branch unit, immediate generator and CSR file, and differ only in how instructions
-are scheduled. Because the two designs are built, verified and synthesized under one
-identical protocol — same tool, same device, same timing constraints, same test suites —
-the measured difference between them is attributable to the microarchitecture and to
-nothing else.
+El repositorio compara dos diseños completos que comparten unidades funcionales,
+incluido el divisor iterativo. También difieren en la organización temporal de
+las memorias y en el control. La comparación utiliza el mismo dispositivo,
+herramientas y programas, sin atribuir sus diferencias únicamente a insertar
+registros entre etapas.
+
+La revisión corregida del 17 de noviembre de 2026 aprobó 268 casos de regresión,
+incluidos los 60 programas de `riscv-tests` por arquitectura. Se documentan sus
+límites y el tratamiento de excepciones en [ADR 061](docs/decisions/061_precise_synchronous_exceptions.md).
+Los resultados físicos de la revisión anterior conservan carácter histórico y
+no validan este RTL. La campaña física corregida permanece pendiente.
+
+Para preparar las cinco ejecuciones físicas por carga y arquitectura, sin
+acceder a la placa, se puede ejecutar el siguiente comando desde el entorno
+configurado del proyecto.
+
+```sh
+.venv/bin/python3 scripts/measure_physical_repetitions.py
+```
+
+La opción `--capture` requiere que una persona lea la consola VGA en cada
+ejecución. Las 50 observaciones previstas se registran en
+`results/physical_repetitions/`. Son repeticiones de ejecución del mismo
+bitstream y no las cinco semillas de ubicación y enrutamiento.
 
 ## What is in the box
 

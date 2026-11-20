@@ -10,7 +10,8 @@
 // (Zicntr) are NOT implemented here; they are exposed via perf_counter
 // (ADR 024) only at the dut.* hierarchy level for cocotb observability.
 //
-// Supports CSR read/write instructions and trap entry/exit (ECALL/MRET).
+// Supports the documented CSR subset and explicit synchronous exception metadata.
+// M-only: unsupported lower privilege modes are not advertised through MPP.
 module csr_file (
     input  logic        clk,
     input  logic        rst_n,
@@ -25,6 +26,9 @@ module csr_file (
     // Trap entry (ECALL)
     input  logic        trap_entry,   // ECALL decoded
     input  logic [31:0] trap_pc,      // PC of the trapping instruction, saved into mepc
+
+    input  logic [4:0]  trap_cause,
+    input  logic [31:0] trap_value,
 
     // Trap exit (MRET)
     input  logic        mret_exec,    // MRET decoded
@@ -57,20 +61,8 @@ module csr_file (
     //   bit 8     = I extension
     localparam logic [31:0] MISA_RESET = 32'h4000_1100;
 
-    // MSTATUS field aliases
-    logic [1:0]  mpp;
-    assign mpp = mstatus[12:11];
-
-    // Derive trap cause from current privilege level in MPP
-    // ECALL cause: U-mode=8, S-mode=9, M-mode=11
-    logic [4:0]  trap_cause;
-    always_comb begin
-        case (mpp)
-            2'b00:   trap_cause = 5'd8;   // User-mode ECALL
-            2'b01:   trap_cause = 5'd9;   // Supervisor-mode ECALL
-            default: trap_cause = 5'd11;  // Machine-mode ECALL
-        endcase
-    end
+    // Only M-mode is implemented. MPP is WARL and remains M (misa.U/S=0).
+    // The exception unit supplies the cause independently of MPP.
 
     // ── Write data computation (handles CSRRS/CSRRC bitmask ops) ──
     logic [31:0] old_csr_val;
@@ -104,49 +96,43 @@ module csr_file (
         endcase
     end
 
-    // Sequential CSR updates (writeback / trap entry / MRET)
+    // Precise exception entry takes priority over ordinary CSR writes.
     always_ff @(posedge clk) begin
         if (!rst_n) begin
-            mstatus    <= 32'h00001800;   // MPP = 2'b11 (Machine) per RISC-V spec
-            misa       <= MISA_RESET;
-            mtvec      <= 32'h00000000;
-            mcounteren <= 32'h00000000;
-            mscratch   <= 32'h00000000;
-            mepc       <= 32'h00000000;
-            mcause     <= 32'h00000000;
-            mtval      <= 32'h00000000;
-            mvendorid  <= 32'h00000000;
-            marchid    <= 32'h00000000;
-            mimpid     <= 32'h00000000;
-            mhartid    <= 32'h00000000;
-        end else begin
-            // Trap entry: capture mepc and mcause.
-            // RISC-V spec: mepc holds the address of the trapping instruction.
-            if (trap_entry) begin
-                mepc   <= trap_pc;
-                mcause <= {1'b0, 26'b0, trap_cause};  // Bit 31 = 0 for exceptions
-            end
-
-            // MRET: restore MPP to user mode (RISC-V spec)
-            if (mret_exec) begin
-                mstatus[12:11] <= 2'b00;   // MPP ← User mode
-            end
-
-            // CSR instruction write
-            if (csr_wr) begin
-                case (csr_addr)
-                    12'h300: mstatus    <= wdata_masked;
-                    12'h305: mtvec      <= wdata_masked;
-                    12'h306: mcounteren <= wdata_masked;
-                    12'h340: mscratch   <= wdata_masked;
-                    12'h341: mepc       <= wdata_masked;
-                    12'h342: mcause     <= wdata_masked;
-                    12'h343: mtval      <= wdata_masked;
-                    // 0x301 misa, 0xF11 mvendorid, 0xF12 marchid,
-                    // 0xF13 mimpid, 0xF14 mhartid are read-only.
-                    default: ;
-                endcase
-            end
+            mstatus <= 32'h00001800;
+            misa <= MISA_RESET;
+            mtvec <= '0;
+            mcounteren <= '0;
+            mscratch <= '0;
+            mepc <= '0;
+            mcause <= '0;
+            mtval <= '0;
+            mvendorid <= '0;
+            marchid <= '0;
+            mimpid <= '0;
+            mhartid <= '0;
+        end else if (trap_entry) begin
+            mepc <= {trap_pc[31:2], 2'b00};
+            mcause <= {27'd0, trap_cause};
+            mtval <= trap_value;
+            mstatus[7] <= mstatus[3]; // MPIE <- MIE
+            mstatus[3] <= 1'b0;
+            mstatus[12:11] <= 2'b11;
+        end else if (mret_exec) begin
+            mstatus[3] <= mstatus[7];
+            mstatus[7] <= 1'b1;
+            mstatus[12:11] <= 2'b11;
+        end else if (csr_wr) begin
+            case (csr_addr)
+                12'h300: mstatus <= (wdata_masked & 32'h00000088) | 32'h00001800;
+                12'h305: mtvec <= {wdata_masked[31:2], 2'b00};
+                12'h306: mcounteren <= wdata_masked;
+                12'h340: mscratch <= wdata_masked;
+                12'h341: mepc <= {wdata_masked[31:2], 2'b00};
+                12'h342: mcause <= wdata_masked;
+                12'h343: mtval <= wdata_masked;
+                default: ;
+            endcase
         end
     end
 

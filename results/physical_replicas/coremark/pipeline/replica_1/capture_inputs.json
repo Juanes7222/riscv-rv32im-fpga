@@ -1,0 +1,12 @@
+{
+  "rtl": "b6e6ced0bde13209806ab4f7be628d284f68a7538de3ad5b46d1518040a53f24",
+  "elf": "1d99dfc60cdf9da2b89ede209f472cc66103f58ef476919381505086a308c481",
+  "sof": "b19bd336e86e5d514a3314642d22418af6fa1e5dd16b783f5d87f10df832b6a3",
+  "memory_check": "hardware_evidence/memory_b19bd336e86e5d514a3314642d22418af6fa1e5dd16b783f5d87f10df832b6a3.log",
+  "memory_check_sha256": "b8bafcd25ab3e29cb8a6b3e823a84c7ac3f66bc95ea622e21a9effb16b8fb494",
+  "timing_evidence": "physical_replicas/coremark/pipeline/replica_1/vga_timing",
+  "replica_seed": 1,
+  "replica_directory": "physical_replicas/coremark/pipeline/replica_1",
+  "sof_path": "/mnt/c/Users/juanb/Documents/GitHub/riscv-rv32im-fpga/results/physical_replicas/coremark/pipeline/replica_1/rv32im_pipeline.sof",
+  "fmax_mhz": 59.82
+}

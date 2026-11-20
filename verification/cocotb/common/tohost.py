@@ -159,7 +159,9 @@ async def monitor_tohost(
         await FallingEdge(dut.clk)
         if _pipeline:
             try:
-                dm_wr = int(dut.mem_dm_wr.value)
+                # A committing older exception cancels the younger MEM store.
+                dm_wr = (int(dut.mem_dm_wr.value) and int(dut.mem_valid.value)
+                         and not int(dut.trap_flush.value))
                 dm_addr_val = int(dut.mem_alu_result.value)
             except Exception:
                 dm_wr = 0

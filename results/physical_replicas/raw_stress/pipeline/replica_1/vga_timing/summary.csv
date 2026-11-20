@@ -1,0 +1,6 @@
+scenario,setup_at_0_5_ns,hold_at_0_5_ns,largest_tested_passing_skew_ns,linear_zero_margin_skew_ns
+project,2.426,4.914,2.5,2.926
+c10_c10,2.422,4.914,2.5,2.922
+c10_c20,2.581,4.914,3.0,3.081
+c20_c10,2.155,4.914,2.5,2.655
+c20_c20,2.314,4.914,2.5,2.814

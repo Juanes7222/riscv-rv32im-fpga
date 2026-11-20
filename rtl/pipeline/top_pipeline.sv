@@ -198,12 +198,23 @@ module top_pipeline #(
     // instruction advances to MEM/WB normally, so wb_ru_wr already reflects
     // the correct enable. No additional gating is needed in WB beyond wb_ru_wr.
     logic        wb_wr_en_gated;
-    assign wb_wr_en_gated = wb_ru_wr;
+    assign wb_wr_en_gated = wb_ru_wr && wb_commit && !wb_trap_entry;
 
     // CSR outputs                                                          //
     logic [31:0] csr_rdata;
     logic [31:0] trap_target;
     logic [31:0] mepc_value;
+
+    logic ex_exception;
+    logic [4:0] ex_trap_cause, mem_trap_cause, wb_trap_cause;
+    logic [31:0] ex_trap_value, mem_trap_value, wb_trap_value;
+    logic wb_commit;
+    exception_unit u_exceptions (
+        .valid(ex_valid), .instruction(ex_instruction), .pc(ex_pc),
+        .data_address(ex_alu_sum), .control_taken(ex_branch_taken),
+        .control_target(ex_mask_pc_lsb ? {ex_alu_sum[31:1], 1'b0} : ex_alu_sum),
+        .trap(ex_exception), .cause(ex_trap_cause), .value(ex_trap_value)
+    );
 
     // Hazard / flush control                                               //
     logic stall;
@@ -213,8 +224,8 @@ module top_pipeline #(
     logic load_use_hazard;
     logic mem_raw_hazard;
 
-    assign branch_flush = ex_branch_taken;
-    assign trap_flush   = wb_trap_entry || wb_mret_exec;
+    assign branch_flush = ex_valid && ex_branch_taken && !ex_exception;
+    assign trap_flush   = wb_valid && (wb_trap_entry || wb_mret_exec);
     assign flush        = branch_flush || trap_flush;
 
     // Step mode: SW[9] freezes the pipeline, KEY[1] releases it for one
@@ -286,7 +297,8 @@ module top_pipeline #(
     logic ex_valid, mem_valid, wb_valid;
     logic wb_tohost;
     logic valid_wb;
-    assign valid_wb = wb_valid && !ex_div_busy;
+    assign wb_commit = wb_valid && !step_hold_effective && (!ex_div_busy || trap_flush);
+    assign valid_wb = wb_valid && (!ex_div_busy || trap_flush) && !wb_trap_entry;
 
     // Count through the tohost store's retirement, including that store.
     logic program_done_pulse;
@@ -646,7 +658,7 @@ module top_pipeline #(
 
     alu_rv32im u_alu (
         .clk     (clk),
-        .rst_n   (rst_n_int),          // alu_rv32im uses active-low rst_n directly
+        .rst_n   (rst_n_int && !(trap_flush && !step_hold_effective)),
         .hold    (1'b0),           // the divider is not part of the freeze
         .a       (ex_alu_a),
         .b       (ex_alu_b),
@@ -682,16 +694,18 @@ module top_pipeline #(
         .ex_valid          (ex_valid),
         .ex_instruction     (ex_instruction),
         .ex_rd_addr         (ex_rd_addr),
-        .ex_ru_wr           (ex_ru_wr),
-        .ex_dm_wr           (ex_dm_wr),
+        .ex_ru_wr           (ex_ru_wr && !ex_exception),
+        .ex_dm_wr           (ex_dm_wr && !ex_exception),
         .ex_dm_ctrl         (ex_dm_ctrl),
         .ex_ru_data_wr_src  (ex_ru_data_wr_src),
         .ex_pc_plus4        (ex_pc_plus4),
         .ex_pc              (ex_pc),
-        .ex_trap_entry      (ex_trap_entry),
+        .ex_trap_entry      (ex_exception),
+        .ex_trap_cause      (ex_trap_cause),
+        .ex_trap_value      (ex_trap_value),
         .ex_mret_exec       (ex_mret_exec),
         .ex_csr_addr        (ex_csr_addr),
-        .ex_csr_wr          (ex_csr_wr),
+        .ex_csr_wr          (ex_csr_wr && !ex_exception),
         .ex_csr_op          (ex_csr_op),
         .ex_csr_imm         (ex_csr_imm),
         .ex_rs1_addr        (ex_rs1_addr),
@@ -708,6 +722,8 @@ module top_pipeline #(
         .mem_pc_plus4       (mem_pc_plus4),
         .mem_pc             (mem_pc),
         .mem_trap_entry     (mem_trap_entry),
+        .mem_trap_cause     (mem_trap_cause),
+        .mem_trap_value     (mem_trap_value),
         .mem_mret_exec      (mem_mret_exec),
         .mem_csr_addr       (mem_csr_addr),
         .mem_csr_wr         (mem_csr_wr),
@@ -728,7 +744,7 @@ module top_pipeline #(
     logic [31:0] dmem_wdata_eff;
     logic [2:0]  dm_ctrl_eff;
 
-    assign dmem_wr_eff   = mem_dm_wr | loader_dmem_wr_en;
+    assign dmem_wr_eff   = (mem_valid && mem_dm_wr && !trap_flush) | loader_dmem_wr_en;
     assign dmem_addr_eff = loader_dmem_wr_en ? loader_dmem_wr_addr : mem_alu_result;
     assign dmem_wdata_eff= loader_dmem_wr_en ? loader_dmem_wr_data : mem_rs2_data;
     assign dm_ctrl_eff   = loader_dmem_wr_en ? 3'b100 : mem_dm_ctrl;
@@ -751,7 +767,7 @@ module top_pipeline #(
     logic [31:0] shadow_wr_addr;
     logic [3:0]  shadow_wr_be;
     logic [31:0] shadow_wr_data;
-    assign shadow_wr_en   = mem_dm_wr | loader_dmem_wr_en;
+    assign shadow_wr_en   = (mem_valid && mem_dm_wr && !trap_flush) | loader_dmem_wr_en;
     assign shadow_wr_addr = loader_dmem_wr_en ? loader_dmem_wr_addr : mem_alu_result;
     assign shadow_wr_be   = loader_dmem_wr_en ? 4'b1111 : dmem_dbg_wr_be;
     assign shadow_wr_data = loader_dmem_wr_en ? loader_dmem_wr_data : dmem_dbg_wr_data;
@@ -765,21 +781,23 @@ module top_pipeline #(
     mem_wb_register u_mem_wb (
         .clk                (clk),
         .rst                (rst),
-        .stall              (ex_div_busy || step_hold_effective),
+        .stall              ((ex_div_busy && !trap_flush) || step_hold_effective),
         .mem_alu_result     (mem_alu_result),
         .mem_dm_rd_data     ('0),
         .mem_rs1_data       (mem_rs1_data),
-        .mem_valid          (mem_valid),
+        .mem_valid          (mem_valid && !trap_flush),
         .mem_instruction    (mem_instruction),
         .mem_rd_addr        (mem_rd_addr),
-        .mem_ru_wr          (mem_ru_wr),
+        .mem_ru_wr          (mem_ru_wr && !trap_flush),
         .mem_ru_data_wr_src (mem_ru_data_wr_src),
         .mem_pc_plus4       (mem_pc_plus4),
         .mem_pc             (mem_pc),
-        .mem_trap_entry     (mem_trap_entry),
-        .mem_mret_exec      (mem_mret_exec),
+        .mem_trap_entry     (mem_trap_entry && !trap_flush),
+        .mem_trap_cause     (mem_trap_cause),
+        .mem_trap_value     (mem_trap_value),
+        .mem_mret_exec      (mem_mret_exec && !trap_flush),
         .mem_csr_addr       (mem_csr_addr),
-        .mem_csr_wr         (mem_csr_wr),
+        .mem_csr_wr         (mem_csr_wr && !trap_flush),
         .mem_csr_op         (mem_csr_op),
         .mem_csr_imm        (mem_csr_imm),
         .mem_rs1_addr       (mem_rs1_addr),
@@ -794,6 +812,8 @@ module top_pipeline #(
         .wb_pc_plus4        (wb_pc_plus4),
         .wb_pc              (wb_pc),
         .wb_trap_entry      (wb_trap_entry),
+        .wb_trap_cause      (wb_trap_cause),
+        .wb_trap_value      (wb_trap_value),
         .wb_mret_exec       (wb_mret_exec),
         .wb_csr_addr        (wb_csr_addr),
         .wb_csr_wr          (wb_csr_wr),
@@ -831,12 +851,14 @@ module top_pipeline #(
         .rst_n      (rst_n_int),
         .csr_addr   (wb_csr_addr),
         .csr_wdata  (wb_csr_wdata),
-        .csr_wr     (wb_csr_wr_gated & ~step_hold_effective),
+        .csr_wr     (wb_csr_wr_gated && wb_commit && !wb_trap_entry),
         .csr_op     (wb_csr_op),
         .csr_rdata  (csr_rdata),
-        .trap_entry (wb_trap_entry),
+        .trap_entry (wb_trap_entry && wb_commit),
+        .trap_cause (wb_trap_cause),
+        .trap_value (wb_trap_value),
         .trap_pc    (wb_pc),           // mepc = PC of the trapping instruction (ECALL)
-        .mret_exec  (wb_mret_exec),
+        .mret_exec  (wb_mret_exec && wb_commit),
         .trap_target(trap_target),
         .mepc_value (mepc_value)
     );

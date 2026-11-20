@@ -1,0 +1,107 @@
+{
+  "rtl_sha256": "b6e6ced0bde13209806ab4f7be628d284f68a7538de3ad5b46d1518040a53f24",
+  "repetitions_per_combination": 5,
+  "purpose": "Repeated reset/execution of the same ELF and SOF; not synthesis seeds",
+  "combinations": [
+    {
+      "architecture": "single_cycle",
+      "program": "raw_stress",
+      "elf_sha256": "436b5ea23c52dd4dc6f3f6f5e2f7cb02e46c2dc22107cd3bdf15843f979c01b4",
+      "observations_csv": "single_cycle_raw_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 40
+    },
+    {
+      "architecture": "single_cycle",
+      "program": "branch_stress",
+      "elf_sha256": "dd0230a5feddf7c463cf11092643c5add99b459482e703f25602987ddb112d97",
+      "observations_csv": "single_cycle_branch_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 40
+    },
+    {
+      "architecture": "single_cycle",
+      "program": "load_use_stress",
+      "elf_sha256": "fb0f7225235e2b30e86e9d284975dab5b2d40990c333de3fe196c2d05e8c2673",
+      "observations_csv": "single_cycle_load_use_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 40
+    },
+    {
+      "architecture": "single_cycle",
+      "program": "m_ext_stress",
+      "elf_sha256": "d6dc47bddf1de31c556c57a3f4220b686a26bf461af1247e08ee538c7fdc2ccd",
+      "observations_csv": "single_cycle_m_ext_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 40
+    },
+    {
+      "architecture": "single_cycle",
+      "program": "coremark",
+      "elf_sha256": "1d99dfc60cdf9da2b89ede209f472cc66103f58ef476919381505086a308c481",
+      "observations_csv": "single_cycle_coremark.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 40
+    },
+    {
+      "architecture": "pipeline",
+      "program": "raw_stress",
+      "elf_sha256": "436b5ea23c52dd4dc6f3f6f5e2f7cb02e46c2dc22107cd3bdf15843f979c01b4",
+      "observations_csv": "pipeline_raw_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 50
+    },
+    {
+      "architecture": "pipeline",
+      "program": "branch_stress",
+      "elf_sha256": "dd0230a5feddf7c463cf11092643c5add99b459482e703f25602987ddb112d97",
+      "observations_csv": "pipeline_branch_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 50
+    },
+    {
+      "architecture": "pipeline",
+      "program": "load_use_stress",
+      "elf_sha256": "fb0f7225235e2b30e86e9d284975dab5b2d40990c333de3fe196c2d05e8c2673",
+      "observations_csv": "pipeline_load_use_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 50
+    },
+    {
+      "architecture": "pipeline",
+      "program": "m_ext_stress",
+      "elf_sha256": "d6dc47bddf1de31c556c57a3f4220b686a26bf461af1247e08ee538c7fdc2ccd",
+      "observations_csv": "pipeline_m_ext_stress.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 50
+    },
+    {
+      "architecture": "pipeline",
+      "program": "coremark",
+      "elf_sha256": "1d99dfc60cdf9da2b89ede209f472cc66103f58ef476919381505086a308c481",
+      "observations_csv": "pipeline_coremark.csv",
+      "required_observations": 5,
+      "accepted_observations_same_sof": 0,
+      "status": "pending",
+      "clock_mhz": 50
+    }
+  ]
+}

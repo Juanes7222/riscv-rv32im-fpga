@@ -1,5 +1,5 @@
 TOPLEVEL            ?= top_single_cycle
-COCOTB_TEST_MODULES  = test_rv32i,test_rv32m,test_rv32mi,test_alu_rv32i,test_branch,test_model_vs_dut
+COCOTB_TEST_MODULES  = test_rv32i,test_rv32m,test_rv32mi,test_alu_rv32i,test_branch,test_model_vs_dut,test_precise_exceptions
 
 VERILOG_SOURCES = \
     $(SHARED_SRCS) \

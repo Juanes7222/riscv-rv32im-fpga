@@ -4,38 +4,38 @@
   "scenarios": [
     {
       "scenario": "project",
-      "setup_at_0_5_ns": 2.284,
-      "hold_at_0_5_ns": 4.871,
+      "setup_at_0_5_ns": 2.436,
+      "hold_at_0_5_ns": 4.864,
       "largest_tested_passing_skew_ns": 2.5,
-      "linear_zero_margin_skew_ns": 2.784
+      "linear_zero_margin_skew_ns": 2.936
     },
     {
       "scenario": "c10_c10",
-      "setup_at_0_5_ns": 2.265,
-      "hold_at_0_5_ns": 4.871,
+      "setup_at_0_5_ns": 2.422,
+      "hold_at_0_5_ns": 4.864,
       "largest_tested_passing_skew_ns": 2.5,
-      "linear_zero_margin_skew_ns": 2.765
+      "linear_zero_margin_skew_ns": 2.922
     },
     {
       "scenario": "c10_c20",
-      "setup_at_0_5_ns": 2.424,
-      "hold_at_0_5_ns": 4.871,
-      "largest_tested_passing_skew_ns": 2.5,
-      "linear_zero_margin_skew_ns": 2.924
+      "setup_at_0_5_ns": 2.581,
+      "hold_at_0_5_ns": 4.864,
+      "largest_tested_passing_skew_ns": 3.0,
+      "linear_zero_margin_skew_ns": 3.081
     },
     {
       "scenario": "c20_c10",
-      "setup_at_0_5_ns": 2.074,
-      "hold_at_0_5_ns": 4.871,
+      "setup_at_0_5_ns": 2.231,
+      "hold_at_0_5_ns": 4.864,
       "largest_tested_passing_skew_ns": 2.5,
-      "linear_zero_margin_skew_ns": 2.574
+      "linear_zero_margin_skew_ns": 2.731
     },
     {
       "scenario": "c20_c20",
-      "setup_at_0_5_ns": 2.233,
-      "hold_at_0_5_ns": 4.871,
+      "setup_at_0_5_ns": 2.39,
+      "hold_at_0_5_ns": 4.864,
       "largest_tested_passing_skew_ns": 2.5,
-      "linear_zero_margin_skew_ns": 2.733
+      "linear_zero_margin_skew_ns": 2.89
     }
   ],
   "interpretation": "Model sensitivity only; capacitance and skew are hypothetical, not measured bounds."

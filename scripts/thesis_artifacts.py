@@ -424,9 +424,10 @@ def table_header() -> list:
 
 TIMING_PATHS_TXT = {arch: RESULTS / f"timing_paths_{arch}.txt" for arch in ARCHES}
 
-# constraints.sdc declares the pin clock at 10 ns and the single-cycle CPU PLL
-# at 12.5 ns, both half of the real board periods, with 0.1 ns of uncertainty.
-DOMAIN_PERIOD_NS = {"single_cycle": 12.5, "pipeline": 10.0}
+# The board input is constrained at 20 ns. The single-cycle CPU PLL runs
+# at 40 MHz (25 ns); its rising-to-falling memory path gets 12.5 ns.
+# The pipeline CPU uses the 50 MHz input (20 ns).
+DOMAIN_PERIOD_NS = {"single_cycle": 25.0, "pipeline": 20.0}
 
 
 def _timing_field(block: str, name: str) -> str:
@@ -1896,8 +1897,8 @@ def write_measurement_protocol_doc(metrics: list, stats: dict, replicas: list) -
         "|---|---|",
         "| `cycle_count` | Ciclos de reloj desde el reinicio hasta que el programa "
         "retira la escritura a `tohost`, incluida; el valor queda congelado. |",
-        "| `instr_retired` | Monociclo: un ciclo por instrucción ejecutada. "
-        "Pipeline: ciclos en los que `valid_wb = 1`, es decir, instrucciones "
+        "| `instr_retired` | Cuenta instrucciones que se retiran sin excepción. "
+        "En la segmentada se exige validez de escritura de resultados, es decir, instrucciones "
         "que se retiran sin burbuja. La validez es independiente del opcode NOP. |",
         "",
         "El mismo valor congelado en el silicio es el que muestra la consola VGA, y "

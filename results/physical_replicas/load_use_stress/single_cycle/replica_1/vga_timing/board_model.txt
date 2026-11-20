@@ -1,0 +1,8 @@
+BOARD_MODEL_FAR_C: 0 explicit assignments
+BOARD_MODEL_NEAR_C: 0 explicit assignments
+BOARD_MODEL_TLINE_L: 0 explicit assignments
+BOARD_MODEL_TLINE_C: 0 explicit assignments
+BOARD_MODEL_TLINE_R: 0 explicit assignments
+OUTPUT_IO_TIMING_ENDPOINT: 0 explicit assignments
+OUTPUT_PIN_LOAD: 0 explicit assignments
+Unassigned fields use device/project defaults; they are not measured PCB parameters.

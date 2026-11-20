@@ -33,6 +33,8 @@ module ex_mem_register (
     input  logic [31:0] ex_pc,
     // CSR / trap
     input  logic        ex_trap_entry,
+    input  logic [4:0]  ex_trap_cause,
+    input  logic [31:0] ex_trap_value,
     input  logic        ex_mret_exec,
     input  logic [11:0] ex_csr_addr,
     input  logic        ex_csr_wr,
@@ -54,6 +56,8 @@ module ex_mem_register (
     output logic [31:0] mem_pc,
     // CSR / trap outputs
     output logic        mem_trap_entry,
+    output logic [4:0]  mem_trap_cause,
+    output logic [31:0] mem_trap_value,
     output logic        mem_mret_exec,
     output logic [11:0] mem_csr_addr,
     output logic        mem_csr_wr,
@@ -78,6 +82,8 @@ module ex_mem_register (
             mem_pc_plus4        <= '0;
             mem_pc              <= '0;
             mem_trap_entry      <= 1'b0;
+            mem_trap_cause <= '0;
+            mem_trap_value <= '0;
             mem_mret_exec       <= 1'b0;
             mem_csr_addr        <= '0;
             mem_csr_wr          <= 1'b0;
@@ -98,6 +104,8 @@ module ex_mem_register (
             mem_pc_plus4        <= '0;
             mem_pc              <= '0;
             mem_trap_entry      <= 1'b0;
+            mem_trap_cause <= '0;
+            mem_trap_value <= '0;
             mem_mret_exec       <= 1'b0;
             mem_csr_addr        <= '0;
             mem_csr_wr          <= 1'b0;
@@ -118,6 +126,8 @@ module ex_mem_register (
             mem_pc_plus4        <= ex_pc_plus4;
             mem_pc              <= ex_pc;
             mem_trap_entry      <= ex_trap_entry;
+            mem_trap_cause <= ex_trap_cause;
+            mem_trap_value <= ex_trap_value;
             mem_mret_exec       <= ex_mret_exec;
             mem_csr_addr        <= ex_csr_addr;
             mem_csr_wr          <= ex_csr_wr;

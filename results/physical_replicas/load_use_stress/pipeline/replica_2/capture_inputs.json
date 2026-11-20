@@ -1,0 +1,12 @@
+{
+  "rtl": "b6e6ced0bde13209806ab4f7be628d284f68a7538de3ad5b46d1518040a53f24",
+  "elf": "fb0f7225235e2b30e86e9d284975dab5b2d40990c333de3fe196c2d05e8c2673",
+  "sof": "97f39186749a0cd9cb7b74b62c0bc32c914052f3b026102a41149b0d9632f0cf",
+  "memory_check": "hardware_evidence/memory_97f39186749a0cd9cb7b74b62c0bc32c914052f3b026102a41149b0d9632f0cf.log",
+  "memory_check_sha256": "b8bafcd25ab3e29cb8a6b3e823a84c7ac3f66bc95ea622e21a9effb16b8fb494",
+  "timing_evidence": "physical_replicas/load_use_stress/pipeline/replica_2/vga_timing",
+  "replica_seed": 2,
+  "replica_directory": "physical_replicas/load_use_stress/pipeline/replica_2",
+  "sof_path": "/mnt/c/Users/juanb/Documents/GitHub/riscv-rv32im-fpga/results/physical_replicas/load_use_stress/pipeline/replica_2/rv32im_pipeline.sof",
+  "fmax_mhz": 60.13
+}

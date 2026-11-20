@@ -1,0 +1,42 @@
+{
+  "nominal_pass": true,
+  "cases": 120,
+  "scenarios": [
+    {
+      "scenario": "project",
+      "setup_at_0_5_ns": 2.323,
+      "hold_at_0_5_ns": 4.965,
+      "largest_tested_passing_skew_ns": 2.5,
+      "linear_zero_margin_skew_ns": 2.823
+    },
+    {
+      "scenario": "c10_c10",
+      "setup_at_0_5_ns": 2.304,
+      "hold_at_0_5_ns": 4.965,
+      "largest_tested_passing_skew_ns": 2.5,
+      "linear_zero_margin_skew_ns": 2.804
+    },
+    {
+      "scenario": "c10_c20",
+      "setup_at_0_5_ns": 2.463,
+      "hold_at_0_5_ns": 4.965,
+      "largest_tested_passing_skew_ns": 2.5,
+      "linear_zero_margin_skew_ns": 2.963
+    },
+    {
+      "scenario": "c20_c10",
+      "setup_at_0_5_ns": 2.113,
+      "hold_at_0_5_ns": 4.965,
+      "largest_tested_passing_skew_ns": 2.5,
+      "linear_zero_margin_skew_ns": 2.613
+    },
+    {
+      "scenario": "c20_c20",
+      "setup_at_0_5_ns": 2.272,
+      "hold_at_0_5_ns": 4.965,
+      "largest_tested_passing_skew_ns": 2.5,
+      "linear_zero_margin_skew_ns": 2.772
+    }
+  ],
+  "interpretation": "Model sensitivity only; capacitance and skew are hypothetical, not measured bounds."
+}

@@ -1,0 +1,20 @@
+{
+  "architecture": "pipeline",
+  "program": "coremark",
+  "result": "pass",
+  "cycle_count": 802319745,
+  "instr_retired": 627612849,
+  "iterations": 2000,
+  "clock_mhz": 50,
+  "rtl_sha256": "b6e6ced0bde13209806ab4f7be628d284f68a7538de3ad5b46d1518040a53f24",
+  "elf_sha256": "1d99dfc60cdf9da2b89ede209f472cc66103f58ef476919381505086a308c481",
+  "sof_sha256": "b19bd336e86e5d514a3314642d22418af6fa1e5dd16b783f5d87f10df832b6a3",
+  "counter_protocol": "retire-inclusive-v2",
+  "tohost_addr": "0x6000",
+  "crc_status": "0x1",
+  "crc_method": "crc-gated-t0-v1",
+  "date_utc": "2026-11-18T22:40:49.639788+00:00",
+  "source": "vga_console",
+  "memory_check": "hardware_evidence/memory_b19bd336e86e5d514a3314642d22418af6fa1e5dd16b783f5d87f10df832b6a3.log",
+  "memory_check_sha256": "b8bafcd25ab3e29cb8a6b3e823a84c7ac3f66bc95ea622e21a9effb16b8fb494"
+}

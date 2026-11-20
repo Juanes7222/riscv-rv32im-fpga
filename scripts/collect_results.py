@@ -39,6 +39,7 @@ TEST_SUITES = {
             "test_rv32i",      # 37 RV32I ISA tests
             "test_rv32m",      # 8 M-extension tests
             "test_rv32mi",     # 15 machine-mode tests
+            "test_precise_exceptions", # Directed synchronous exceptions
             "test_alu_rv32i",  # ALU unit tests
             "test_branch",     # Branch unit tests
             "test_model_vs_dut", # Reference model comparison
@@ -56,6 +57,7 @@ TEST_SUITES = {
             "test_pipeline_rv32i",    # 37 RV32I ISA tests
             "test_pipeline_rv32m",    # 8 M-extension tests
             "test_pipeline_rv32mi",   # 15 machine-mode tests
+            "test_precise_exceptions",
             "test_pipeline_hazards",  # 7 hazard/forwarding tests
             "test_pipeline_control",  # 5 control hazard tests
             "test_pipeline_cpi",      # 4 CPI performance tests
@@ -75,7 +77,8 @@ TEST_SUITE_NAMES = {
     "test_alu_rv32i":        "ALU Unit Tests",
     "test_branch":           "Branch Unit Tests",
     "test_model_vs_dut":     "Model vs DUT Comparison",
-    "test_cpi_one":          "CPI=1 Invariant (45 tests)",
+    "test_cpi_one":          "Ciclo, retiro, excepciones y división (45 pruebas)",
+    "test_precise_exceptions": "Excepciones síncronas precisas (9 pruebas)",
     "test_pipeline_smoke":   "Pipeline Smoke Tests (4 tests)",
     "test_pipeline_debug":   "Pipeline Debug/Forwarding",
     "test_pipeline_rv32i":   "Pipeline RV32I ISA (37 tests)",

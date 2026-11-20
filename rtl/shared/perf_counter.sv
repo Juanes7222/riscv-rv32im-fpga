@@ -10,7 +10,7 @@ module perf_counters #(
     // Single-cycle: connect div_busy. Tie to 1'b0 when PIPELINE_MODE = 1.
     input  logic        div_busy,
 
-    // Pipeline: connect valid_wb. Tie to 1'b0 when PIPELINE_MODE = 0.
+    // A nonfaulting completed instruction: decode validity in single-cycle, WB validity in pipeline.
     input  logic        valid_wb,
 
     // program_done_pulse: pulsed high (one cycle) when the benchmark writes
@@ -37,7 +37,7 @@ module perf_counters #(
 
     generate
         if (PIPELINE_MODE == 1'b0)
-            assign instr_retired_en = ~div_busy;
+            assign instr_retired_en = ~div_busy && valid_wb;
         else
             assign instr_retired_en = valid_wb;
     endgenerate

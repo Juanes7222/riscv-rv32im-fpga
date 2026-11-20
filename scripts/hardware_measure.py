@@ -62,6 +62,7 @@ from coremark_hardware import (  # noqa: E402
 
 RESULTS = REPO_ROOT / "results"
 VALID_ARCHS = ("single_cycle", "pipeline")
+CPU_CLOCK_MHZ = {"single_cycle": 40, "pipeline": 50}
 SYNTHETIC_PROGRAMS = ("raw_stress", "branch_stress", "load_use_stress", "m_ext_stress")
 COREMARK = "coremark"
 COREMARK_ELF = REPO_ROOT / "build" / COREMARK / f"{COREMARK}.elf"
@@ -211,7 +212,9 @@ def make_env(tohost_addr: int) -> dict:
     }
 
 
-def prepare_and_program(elf: Path, arch: str, tohost_addr: int) -> dict:
+def prepare_and_program(elf: Path, arch: str, tohost_addr: int,
+                        replica_seed: int | None = None,
+                        results_directory: Path | None = None) -> dict:
     """Steps 1-3: memory images, synthesis, program the FPGA."""
     imem_mem = REPO_ROOT / "build" / "imem.mem"
     dmem_mem = REPO_ROOT / "build" / "dmem.mem"
@@ -228,7 +231,16 @@ def prepare_and_program(elf: Path, arch: str, tohost_addr: int) -> dict:
     ])
 
     print("\n[2/3] Synthesizing (a couple of minutes)...")
-    run(["make", "build", f"ARCH={arch}"], extra_env=make_env(tohost_addr))
+    replica = None
+    if replica_seed is None:
+        run(["make", "build", f"ARCH={arch}"], extra_env=make_env(tohost_addr))
+    else:
+        if results_directory is None:
+            raise ValueError('A replica output directory is required')
+        replica = results_directory / f'replica_{replica_seed}'
+        run(['make', 'replica', f'ARCH={arch}', f'REPLICA={replica_seed}',
+             f'RESULTS_DIR={results_directory}', f'ELF={elf}', f'TOHOST_ADDR={tohost_addr:#x}'],
+            extra_env=make_env(tohost_addr))
 
     sof = REPO_ROOT / "synthesis" / arch / "output_files" / f"rv32im_{arch}.sof"
     provenance = {**measurement_inputs("", elf), "sof": file_fingerprint(sof)}
@@ -244,19 +256,35 @@ def prepare_and_program(elf: Path, arch: str, tohost_addr: int) -> dict:
     provenance["memory_check"] = str(log.relative_to(RESULTS))
     provenance["memory_check_sha256"] = file_fingerprint(log)
 
+    from vga_timing import check_evidence
+    timing = (replica / 'vga_timing' if replica is not None else
+              RESULTS / 'hardware_timing' / provenance['sof'])
+    if not (timing / 'manifest.json').is_file():
+        run([sys.executable, 'scripts/vga_timing.py', '--project',
+             str(REPO_ROOT / 'synthesis' / arch), '--output', str(timing)])
+    check_evidence(timing, provenance['rtl'], sof)
+    provenance['timing_evidence'] = str(timing.relative_to(RESULTS))
+    if replica is not None:
+        import json
+        provenance.update(replica_seed=replica_seed,
+                          replica_directory=str(replica.relative_to(RESULTS)),
+                          sof_path=str(replica / f'rv32im_{arch}.sof'),
+                          fmax_mhz=float((replica / 'fmax.txt').read_text()))
+        (replica / 'capture_inputs.json').write_text(json.dumps(provenance, indent=2) + '\n')
+
     print("\n[3/3] Programming the FPGA...")
     run(["make", "program-direct", f"ARCH={arch}"], extra_env=make_env(tohost_addr))
     return provenance
 
 
-def ask_vga_values(tohost_addr: int, coremark: bool = False) -> dict:
+def ask_vga_values(tohost_addr: int, coremark: bool = False, *, halted: bool = False) -> dict:
     """Steps 6-7: read VGA console values and return the CSV row dict."""
     print("\n" + "=" * 60)
     print("  READ THE VGA CONSOLE NOW")
     print("=" * 60)
-    print("  1. Press KEY[0] on the DE1-SoC to release reset.")
-    print("  2. Wait for HALTED = 1 (benchmark finished).")
-    print(f"  3. Read CyclesToPass and InstrToPass (tohost was {tohost_addr:#x}).")
+    if not halted:
+        print("  Press and release KEY[0] once. Wait for HALTED = 1.")
+    print(f"  Read CyclesToPass and InstrToPass (tohost was {tohost_addr:#x}).")
     print("=" * 60)
 
     cycles_raw = input("  CyclesToPass (decimal or 0xhex): ")
@@ -300,7 +328,8 @@ def save_csv(out_csv: Path, arch: str, program: str, tohost_addr: int, values: d
              provenance: dict) -> None:
     """Append one row to the hardware CSV."""
     out_csv.parent.mkdir(parents=True, exist_ok=True)
-    sof = REPO_ROOT / "synthesis" / arch / "output_files" / f"rv32im_{arch}.sof"
+    sof = Path(provenance.get('sof_path') or
+               REPO_ROOT / "synthesis" / arch / "output_files" / f"rv32im_{arch}.sof")
     sof_hash = file_fingerprint(sof)
     current = {**measurement_inputs(program, elf), "sof": sof_hash}
     if any(provenance[key] != value for key, value in current.items()):
@@ -319,11 +348,17 @@ def save_csv(out_csv: Path, arch: str, program: str, tohost_addr: int, values: d
         "tohost_addr": hex(tohost_addr),
         "seconds": values["seconds"],
         "source": "vga_console",
+        "timing_evidence": provenance['timing_evidence'],
+        "replica_seed": provenance.get('replica_seed', ''),
+        "replica_directory": provenance.get('replica_directory', ''),
+        "fmax_mhz": provenance.get('fmax_mhz', ''),
+        "memory_check": provenance['memory_check'],
+        "memory_check_sha256": provenance['memory_check_sha256'],
         "rtl_sha256": source_fingerprint(),
         "elf_sha256": file_fingerprint(elf),
         "sof_sha256": sof_hash,
         "counter_protocol": "retire-inclusive-v2",
-        "clock_mhz": 40 if arch == "single_cycle" else 50,
+        "clock_mhz": CPU_CLOCK_MHZ[arch],
         "functional_validation": "CRC pending" if program == COREMARK else "termination only",
 
         "date_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),

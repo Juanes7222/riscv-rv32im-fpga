@@ -1,8 +1,8 @@
 # verification/cocotb/single_cycle/test/test_cpi_one.py
 """
-Single-cycle architectural invariant: cycle_count == instr_retired for every
-instruction except DIV/DIVU/REM/REMU, where instr_retired < cycle_count because
-each division occupies 34 cycles (1 fetch + 32 RUNNING + 1 DONE, see ADR 031).
+Single-cycle cycle balance: retired instructions, synchronous exceptions, and
+division waits explain every measured cycle. Faulting instructions do not retire.
+The riscv-tests startup executes ECALL, so its aggregate CPI need not be one.
 
 `cycle_count` and `instr_retired` are internal signals of `top_single_cycle.sv`
 (perf_counter instance, not top-level ports). They are read by hierarchy in
@@ -10,10 +10,8 @@ cocotb (Icarus). This keeps the DE1-SoC pinout unchanged; if Verilator or
 another simulator is added later, these signals must be promoted to
 top-level outputs.
 
-Each test reuses the same DUT module (top_single_cycle) but gets a fresh
-instance per test. The 37 RV32I tests and 8 RV32M tests are split by whether
-the test binary contains a division: non-division tests assert strict
-equality, division tests assert the inequality and log the effective CPI.
+Each case also requires functional success. A concurrent clock monitor counts
+exception and division cycles independently of the performance counters.
 """
 import pathlib
 
@@ -26,6 +24,7 @@ from tohost import (
     REPO_ROOT,
 )
 from conftest import apply_reset, start_clock
+from cocotb.triggers import FallingEdge, Timer
 
 _TESTS_DIR_I = REPO_ROOT / "build" / "riscv-tests" / "rv32ui"
 _TESTS_DIR_M = REPO_ROOT / "build" / "riscv-tests" / "rv32um"
@@ -41,7 +40,22 @@ def _make_cpi_test(test_name: str, elf: pathlib.Path, is_div: bool):
     async def _test(dut):
         if not elf.exists():
             raise FileNotFoundError(f"ELF not found: {elf}")
+        counts = {'faults': 0, 'division': 0}
+
+        async def count_nonretiring_cycles():
+            while True:
+                await FallingEdge(dut.clk_cpu)
+                await Timer(1, unit='ns')
+                if (int(dut.rst_n_cpu.value) and int(dut.fetch_valid.value)
+                        and not int(dut.step_hold_effective.value)
+                        and not int(dut.program_done.value)):
+                    if int(dut.div_busy.value):
+                        counts['division'] += 1
+                    elif int(dut.trap_entry.value):
+                        counts['faults'] += 1
+
         await start_clock(dut)
+        watcher = cocotb.start_soon(count_nonretiring_cycles())
         imem_path, dmem_path = generate_mem_for_elf(elf)
         await reset_and_reload_memories(dut, imem_path, dmem_path)
         await apply_reset(dut)
@@ -54,10 +68,17 @@ def _make_cpi_test(test_name: str, elf: pathlib.Path, is_div: bool):
 
         cycles = int(dut.cycle_count.value)
         instrs = int(dut.instr_retired.value)
+        watcher.cancel()
+
+        assert cycles == instrs + counts['faults'] + counts['division'], (
+            f"[cpi/{test_name}] cycle balance mismatch: "
+            f"cycles={cycles}, retired={instrs}, faults={counts['faults']}, "
+            f"division_waits={counts['division']}"
+        )
 
         if not is_div:
-            assert cycles == instrs, (
-                f"[cpi/{test_name}] CPI != 1: "
+            assert cycles - counts['faults'] == instrs, (
+                f"[cpi/{test_name}] Ordinary instruction cycle balance failed: "
                 f"cycles={cycles}, instrs={instrs}, "
                 f"ratio={cycles / max(instrs, 1):.4f}"
             )

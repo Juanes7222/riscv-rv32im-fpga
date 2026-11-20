@@ -514,15 +514,14 @@ thesis-quick:
 # when their RTL, tests or ELF did not change. Hardware measurements
 # follow the preliminary report because they need the DE1-SoC and a value
 # read from the VGA console. Strict publication runs after physical capture.
-# Pass FORCE=1 to redo every measurement.
+# FORCE=1 refreshes automated evidence; verified physical seeds are resumable.
 .PHONY: full-campaign
 full-campaign:
 	@python3 verification/test_vga_timing.py
 	@$(MAKE) --no-print-directory verify-timing
 	@$(MAKE) --no-print-directory thesis FORCE=$(FORCE)
 	@$(MAKE) --no-print-directory verify-coremark
-	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/hardware_measure.py \
-		--all-both $(if $(FORCE),--force,)
+	@PATH="$(VENV_BIN):$$PATH" $(VENV_PY) scripts/measure_replica_campaign.py --capture
 	@$(MAKE) --no-print-directory validate-campaign
 	@echo "Campaign evidence and generated artifacts passed the final checks."
 

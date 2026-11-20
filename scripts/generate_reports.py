@@ -21,11 +21,17 @@ import coremark_hardware as physical
 import measure_benchmarks as benchmark_preparation
 from campaign_state import source_fingerprint, verification_fingerprint
 from replica_manifest import verified
+from measure_replica_campaign import campaign_observations
+from physical_campaign_report import write_physical_results
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "build/reports/latest"
 GENERATOR_FILES = [Path(p) for p in (__file__, artifacts.__file__, collector.__file__,
                                     physical.__file__, benchmark_preparation.__file__)]
+GENERATOR_FILES += [ROOT / 'scripts/physical_campaign_report.py',
+                    ROOT / 'scripts/measure_physical_repetitions.py',
+                    ROOT / 'scripts/measure_replica_campaign.py',
+                    ROOT / 'scripts/hardware_measure.py']
 
 
 def digest(path):
@@ -70,10 +76,26 @@ def input_files(results, verification):
         files.add(results / f"hardware_{arch}_coremark_v2.csv")
         files.update(path for path in physical.observation_inputs(row, results) if path.is_file())
     files.update(GENERATOR_FILES)
+    files.update(results.glob('benchmark_*.csv'))
+    repetitions = results / 'physical_replica_observations'
+    if (results / 'physical_replica_plan.json').is_file():
+        files.add(results / 'physical_replica_plan.json')
+    for path in repetitions.glob('*.csv'):
+        files.add(path)
+        with path.open() as stream:
+            for row in csv.DictReader(stream):
+                files.update(artifact for artifact in physical.observation_inputs(row, results)
+                             if artifact.is_file())
+                timing = (results / row.get('timing_evidence', '')).resolve()
+                if row.get('timing_evidence') and timing.is_relative_to(results.resolve()):
+                    files.update(path for path in timing.rglob('*') if path.is_file())
+                replica = (results / row.get('replica_directory', '')).resolve()
+                if row.get('replica_directory') and replica.is_relative_to(results.resolve()):
+                    files.update(path for path in replica.rglob('*') if path.is_file())
     return sorted(files)
 
 
-def evidence_issues(replicas, benchmarks, verification, tests_ran=False):
+def evidence_issues(replicas, benchmarks, verification, captures, tests_ran=False):
     """Report evidence gaps separately from the correctness of rendered values."""
     issues = []
     fingerprint = source_fingerprint()
@@ -83,8 +105,8 @@ def evidence_issues(replicas, benchmarks, verification, tests_ran=False):
         issues.append("Verification results lack a matching RTL/test fingerprint")
     for arch in artifacts.ARCHES:
         rows = [r for r in replicas if r["arch"] == arch]
-        if not rows:
-            issues.append(f"{arch}: no synthesis replicas")
+        if {int(row["replica"]) for row in rows} != set(range(1, 6)):
+            issues.append(f"{arch}: characterization requires seeds 1 through 5")
         for row in rows:
             directory = artifacts.INPUT_RESULTS / arch / f"replica_{row['replica']}"
             if not verified(directory, fingerprint):
@@ -118,12 +140,10 @@ def evidence_issues(replicas, benchmarks, verification, tests_ran=False):
             issues.append(f"{name}: retirement protocol missing or historical")
         if "coremark" in row["program"].lower() and row.get("coremark_functional_valid") != "True":
             issues.append(f"{name}: functional CRC evidence missing")
-    hardware = {row["arch"]: row for row in artifacts.read_coremark_hardware()}
     for arch in artifacts.ARCHES:
-        row = hardware.get(arch, {})
-        if row.get("coremark_functional_valid") != "True":
-            reason = row.get("physical_evidence_issue") or "physical observation missing"
-            issues.append(f"{arch}: physical CoreMark CRC evidence missing or invalid ({reason})")
+        cores = [row for (name, program, _), row in captures.items()
+                 if name == arch and program == 'coremark']
+        if not cores:
             continue
         for replica in (r for r in replicas if r["arch"] == arch):
             directory = artifacts.INPUT_RESULTS / arch / f"replica_{replica['replica']}"
@@ -132,20 +152,20 @@ def evidence_issues(replicas, benchmarks, verification, tests_ran=False):
                 manifest = json.loads(path.read_text())
                 programs = [value for name, value in manifest.get("inputs", {}).items()
                             if name.endswith(".elf")]
-                if programs != [row["elf_sha256"]]:
+                if any(programs != [row["elf_sha256"]] for row in cores):
                     issues.append(f"{arch}/{directory.name}: synthesized workload differs from physical CoreMark ELF")
     return issues
 
 
-def write_report(output, replicas, benchmarks, verification, issues):
+def write_report(output, replicas, benchmarks, verification, issues, captures, physical_issues):
     stats = artifacts.replica_stats(replicas)
     metrics = artifacts.benchmark_metrics(benchmarks, stats)
     lines = ["# Resultados de la campaña", "",
              "Estado: **diagnóstico; evidencia incompleta o histórica**." if issues else
              "Estado: evidencia de entrada comprobada para este informe.", "",
              "Las frecuencias de síntesis producen proyecciones de rendimiento. "
-             "Las aprobaciones de wrappers incluyen limitaciones de modo máquina; "
-             "no acreditan conformidad ISA completa.", "",
+             "Las pruebas ejecutadas delimitan el alcance funcional y no "
+             "acreditan conformidad exhaustiva con la ISA.", "",
              "## Verificación", "", "| Arquitectura | Aprobadas | Fallos/errores | Total |",
              "|---|---:|---:|---:|"]
     for arch in artifacts.ARCHES:
@@ -169,17 +189,7 @@ def write_report(output, replicas, benchmarks, verification, issues):
         speedup = metric.get("speedup")
         lines.append(f"| {metric['program']} | {artifacts.fmt(speedup['mean'], 4) if speedup else '---'} | "
                      f"{artifacts.fmt(speedup['std'], 4) if speedup else '---'} |")
-    hardware = artifacts.read_coremark_hardware()
-    if hardware:
-        lines += ["", "## CoreMark en FPGA", "",
-                  "El método crc-gated-t0-v1 registra el resultado de las comprobaciones CRC "
-                  "mediante x5/t0 tras finalizar; no captura los CRC individuales ni valida "
-                  "el temporizador interno de CoreMark.", "",
-                  "| Arquitectura | Ciclos | Instrucciones | Resultado CRC acreditado |",
-                  "|---|---:|---:|---|"]
-        for row in hardware:
-            status = "Sí (x5/t0)" if row.get("coremark_functional_valid") == "True" else "Pendiente o inválido"
-            lines.append(f"| {row['arch']} | {row['cycles']} | {row['instructions']} | {status} |")
+    lines += write_physical_results(output, captures, physical_issues)
     lines += ["", "## Evidencia pendiente", ""]
     lines += [f"- {issue}" for issue in issues] or ["Sin incidencias detectadas por estas comprobaciones."]
     lines += ["", "## Archivos", "", "- `results/`: datos y resúmenes usados en este informe.",
@@ -255,7 +265,9 @@ def main(argv=None):
         replicas = artifacts.collect_replicas()
         benchmarks = artifacts.read_benchmarks()
         verification = artifacts.read_verification()
-        issues = evidence_issues(replicas, benchmarks, verification, tests_ran=args.run_tests and tests_ok)
+        captures, physical_issues = campaign_observations(source, source_fingerprint())
+        issues = evidence_issues(replicas, benchmarks, verification, captures,
+                                 tests_ran=args.run_tests and tests_ok) + physical_issues
         if args.strict and issues:
             raise ValueError("Evidence is not ready for a validated report:\n" + "\n".join(issues))
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -267,7 +279,7 @@ def main(argv=None):
             if artifacts.check_artifacts():
                 raise ValueError("Generated tables or figures failed consistency checks")
             standalone_figures(args.render, args.compiler)
-            write_report(staging, replicas, benchmarks, verification, issues)
+            write_report(staging, replicas, benchmarks, verification, issues, captures, physical_issues)
             for name, expected in inputs.items():
                 if digest(Path(name)) != expected:
                     raise ValueError(f"Input changed during generation: {name}")

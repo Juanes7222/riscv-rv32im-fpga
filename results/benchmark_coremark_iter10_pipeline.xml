@@ -1,6 +1,6 @@
 <testsuites name="results">
   <testsuite name="all" package="all">
-    <property name="random_seed" value="1794958236" />
-    <testcase name="test_validation" classname="test_validation" file="/mnt/c/Users/juanb/Documents/GitHub/riscv-rv32im-fpga/verification/cocotb/common/test_validation.py" lineno="42" time="636.0033385753632" sim_time_ns="40302140.0" ratio_time="63367.81201538363" />
+    <property name="random_seed" value="1794972207" />
+    <testcase name="test_validation" classname="test_validation" file="/mnt/c/Users/juanb/Documents/GitHub/riscv-rv32im-fpga/verification/cocotb/common/test_validation.py" lineno="42" time="668.2317252159119" sim_time_ns="40302140.0" ratio_time="60311.62316781354" />
   </testsuite>
 </testsuites>
