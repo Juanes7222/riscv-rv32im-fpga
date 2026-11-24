@@ -5,7 +5,9 @@ module top_pipeline #(
     parameter string IMEM_FILE  = "program.mem",
     parameter int    IMEM_DEPTH = 16384,
     parameter int    DMEM_DEPTH = 8192,
-    parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
+    parameter logic [31:0] TOHOST_ADDR = 32'h708,  // riscv-tests tohost symbol address
+    parameter int CPU_PLL_MULTIPLY = 0,
+    parameter int CPU_PLL_DIVIDE = 1
 )(
     input  logic        clk,        // 50 MHz - DE1-SoC PIN_AF14
     input  logic        rst_n,      // Active-low asynchronous board reset - KEY[0]
@@ -32,7 +34,21 @@ module top_pipeline #(
     output logic        vga_sync_n
 );
 
-    // Internal reset (active-high for modules that require it)            //
+    // Keep the CPU in reset until its configured clock is ready.
+    logic clk_cpu;
+    logic cpu_clock_ready;
+    generate
+        if (CPU_PLL_MULTIPLY != 0) begin : g_cpu_clock
+            cpu_pll #(
+                .MULTIPLY_BY(CPU_PLL_MULTIPLY), .DIVIDE_BY(CPU_PLL_DIVIDE)
+            ) u_cpu_pll (
+                .clk_in(clk), .rst_in(~rst_n), .clk_out(clk_cpu), .locked(cpu_clock_ready)
+            );
+        end else begin : g_board_clock
+            assign clk_cpu = clk;
+            assign cpu_clock_ready = 1'b1;
+        end
+    endgenerate
 
     logic rst;
     // Pulse the CPU reset right after the loader finishes copying a program,
@@ -43,7 +59,7 @@ module top_pipeline #(
     logic        load_done_q;
     logic        loader_reset_pulse;
 
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk_cpu) begin
         if (!rst_n_int) begin
             load_done_q <= 1'b0;
         end else begin
@@ -54,7 +70,7 @@ module top_pipeline #(
 
     logic rst_n_int;
     reset_release_sync u_cpu_reset (
-        .clk(clk), .async_reset_n(rst_n), .reset_n(rst_n_int)
+        .clk(clk_cpu), .async_reset_n(rst_n & cpu_clock_ready), .reset_n(rst_n_int)
     );
 
     assign rst = ~rst_n_int | loader_reset_pulse;
@@ -242,7 +258,7 @@ module top_pipeline #(
     logic       program_done;          // sticky HALTED flag, set at tohost write
     logic       tail_loop_halt;        // sticky freeze once the final j . commits
 
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk_cpu) begin
         if (!rst_n_int)
             power_on_pause_cnt <= 4'd0;
         else if (power_on_pause_cnt != 4'd15)
@@ -256,7 +272,7 @@ module top_pipeline #(
     assign step_hold_effective = step_hold | power_on_pause | tail_loop_halt;
 
     step_mode_ctrl u_step_mode (
-        .clk       (clk),
+        .clk       (clk_cpu),
         .rst_n     (rst_n_int),
         .key_step  (key_step),
         .step_mode (step_mode),
@@ -302,7 +318,7 @@ module top_pipeline #(
 
     // Count through the tohost store's retirement, including that store.
     logic program_done_pulse;
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk_cpu) begin
         if (rst)
             wb_tohost <= 1'b0;
         else if (!ex_div_busy && !step_hold_effective)
@@ -315,7 +331,7 @@ module top_pipeline #(
     // Registered copy for the console and the SignalTap II trigger.  `rst`
     // also covers the loader reset pulse, so loading a new program clears the
     // HALTED state instead of freezing the program that was just loaded.
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk_cpu) begin
         if (rst) begin
             program_done <= 1'b0;
         end else if (program_done_pulse) begin
@@ -332,7 +348,7 @@ module top_pipeline #(
     logic tail_loop_committed;
     assign tail_loop_committed = program_done && (wb_instruction == 32'h0000006F);
 
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk_cpu) begin
         if (rst) begin
             tail_loop_halt <= 1'b0;
         end else if (tail_loop_committed) begin
@@ -343,7 +359,7 @@ module top_pipeline #(
     perf_counters #(
         .PIPELINE_MODE (1'b1)
     ) u_perf (
-        .clk                  (clk),
+        .clk                  (clk_cpu),
         .rst_n                (~rst),
         .enable               (~step_hold_effective & ~program_done),
         .div_busy             (ex_div_busy),
@@ -393,7 +409,7 @@ module top_pipeline #(
     end
 
     pc_unit u_pcunit (
-        .clk           (clk),
+        .clk           (clk_cpu),
         .rst           (rst),
         .stall         (pipe_stall),
         .fetch_valid   (fetch_valid),
@@ -422,7 +438,7 @@ module top_pipeline #(
         .IMEM_DEPTH (IMEM_DEPTH),
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_loader (
-        .clk          (clk),
+        .clk          (clk_cpu),
         .rst_n        (rst_n_int),
         .step_hold    (step_hold_effective),
         .prog_sel     (sw[3:0]),
@@ -439,7 +455,7 @@ module top_pipeline #(
     instruction_memory_pipe #(
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_imem (
-        .clk         (clk),
+        .clk         (clk_cpu),
         .fetch_en    (~pipe_stall),
         .next_pc     (imem_addr),
         .instruction (if_instruction),
@@ -453,7 +469,7 @@ module top_pipeline #(
     // same address, so both describe the same word.  There is no extra
     // register here: the branch redirect is resolved through next_if_pc, so a
     // taken branch costs one cycle (the wrong-path word in ID) instead of two.
-    always_ff @(posedge clk) begin
+    always_ff @(posedge clk_cpu) begin
         if (rst) begin
             fetch_valid <= 1'b0;
             id_pc       <= '0;
@@ -471,7 +487,7 @@ module top_pipeline #(
     assign id_rd_addr  = id_instruction[11:7];
 
     register_file u_rf (
-        .clk      (clk),
+        .clk      (clk_cpu),
         .rst      (rst),           // active-high, matches single-cycle .rst(~rst_n)
         .rs1_addr (id_rs1_addr),
         .rs2_addr (id_rs2_addr),
@@ -558,7 +574,7 @@ module top_pipeline #(
     // (the div must stay in EX for 34 cycles; load-use does NOT stall here
     // because the load needs to advance to MEM).
     id_ex_register u_id_ex (
-        .clk               (clk),
+        .clk               (clk_cpu),
         .rst               (rst),
         .flush             (id_ex_flush),
         .stall             (ex_div_busy || step_hold_effective),
@@ -657,7 +673,7 @@ module top_pipeline #(
     assign ex_alu_b = ex_alub_src ? ex_imm : ex_rs2_fwd;
 
     alu_rv32im u_alu (
-        .clk     (clk),
+        .clk     (clk_cpu),
         .rst_n   (rst_n_int && !(trap_flush && !step_hold_effective)),
         .hold    (1'b0),           // the divider is not part of the freeze
         .a       (ex_alu_a),
@@ -684,7 +700,7 @@ module top_pipeline #(
     // normally. A trap in WB must invalidate the EX-stage instruction
     // (one cycle younger than the trap), so EX/MEM gets bubbled.
     ex_mem_register u_ex_mem (
-        .clk                (clk),
+        .clk                (clk_cpu),
         .rst                (rst),
         .stall              (ex_div_busy || step_hold_effective),
         .flush              (trap_flush & ~step_hold_effective),
@@ -752,7 +768,7 @@ module top_pipeline #(
     data_memory_pipe #(
         .DMEM_DEPTH (DMEM_DEPTH)
     ) u_dmem (
-        .clk        (clk),
+        .clk        (clk_cpu),
         .addr       (dmem_addr_eff),
         .wr_data    (dmem_wdata_eff),
         .dm_wr      (dmem_wr_eff),
@@ -779,7 +795,7 @@ module top_pipeline #(
     // Note: dm_rd_data bypasses MEM/WB; the DMEM registered output feeds
     // the WB mux directly.  mem_dm_rd_data is tied to 0 for port compat.
     mem_wb_register u_mem_wb (
-        .clk                (clk),
+        .clk                (clk_cpu),
         .rst                (rst),
         .stall              ((ex_div_busy && !trap_flush) || step_hold_effective),
         .mem_alu_result     (mem_alu_result),
@@ -847,7 +863,7 @@ module top_pipeline #(
                           : wb_rs1_data;            // forwarded rs1 register value
 
     csr_file u_csr (
-        .clk        (clk),
+        .clk        (clk_cpu),
         .rst_n      (rst_n_int),
         .csr_addr   (wb_csr_addr),
         .csr_wdata  (wb_csr_wdata),
@@ -963,7 +979,7 @@ module top_pipeline #(
         .DMEM_DEPTH (DMEM_DEPTH),
         .IMEM_DEPTH (IMEM_DEPTH)
     ) u_writer (
-        .cpu_clk (clk),
+        .cpu_clk (clk_cpu),
         .cpu_rst_n (rst_n_int),
         .clk              (vga_pixel_clk),
         .rst_n            (~vga_rst),
@@ -1075,7 +1091,7 @@ module top_pipeline #(
     logic [31:0] imem_shadow_rd_addr;
 
     vga_mem_shadow #(.DEPTH(DMEM_DEPTH)) u_dmem_shadow (
-        .wr_clk (clk),
+        .wr_clk (clk_cpu),
         .wr_en  (shadow_wr_en),
         .wr_addr(shadow_wr_addr),
         .wr_data(shadow_wr_data),
@@ -1086,7 +1102,7 @@ module top_pipeline #(
     );
 
     vga_rom_shadow #(.DEPTH(IMEM_DEPTH)) u_imem_shadow (
-        .wr_clk (clk),
+        .wr_clk (clk_cpu),
         .wr_en  (loader_imem_wr_en),
         .wr_addr(loader_imem_wr_addr),
         .wr_data(loader_imem_wr_data),

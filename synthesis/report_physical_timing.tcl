@@ -43,11 +43,11 @@ foreach model {slow fast} {
         puts $summary "$corner\tpayload_setup\t$result"
         foreach analysis {setup hold} {
             set result [report_timing -$analysis -to $dac_ports \
-                -npaths 50 -detail full_path \
+                -npaths 25 -nworst 1 -detail full_path \
                 -file [file join $report_directory "${corner}_dac_${analysis}.rpt"]]
             puts $summary "$corner\tdac_$analysis\t$result"
             set result [report_timing -$analysis -to $sync_ports \
-                -npaths 10 -detail full_path \
+                -npaths 2 -nworst 1 -detail full_path \
                 -file [file join $report_directory "${corner}_sync_${analysis}.rpt"]]
             puts $summary "$corner\tsync_$analysis\t$result"
         }

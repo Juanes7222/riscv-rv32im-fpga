@@ -1,6 +1,6 @@
 # Opens the Quartus project in the current directory and runs a full compile.
 # Requires that setup.tcl has been run at least once beforehand.
-# Usage: quartus_sh -t build.tcl [seed]
+# Usage: quartus_sh -t build.tcl [seed [multiply divide tohost threads]]
 #   seed: optional integer seed for the fitter (enables unique P&R per replica)
 
 load_package flow
@@ -39,6 +39,18 @@ set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set tohost_addr 0x00000708
 if {[info exists ::env(TOHOST_ADDR)]} {
     set tohost_addr $::env(TOHOST_ADDR)
+}
+if {$argc ni {0 1 5}} { error "Expected seed, or seed multiply divide tohost threads" }
+if {$argc == 5} {
+    lassign $argv seed multiply divide tohost_addr threads
+    foreach number [list $seed $multiply $divide $tohost_addr $threads] {
+        if {![string is integer -strict $number] || $number <= 0} {
+            error "Expected positive integer compilation parameters"
+        }
+    }
+    set_parameter -name CPU_PLL_MULTIPLY $multiply
+    set_parameter -name CPU_PLL_DIVIDE $divide
+    set_global_assignment -name NUM_PARALLEL_PROCESSORS $threads
 }
 set_parameter -name TOHOST_ADDR [expr {$tohost_addr}]
 

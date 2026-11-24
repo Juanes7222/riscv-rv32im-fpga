@@ -1,24 +1,11 @@
-// CPU clock PLL - 40 MHz from the 50 MHz board oscillator (PIN_AF14).
-//
-// The single-cycle processor keeps CPI = 1 with a 4 KB M10K data memory whose
-// read address is captured on the falling edge (ADR 048).  Its critical path
-// is the multiply writeback (ADR 050), which measures 48.48 MHz at 85 C
-// (replica mean 49.10 MHz) in results/results_report.md; the 46.17 MHz of an
-// earlier run is kept only as a historical figure.  It cannot run from
-// CLOCK_50 like the pipeline, so it runs from this 40 MHz output, which leaves
-// about 17 % of margin on that path (ADR 049).
-//
-// Configuration: F_out = F_in x multiply_by / divide_by = 50 x 24 / 30 = 40 MHz
-// with VCO = 50 x 24 / 1 = 1200 MHz (within 600-1600 MHz).
-//
-// The simulation model passes the input clock straight through: simulation
-// verifies behaviour and counts CPU cycles, which do not depend on the clock
-// period, and every testbench then drives one clock instead of two.
-
-module cpu_pll (
+// CPU PLL referenced to the 50 MHz board oscillator.
+module cpu_pll #(
+    parameter int MULTIPLY_BY = 24,
+    parameter int DIVIDE_BY = 30
+)(
     input  logic clk_in,     // 50 MHz from CLOCK_50 (PIN_AF14)
     input  logic rst_in,     // Active-high synchronous reset
-    output logic clk_out,    // 40 MHz processor clock
+    output logic clk_out,    // Configured processor clock
     output logic locked      // PLL lock indicator (1 = locked)
 );
 
@@ -45,9 +32,9 @@ module cpu_pll (
 
     altpll #(
         .bandwidth_type             ("AUTO"),
-        .clk0_divide_by             (30),
+        .clk0_divide_by             (DIVIDE_BY),
         .clk0_duty_cycle            (50),
-        .clk0_multiply_by           (24),
+        .clk0_multiply_by           (MULTIPLY_BY),
         .clk0_phase_shift           ("0"),
         .compensate_clock           ("CLK0"),
         .inclk0_input_frequency     (20000),    // 20000 ps = 50 MHz

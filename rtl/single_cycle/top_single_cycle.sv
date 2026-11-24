@@ -1,7 +1,9 @@
 module top_single_cycle #(
     parameter int IMEM_DEPTH = 16384,
     parameter int DMEM_DEPTH = 8192,
-    parameter logic [31:0] TOHOST_ADDR = 32'h708  // riscv-tests tohost symbol address
+    parameter logic [31:0] TOHOST_ADDR = 32'h708,  // riscv-tests tohost symbol address
+    parameter int CPU_PLL_MULTIPLY = 24,
+    parameter int CPU_PLL_DIVIDE = 30
 )(
     input logic clk,     // 50 MHz - DE1-SoC PIN_AF14 (CPU runs at 40 MHz, ADR 049)
     input logic rst_n,    // Active-low asynchronous board reset - KEY[0]
@@ -42,10 +44,7 @@ module top_single_cycle #(
     localparam [1:0] WB_PC4 = 2'b10;
     localparam [1:0] WB_CSR = 2'b11;    // ADR 030
 
-    // Processor clock: 40 MHz from the 50 MHz oscillator.  The multiply
-    // writeback (ADR 050) measures 48.48 MHz at 85 C (mean 49.10 MHz) in
-    // results/results_report.md, so CLOCK_50 would leave no margin (ADR 049).
-    // The VGA pixel PLL below keeps taking the 50 MHz pin.
+    // The pixel PLL continues to use the 50 MHz board input.
     logic clk_cpu;
     logic cpu_pll_locked;
 
@@ -57,7 +56,9 @@ module top_single_cycle #(
         .clk(clk_cpu), .async_reset_n(rst_n & cpu_pll_locked), .reset_n(rst_n_cpu)
     );
 
-    cpu_pll u_cpu_pll (
+    cpu_pll #(
+        .MULTIPLY_BY(CPU_PLL_MULTIPLY), .DIVIDE_BY(CPU_PLL_DIVIDE)
+    ) u_cpu_pll (
         .clk_in  (clk),
         .rst_in  (~rst_n),
         .clk_out (clk_cpu),

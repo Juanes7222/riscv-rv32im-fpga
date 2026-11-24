@@ -661,6 +661,22 @@ help:
 	@echo "  thesis-quick       Same campaign reusing the existing replicas"
 	@echo "  thesis-hardware    Measure every pending program on the DE1-SoC"
 	@echo "  full-campaign      Automated campaign, pending hardware and final validation"
+	@echo "  frequency-run      Start or resume the full frequency campaign"
+	@echo "  frequency-plan     Audit and list pending work without starting Quartus"
+	@echo "  frequency-pause    Stop dispatching work and let active builds finish"
+	@echo "  frequency-export   Produce a portable academic package"
+	@echo "  frequency-verify   Check package and campaign evidence"
+	@echo "  frequency-init     Freeze pilot inputs (FREQUENCY_ID)"
+	@echo "  frequency-search   Search or resume (FREQUENCY_JOBS)"
+	@echo "  frequency-status   Show timing and board validation state"
+	@echo "  frequency-progress Read candidate manifests during a running search"
+	@echo "  frequency-select   Show the verified SOF for ARCH"
+	@echo "  frequency-program  Program the verified SOF for ARCH"
+	@echo "  frequency-observe  Program and capture remaining physical boots for ARCH"
+	@echo "  frequency-observe-all Capture all selectable workloads in campaign order"
+	@echo "  frequency-report   Generate candidate CSV and physical metrics"
+	@echo "  frequency-jtag     List the FPGA programming chain"
+	@echo "  frequency-test     Run frequency campaign regression tests"
 	@echo "                     Incremental; FORCE=1 redoes all measurements."
 	@echo "  validate-campaign  Require complete evidence and regenerate the final report"
 	@echo "  check-artifacts    Check report hashes and recompute metrics, tables and figures"
@@ -683,3 +699,57 @@ verify-timing:
 vga-timing:
 	@$(VENV_PY) scripts/vga_timing.py --project "$(SYNTH_DIR)" \
 		--output "$(VGA_TIMING_DIR)" --quartus-sta "$(QUARTUS_STA)"
+
+# Frequency campaign uses isolated projects and resumes from sealed evidence.
+FREQUENCY_ID ?= fc-pilot
+FREQUENCY_ACTION ?= status
+FREQUENCY_JOBS ?= 3
+FREQUENCY_FULL_JOBS ?= 0
+FREQUENCY_BOARD ?= 1
+FREQUENCY_OUTPUT ?=
+FREQUENCY_LATEX ?=
+FREQUENCY_PORTABLE ?= 0
+FREQUENCY_FOLLOW ?= 0
+FREQUENCY_THREADS ?= 4
+FREQUENCY_PROGRAMS ?=
+FREQUENCY_REUSE_FROM ?=
+FREQUENCY_SEED ?=
+FREQUENCY_CABLE ?= DE-SoC
+FREQUENCY_DEVICE ?= 2
+FREQUENCY_CAPTURE ?=
+FREQUENCY_ARGS ?=
+JTAGCONFIG ?= jtagconfig.exe
+
+FREQUENCY_TARGETS = frequency-init frequency-search frequency-progress frequency-status frequency-select \
+                    frequency-program frequency-observe frequency-observe-all frequency-report \
+                    frequency-run frequency-plan frequency-pause frequency-export frequency-verify
+
+frequency-run frequency-plan frequency-pause frequency-export frequency-verify: FREQUENCY_ID = fc-full
+
+.PHONY: $(FREQUENCY_TARGETS) frequency-campaign frequency-jtag frequency-test
+
+frequency-campaign: frequency-$(FREQUENCY_ACTION)
+
+$(FREQUENCY_TARGETS): frequency-%:
+	@$(VENV_PY) -u scripts/frequency_campaign.py $* --id "$(FREQUENCY_ID)" \
+		--quartus-sh "$(QUARTUS_SH)" --quartus-sta "$(QUARTUS_STA)" --quartus-pgm "$(QUARTUS_PGM)" \
+		$(if $(filter search,$*),--jobs "$(FREQUENCY_JOBS)" $(if $(FREQUENCY_REUSE_FROM),--reuse-from "$(FREQUENCY_REUSE_FROM)")) \
+		$(if $(filter init run plan,$*),--threads "$(FREQUENCY_THREADS)") \
+		$(if $(filter init,$*),$(foreach name,$(FREQUENCY_PROGRAMS),--program "$(name)")) \
+		$(if $(filter run plan,$*),--jobs "$(FREQUENCY_FULL_JOBS)" $(if $(FREQUENCY_REUSE_FROM),--reuse-from "$(FREQUENCY_REUSE_FROM)")) \
+		$(if $(filter run,$*),--jtagconfig "$(JTAGCONFIG)" $(if $(filter 0,$(FREQUENCY_BOARD)),--no-board)) \
+		$(if $(and $(filter run export verify,$*),$(FREQUENCY_OUTPUT)),--output "$(FREQUENCY_OUTPUT)") \
+		$(if $(and $(filter run export,$*),$(FREQUENCY_LATEX)),--latex "$(FREQUENCY_LATEX)") \
+		$(if $(and $(filter verify,$*),$(filter 1,$(FREQUENCY_PORTABLE))),--portable) \
+		$(if $(and $(filter progress,$*),$(filter 1,$(FREQUENCY_FOLLOW))),--follow) \
+		$(if $(filter select program observe,$*),--arch "$(ARCH)" $(if $(PROGRAM),--program "$(PROGRAM)") $(if $(FREQUENCY_SEED),--seed "$(FREQUENCY_SEED)")) \
+		$(if $(filter program observe observe-all run,$*),--cable "$(FREQUENCY_CABLE)" --device-position "$(FREQUENCY_DEVICE)") \
+		$(if $(and $(filter observe observe-all run,$*),$(FREQUENCY_CAPTURE)),--capture "$(FREQUENCY_CAPTURE)") \
+		$(FREQUENCY_ARGS)
+
+frequency-jtag:
+	$(JTAGCONFIG)
+
+frequency-test:
+	@$(VENV_PY) -m unittest verification.test_frequency_campaign verification.test_frequency_workflow verification.test_vga_timing \
+		verification.test_coremark_hardware verification.test_report_generation
