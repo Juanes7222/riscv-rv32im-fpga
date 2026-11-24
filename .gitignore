@@ -328,3 +328,4 @@ skills-lock.json
 # Compiled simulation binaries
 *.vvp
 docs/superpowers/
+/results/frequency_campaign/

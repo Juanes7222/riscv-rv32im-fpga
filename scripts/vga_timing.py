@@ -32,7 +32,11 @@ def tool_path(path, executable):
     return str(path.resolve())
 
 
-def summarize(directory):
+class TimingViolation(ValueError):
+    """A modeled timing constraint has negative slack."""
+
+
+def summarize(directory, *, write_summary=True):
     """Reject incomplete sweeps, missing endpoints and failed nominal checks."""
     with (directory / 'sensitivity.csv').open() as source:
         rows = list(csv.DictReader(source))
@@ -70,10 +74,14 @@ def summarize(directory):
                                for r in baseline} != baseline_keys:
         raise ValueError('Incomplete baseline timing analysis')
     for row in baseline:
-        if (not math.isfinite(float(row['slack_ns'])) or float(row['slack_ns']) < 0
+        if (not math.isfinite(float(row['slack_ns']))
+                or int(row['paths']) < 0
                 or (row['analysis'] in ('setup', 'hold', 'pulse_width')
                     and int(row['paths']) == 0)):
-            raise ValueError(f'Nominal fitted timing failed: {row}')
+            raise ValueError(f'Nominal fitted timing evidence is incomplete: {row}')
+    for row in baseline:
+        if int(row['paths']) and float(row['slack_ns']) < 0:
+            raise TimingViolation(f'Nominal fitted timing failed: {row}')
 
     # Differing data loads with a fixed clock load must affect timing. Identical
     # results would indicate a silently ineffective load sweep.
@@ -98,15 +106,16 @@ def summarize(directory):
                         'largest_tested_passing_skew_ns': max(passing) if passing else None,
                         'linear_zero_margin_skew_ns': round(0.5 + min(setup, hold), 3)})
     if any(min(row['setup_at_0_5_ns'], row['hold_at_0_5_ns']) < 0 for row in summary[:2]):
-        raise ValueError('Nominal +/-0.5 ns VGA budget failed (project or 10/10 pF scenario)')
-    with (directory / 'summary.csv').open('w', newline='') as output:
-        writer = csv.DictWriter(output, fieldnames=summary[0])
-        writer.writeheader()
-        writer.writerows(summary)
-    (directory / 'summary.json').write_text(json.dumps({
-        'nominal_pass': True, 'cases': len(rows), 'scenarios': summary,
-        'interpretation': 'Model sensitivity only; capacitance and skew are hypothetical, not measured bounds.'
-    }, indent=2) + '\n')
+        raise TimingViolation('Nominal +/-0.5 ns VGA budget failed (project or 10/10 pF scenario)')
+    if write_summary:
+        with (directory / 'summary.csv').open('w', newline='') as output:
+            writer = csv.DictWriter(output, fieldnames=summary[0])
+            writer.writeheader()
+            writer.writerows(summary)
+        (directory / 'summary.json').write_text(json.dumps({
+            'nominal_pass': True, 'cases': len(rows), 'scenarios': summary,
+            'interpretation': 'Model sensitivity only; capacitance and skew are hypothetical, not measured bounds.'
+        }, indent=2) + '\n')
     return summary
 
 

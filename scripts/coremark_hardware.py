@@ -72,7 +72,8 @@ def save_observation(row: dict, elf: Path, results: Path) -> str:
     return str(path.relative_to(results))
 
 
-def check_observation(row: dict, results: Path, fingerprint: str) -> tuple:
+def check_observation(row: dict, results: Path, fingerprint: str, *,
+                      expected_clock_mhz: float | None = None) -> tuple:
     """Verify physical CRC status, counters and archived provenance together."""
     try:
         if row.get("crc_method") != CRC_METHOD or row.get("crc_status", "") == "":
@@ -85,7 +86,9 @@ def check_observation(row: dict, results: Path, fingerprint: str) -> tuple:
             return False, "physical source provenance missing or stale"
         if int(row["iterations"]) != ITERATIONS or min(int(row["cycle_count"]), int(row["instr_retired"])) <= 0:
             return False, "invalid physical workload parameters or counters"
-        clock = 40 if row["architecture"] == "single_cycle" else 50
+        clock = expected_clock_mhz
+        if clock is None:
+            clock = 40 if row["architecture"] == "single_cycle" else 50
         if float(row["clock_mhz"]) != clock or int(row["tohost_addr"], 0) != 0x6000:
             return False, "unexpected physical clock or tohost address"
         archived_elf, archived_sof, *_ = observation_inputs(row, results)

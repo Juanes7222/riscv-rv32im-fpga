@@ -58,6 +58,7 @@ class PhysicalEvidenceTests(unittest.TestCase):
         memory_log.write_text("  PASS  IMEM: 4096 words identical\nRESULT: PASS\n")
         self.provenance = dict(rtl="current", elf=file_fingerprint(self.elf),
                                sof=file_fingerprint(self.sof), memory_check="hardware_evidence/memory.log",
+                               timing_evidence="hardware_evidence/fixture_timing",
                                memory_check_sha256=file_fingerprint(memory_log))
         for name, value in (("REPO_ROOT", self.root), ("RESULTS", self.results)):
             replacement = patch.object(hardware, name, value)
@@ -242,16 +243,17 @@ class PhysicalEvidenceTests(unittest.TestCase):
         replica = self.results / "pipeline/replica_1"
         replica.mkdir(parents=True)
         manifest = replica / "manifest.json"
-        hardware_row = dict(arch="pipeline", coremark_functional_valid="True", elf_sha256=row["elf_sha256"])
+        captures = {("pipeline", "coremark", 1): row}
         measurement = dict(arch="pipeline", replica=1, fmax_mhz=50,
                            **{key: 1 for key in artifacts.RESOURCE_PATTERNS})
-        with patch.object(artifacts, "INPUT_RESULTS", self.results):
-            with patch.object(artifacts, "read_coremark_hardware", return_value=[hardware_row]):
-                with patch.object(reports, "source_fingerprint", return_value="current"), patch.object(reports, "verified", return_value=True):
-                    for program, mismatched in (("old program", True), (row["elf_sha256"], False)):
-                        manifest.write_text(json.dumps({"inputs": {"build/coremark/coremark.elf": program}}))
-                        issues = reports.evidence_issues([measurement], [], [], tests_ran=True)
-                        self.assertEqual(any("synthesized workload differs" in issue for issue in issues), mismatched)
+        with patch.object(artifacts, "INPUT_RESULTS", self.results), \
+                patch.object(reports, "source_fingerprint", return_value="current"), \
+                patch.object(reports, "verified", return_value=True):
+            for program, mismatched in (("old program", True), (row["elf_sha256"], False)):
+                manifest.write_text(json.dumps({"inputs": {"build/coremark/coremark.elf": program}}))
+                issues = reports.evidence_issues([measurement], [], [], captures, tests_ran=True)
+                self.assertEqual(any("synthesized workload differs" in issue for issue in issues), mismatched)
+
 
 
 if __name__ == "__main__":
