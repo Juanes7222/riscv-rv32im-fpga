@@ -264,7 +264,8 @@ def capture_boot(attempt: Path, manifest: dict, args, *, operator_wait=0.0) -> l
     print("Release KEY[0] once and wait for HALTED=1. Leave LOAD and STEP untouched.")
     if input("Was KEY[0] held throughout programming? [y/N]: ").strip().lower() not in {"y", "yes", "s", "si", "sí"}:
         raise ValueError("Retry this command with KEY[0] held from before programming to ensure a fresh boot.")
-    if input("Read HALTED (1 to confirm): ").strip() != "1":
+    print("Check the VGA console. Enter 1 once it shows HALTED=1, or 0 to defer this capture.", flush=True)
+    if input("HALTED [1/0]: ").strip() != "1":
         raise ValueError("Execution/capture unresolved. Check programming, reset, and VGA before retrying.")
     inputs = manifest["inputs"]
     coremark = inputs["program"] == "coremark"

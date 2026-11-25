@@ -9,6 +9,7 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Lock
 from time import monotonic, sleep
 
 import frequency_build as build
@@ -228,8 +229,8 @@ def record_interruptions(directory: Path, combination: dict) -> None:
 def search(directory: Path, config: dict, state: dict, args, *, stopped=lambda: False,
            publish=lambda combo, entries: None, emit=print, refresh=lambda: (), tried=None) -> None:
     emit("Checking Quartus Shell and TimeQuest versions")
-    version = subprocess.check_output([args.quartus_sh, "--version"], text=True, errors="replace")
-    sta_version = subprocess.check_output([args.quartus_sta, "--version"], text=True, errors="replace")
+    version = subprocess.check_output([args.quartus_sh, "--version"], text=True, errors="replace", timeout=60)
+    sta_version = subprocess.check_output([args.quartus_sta, "--version"], text=True, errors="replace", timeout=60)
     match = re.search(r"Version .+ Build \d+", version)
     if not match or match[0] not in sta_version:
         raise ValueError("Quartus Shell and TimeQuest must use the same Quartus build")
@@ -268,6 +269,22 @@ def search(directory: Path, config: dict, state: dict, args, *, stopped=lambda: 
     excluded = {combo["id"]: rejected_artifacts(known[combo["id"]]) for combo in combinations}
     dispatches = dict.fromkeys(known, 0)
     next_update = monotonic() + PROGRESS_INTERVAL
+    pause_grace = getattr(args, "pause_grace_seconds", build.PAUSE_GRACE_SECONDS)
+    idle_limit = getattr(args, "tool_idle_seconds", build.TOOL_IDLE_SECONDS)
+    pause_deadline = None
+    pause_lock = Lock()
+
+    def cancel_tool():
+        nonlocal pause_deadline
+        if not stopped():
+            return False
+        with pause_lock:
+            if pause_deadline is None:
+                pause_deadline = monotonic() + pause_grace
+                emit(f"Pause: active tools have up to {pause_grace} s to finish")
+            return monotonic() >= pause_deadline
+
+    limits = build.ToolLimits(idle_limit, cancel_tool)
     with ThreadPoolExecutor(max_workers=args.jobs) as executor:
         while True:
             running_combinations = {combo["id"] for combo, _, _, _, _ in active.values()}
@@ -297,7 +314,7 @@ def search(directory: Path, config: dict, state: dict, args, *, stopped=lambda: 
                 future = executor.submit(build.build, attempt, target.parent,
                                          combo["build_inputs"], request, identity["quartus_version"],
                                          config["threads"], args.quartus_sh, args.quartus_sta,
-                                         config["id"], resume)
+                                         config["id"], resume, limits)
                 active[future] = (combo, request, target, previous if resume else attempt, monotonic())
                 running_combinations.add(combo["id"])
             if not active:
@@ -405,6 +422,8 @@ def main():
     parser.add_argument("--grid", type=int, nargs=2, metavar=("LOW", "HIGH"))
     parser.add_argument("--jobs", type=int, default=max(1, min(2, (os.cpu_count() or 1) // 4)))
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--tool-idle-seconds", type=int, default=build.TOOL_IDLE_SECONDS)
+    parser.add_argument("--pause-grace-seconds", type=int, default=build.PAUSE_GRACE_SECONDS)
     parser.add_argument("--reuse-from", metavar="CAMPAIGN_ID")
     suffix = ".exe" if os.name == "nt" or "WSL_DISTRO_NAME" in os.environ else ""
     for tool in ("sh", "sta", "pgm"):
@@ -422,6 +441,7 @@ def main():
     if (not all(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,31}", name)
                 for name in (args.id, args.reuse_from or args.id))
             or min(args.threads, args.device_position) <= 0 or args.jobs < 0
+            or args.tool_idle_seconds <= 0 or args.pause_grace_seconds < 0
             or (args.action == "search" and args.jobs == 0)):
         parser.error("Invalid campaign identifier, job count, thread count or JTAG position")
     directory = BASE / args.id

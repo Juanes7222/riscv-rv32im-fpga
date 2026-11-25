@@ -663,7 +663,7 @@ help:
 	@echo "  full-campaign      Automated campaign, pending hardware and final validation"
 	@echo "  frequency-run      Start or resume the full frequency campaign"
 	@echo "  frequency-plan     Audit and list pending work without starting Quartus"
-	@echo "  frequency-pause    Stop dispatching work and let active builds finish"
+	@echo "  frequency-pause    Stop dispatching work and pause active builds with a grace period"
 	@echo "  frequency-export   Produce a portable academic package"
 	@echo "  frequency-verify   Check package and campaign evidence"
 	@echo "  frequency-init     Freeze pilot inputs (FREQUENCY_ID)"
@@ -710,6 +710,8 @@ FREQUENCY_OUTPUT ?=
 FREQUENCY_LATEX ?=
 FREQUENCY_PORTABLE ?= 0
 FREQUENCY_FOLLOW ?= 0
+FREQUENCY_TOOL_IDLE_SECONDS ?=
+FREQUENCY_PAUSE_GRACE_SECONDS ?=
 FREQUENCY_THREADS ?= 4
 FREQUENCY_PROGRAMS ?=
 FREQUENCY_REUSE_FROM ?=
@@ -742,6 +744,8 @@ $(FREQUENCY_TARGETS): frequency-%:
 		$(if $(and $(filter run export,$*),$(FREQUENCY_LATEX)),--latex "$(FREQUENCY_LATEX)") \
 		$(if $(and $(filter verify,$*),$(filter 1,$(FREQUENCY_PORTABLE))),--portable) \
 		$(if $(and $(filter progress,$*),$(filter 1,$(FREQUENCY_FOLLOW))),--follow) \
+		$(if $(and $(filter search run,$*),$(FREQUENCY_TOOL_IDLE_SECONDS)),--tool-idle-seconds "$(FREQUENCY_TOOL_IDLE_SECONDS)") \
+		$(if $(and $(filter search run,$*),$(FREQUENCY_PAUSE_GRACE_SECONDS)),--pause-grace-seconds "$(FREQUENCY_PAUSE_GRACE_SECONDS)") \
 		$(if $(filter select program observe,$*),--arch "$(ARCH)" $(if $(PROGRAM),--program "$(PROGRAM)") $(if $(FREQUENCY_SEED),--seed "$(FREQUENCY_SEED)")) \
 		$(if $(filter program observe observe-all run,$*),--cable "$(FREQUENCY_CABLE)" --device-position "$(FREQUENCY_DEVICE)") \
 		$(if $(and $(filter observe observe-all run,$*),$(FREQUENCY_CAPTURE)),--capture "$(FREQUENCY_CAPTURE)") \

@@ -60,14 +60,23 @@ temporal que se pueda y se difieren los arranques. Vuelve a ejecutar
 `make frequency-run` cuando la placa y el operador estén disponibles.
 
 `frequency-pause` señala al flujo en curso desde otra terminal. Los trabajos
-activos terminan y guardan sus evidencias. Si el operador está ante un aviso
-para programar, puede pulsar Enter para salir de esa espera tras haberse
-solicitado la pausa. Si ya soltó el reinicio, puede terminar la lectura
-actual. Ctrl+C interrumpe la interacción y deja terminar las compilaciones
-activas en el flujo integrado. Repite `make frequency-run` para retomar. Un
-candidato con error de infraestructura se intenta a lo sumo una vez por
-sesión. Si ya existe un punto de restauración íntegro del Fitter, se reanuda
-desde el análisis temporal. Una violación sellada se conserva como evidencia.
+activos disponen de 90 segundos para terminar y sellar su evidencia.
+Al vencer ese plazo se detienen las herramientas pendientes y los intentos
+se conservan con estado `interrupted`. Si el operador está ante un aviso para
+programar, puede pulsar Enter para salir de esa espera tras haber solicitado
+la pausa. Si ya soltó el reinicio, puede terminar la lectura actual.
+Ctrl+C en el flujo integrado interrumpe la captura y aplica el mismo plazo
+a los trabajos activos. Un arranque sin observación sellada se vuelve a
+programar al reanudar.
+
+Un registro de herramienta sin crecimiento durante 900 segundos queda como
+`tool_timeout`. Estos estados son errores de infraestructura que mantienen
+el punto pendiente. Al reanudar se usa el punto de restauración del Fitter
+si existe y conserva sus huellas. Una violación temporal sellada se conserva
+como evidencia. Los límites se ajustan con `FREQUENCY_PAUSE_GRACE_SECONDS` y
+`FREQUENCY_TOOL_IDLE_SECONDS`. El cierre del proceso de Windows y la
+exportación parcial pueden añadir tiempo al plazo de pausa.
+
 
 La concurrencia automática reserva un procesador lógico para la interacción,
 usa la memoria disponible de Linux/WSL como aproximación y limita el plan

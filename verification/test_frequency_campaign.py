@@ -13,7 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import frequency_build as build
 from frequency_campaign import candidates, pending, preferred, search
-from frequency_observation import adopt_boots, boot_records, load_sof, observe, observe_all, paired_results, physical_state
+from frequency_observation import (adopt_boots, boot_records, capture_boot, load_sof, observe,
+                                   observe_all, paired_results, physical_state)
 from coremark_hardware import check_observation, observation_inputs, save_observation
 from frequency_timing import ANALYSES, CORNERS, clock_request, fitted_clock, physical_timing
 
@@ -186,6 +187,18 @@ class FrequencyCampaignTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "fresh boot"):
                 observe((self.root, {}), SimpleNamespace())
         self.assertFalse(list(self.root.glob("boots/*/observation.json")))
+
+    def test_observe_shows_halted_instruction_and_leaves_deferred_boot_unverified(self):
+        attempt = self.root / "candidate"
+        with patch("frequency_observation.load_sof", return_value=attempt / "test.sof"), \
+                patch("builtins.input", side_effect=["y", "0"]) as readings, \
+                patch("builtins.print") as output:
+            with self.assertRaisesRegex(ValueError, "capture unresolved"):
+                capture_boot(attempt, {}, SimpleNamespace())
+        readings.assert_called_with("HALTED [1/0]: ")
+        self.assertTrue(any("Enter 1 once it shows HALTED=1" in call.args[0]
+                            for call in output.call_args_list))
+        self.assertFalse((attempt / "boots/1/observation.json").exists())
 
     def test_observe_programs_all_remaining_boots_in_the_same_invocation(self):
         row = dict(result="functional_pass", exit_status=1, crc_status="0x1",

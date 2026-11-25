@@ -4,13 +4,16 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tarfile
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from time import perf_counter
+from typing import Callable
 
 from campaign_state import _source_files, file_fingerprint, source_fingerprint
 from frequency_timing import clock_transfer_coverage, fitted_clock, fmax_rows, physical_timing, vga_evidence
@@ -20,6 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results"
 DEVICE = "5CSEMA5F31C6"
 TERMINAL = {"timing_pass", "timing_violation", "unrealizable"}
+TOOL_IDLE_SECONDS = 900
+PAUSE_GRACE_SECONDS = 90
 SUPPORT = (
     "synthesis/de1soc_pins.tcl", "synthesis/report_physical_timing.tcl",
     "synthesis/report_vga_sensitivity.tcl", "scripts/check_mem_init.py",
@@ -150,11 +155,100 @@ def freeze_inputs(directory: Path, arch: str, program: str, seed: int) -> dict:
     }
 
 
-def invoke(command: list[str], cwd: Path, log: Path) -> None:
+@dataclass(frozen=True)
+class ToolLimits:
+    idle_seconds: float = TOOL_IDLE_SECONDS
+    cancel: Callable[[], bool] = lambda: False
+
+
+class ToolStopped(subprocess.SubprocessError):
+    def __init__(self, status: str, reason: str):
+        super().__init__(reason)
+        self.status = status
+
+
+def stop_windows_tool(executable: str, marker: str) -> None:
+    # WSL's Linux PID belongs to the interop process, not the Windows tool.
+    name = Path(executable).name.replace("'", "''")
+    token = marker.replace("'", "''")
+    script = (
+        "$ErrorActionPreference = 'Stop'; "
+        f"$marker = '{token}'; "
+        f"Get-CimInstance Win32_Process -Filter \"Name = '{name}'\" | "
+        "Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and "
+        "$_.CommandLine.IndexOf($marker, [StringComparison]::OrdinalIgnoreCase) -ge 0 } | "
+        "ForEach-Object { "
+        "$targetPid = $_.ProcessId; "
+        "taskkill.exe /T /F /PID $targetPid | Out-Null; "
+        "if ($LASTEXITCODE -ne 0 -and (Get-Process -Id $targetPid -ErrorAction SilentlyContinue)) "
+        "{ throw ('Could not terminate PID ' + $targetPid) } }"
+    )
+    subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=15)
+
+
+def stop_tool(process: subprocess.Popen, executable: str, marker: str | None) -> str:
+    issue = ""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill.exe", "/T", "/F", "/PID", str(process.pid)],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=15)
+        elif marker:
+            stop_windows_tool(executable, marker)
+    except (OSError, subprocess.SubprocessError) as error:
+        issue = f"; Windows process-tree cleanup could not be confirmed ({error.__class__.__name__})"
+    finally:
+        if os.name != "nt":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        elif process.poll() is None:
+            process.kill()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            issue += "; tool did not confirm exit after termination"
+    return issue
+
+
+def invoke(command: list[str], cwd: Path, log: Path, limits: ToolLimits = ToolLimits(),
+           *, windows_marker: str | None = None) -> None:
     with log.open("wb") as output:
         isolation = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
                      else {"start_new_session": True})
-        subprocess.run(command, cwd=cwd, stdout=output, stderr=subprocess.STDOUT, check=True, **isolation)
+        process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=output,
+                                   stderr=subprocess.STDOUT, **isolation)
+        last_change = perf_counter()
+        size = 0
+        try:
+            while True:
+                try:
+                    code = process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    current = log.stat().st_size
+                    if current != size:
+                        size = current
+                        last_change = perf_counter()
+                    if limits.cancel():
+                        raise ToolStopped("interrupted", "Pause grace period expired")
+                    if perf_counter() - last_change >= limits.idle_seconds:
+                        raise ToolStopped("tool_timeout", f"Tool log inactive for {limits.idle_seconds:g} s")
+                else:
+                    if code:
+                        raise subprocess.CalledProcessError(code, command)
+                    return
+        except (KeyboardInterrupt, OSError, ToolStopped) as error:
+            cleanup = stop_tool(process, command[0], windows_marker)
+            if isinstance(error, ToolStopped):
+                raise ToolStopped(error.status, f"{error}: {log.name}{cleanup}") from error
+            raise
+
+
+def quartus_marker(artifact: Path, executable: str) -> str | None:
+    if os.name != "nt" and executable.lower().endswith(".exe"):
+        return tool_path(artifact, executable)
+    return None
 
 
 def verified_candidate(directory: Path, inputs: dict, request: dict, version: str,
@@ -254,7 +348,8 @@ def compile_checkpoint(project: Path, directory: Path, arch: str) -> dict:
     ])
 
 
-def analyze(directory: Path, snapshot: Path, record: dict, sta: str) -> dict:
+def analyze(directory: Path, snapshot: Path, record: dict, sta: str,
+            limits: ToolLimits = ToolLimits()) -> dict:
     manifest = directory / "manifest.json"
     inputs = record["inputs"]
     request = record["request"]
@@ -281,7 +376,8 @@ def analyze(directory: Path, snapshot: Path, record: dict, sta: str) -> dict:
             folder.mkdir(exist_ok=True)
             with stage_time(record, "timequest" if folder == timing else "vga_sweep"):
                 invoke([sta, "-t", tool_path(snapshot / "synthesis" / filename, sta),
-                        tool_path(project, sta), tool_path(folder, sta)], project, folder / log)
+                        tool_path(project, sta), tool_path(folder, sta)], project, folder / log, limits,
+                       windows_marker=quartus_marker(folder, sta))
             if folder == timing:
                 record["clock"] = fitted_clock(timing / "clocks.rpt", request)
                 record["fmax"] = fmax_rows(sta_report, record["clock"]["fitted_clock"])
@@ -300,7 +396,7 @@ def analyze(directory: Path, snapshot: Path, record: dict, sta: str) -> dict:
             with stage_time(record, "memory"):
                 invoke([sys.executable, str(snapshot / "scripts/check_mem_init.py"), "--project", str(project),
                         "--imem", str(workspace / "build/imem.mem"),
-                        "--dmem", str(workspace / "build/dmem.mem")], project, memory)
+                        "--dmem", str(workspace / "build/dmem.mem")], project, memory, limits)
             if "PASS  IMEM:" not in memory.read_text() or "RESULT: PASS" not in memory.read_text():
                 raise ValueError("Missing matching compiled IMEM evidence")
             record.update(status="timing_pass", memory_log=memory.relative_to(directory).as_posix(),
@@ -310,7 +406,7 @@ def analyze(directory: Path, snapshot: Path, record: dict, sta: str) -> dict:
         with stage_time(record, "seal"):
             record["artifacts"] = hashes(directory, (path for path in files if path.is_file()))
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
-        record.update(status=stage, reason=str(error))
+        record.update(status=error.status if isinstance(error, ToolStopped) else stage, reason=str(error))
     record["finished_at"] = timestamp()
     save_json(manifest, record)
     return record
@@ -319,7 +415,7 @@ def analyze(directory: Path, snapshot: Path, record: dict, sta: str) -> dict:
 def resumable(directory: Path, record: dict, inputs: dict, request: dict,
               version: str, threads: int) -> bool:
     return (record.get("compilation") == "complete"
-            and record.get("status") in {"compiled", "timing_error", "memory_error"}
+            and record.get("status") in {"compiled", "timing_error", "memory_error", "interrupted", "tool_timeout"}
             and record.get("inputs") == inputs and record.get("request") == request
             and record.get("quartus_version") == version and record.get("threads") == threads
             and verify_files(directory, record.get("compile_checkpoint", {})))
@@ -327,11 +423,11 @@ def resumable(directory: Path, record: dict, inputs: dict, request: dict,
 
 def build(directory: Path, combination: Path, inputs: dict, request: dict,
           version: str, threads: int, sh: str, sta: str, campaign: str,
-          previous: tuple[Path, dict] | None = None) -> dict:
+          previous: tuple[Path, dict] | None = None, limits: ToolLimits = ToolLimits()) -> dict:
     arch = inputs["architecture"]
     snapshot = combination / "inputs"
     if previous and resumable(*previous, inputs, request, version, threads):
-        return analyze(previous[0], snapshot, previous[1], sta)
+        return analyze(previous[0], snapshot, previous[1], sta, limits)
     directory.mkdir(parents=True, exist_ok=False)
     manifest = directory / "manifest.json"
     record = {
@@ -349,14 +445,16 @@ def build(directory: Path, combination: Path, inputs: dict, request: dict,
     workspace = directory / "project"
     project = workspace / "synthesis" / arch
     try:
+        marker = quartus_marker(project, sh)
         with stage_time(record, "prepare"):
             for name in ("rtl", "synthesis", "build"):
                 shutil.copytree(snapshot / name, workspace / name)
-            invoke([sh, "-t", "setup.tcl"], project, directory / "setup.log")
+            invoke([sh, "-t", tool_path(project / "setup.tcl", sh)], project, directory / "setup.log", limits,
+                   windows_marker=marker)
         with stage_time(record, "quartus_compile"):
-            invoke([sh, "-t", "build.tcl", str(inputs["seed"]), str(request["multiply_by"]),
+            invoke([sh, "-t", tool_path(project / "build.tcl", sh), str(inputs["seed"]), str(request["multiply_by"]),
                     str(request["divide_by"]), str(inputs["tohost_addr"]), str(threads)],
-                   project, directory / "compile.log")
+                   project, directory / "compile.log", limits, windows_marker=marker)
         name = f"rv32im_{arch}"
         output = project / "output_files"
         sof = output / f"{name}.sof"
@@ -369,7 +467,8 @@ def build(directory: Path, combination: Path, inputs: dict, request: dict,
                       compile_checkpoint=checkpoint)
         save_json(manifest, record)
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
-        record.update(status="build_error", reason=str(error), finished_at=timestamp())
+        record.update(status=error.status if isinstance(error, ToolStopped) else "build_error",
+                      reason=str(error), finished_at=timestamp())
         save_json(manifest, record)
         return record
-    return analyze(directory, snapshot, record, sta)
+    return analyze(directory, snapshot, record, sta, limits)

@@ -179,12 +179,12 @@ def request_pause(directory: Path) -> None:
             pass
     except BlockingIOError:
         (directory / PAUSE).touch()
-        print("Pause requested. Active fits and the current capture can finish.")
+        print("Pause requested. Active tools can finish within the configured grace period.")
         return
     except OSError as error:
         if os.name == "nt" and error.errno == 13:
             (directory / PAUSE).touch()
-            print("Pause requested. Active fits and the current capture can finish.")
+            print("Pause requested. Active tools can finish within the configured grace period.")
             return
         raise
     print("There is no active campaign run.")
@@ -321,8 +321,7 @@ def coordinate(directory: Path, config: dict, state: dict, args, emit, stopped, 
                     profile["board_session_seconds"] += perf_counter() - started
         except (KeyboardInterrupt, EOFError):
             stopped.set()
-            emit("Stop requested by operator. Waiting for active jobs to seal their evidence.")
-            print("Waiting for active Quartus jobs to finish before exiting.", flush=True)
+            emit("Stop requested by operator. Active tools can finish within the configured grace period.")
         finally:
             worker.result()
     return profile

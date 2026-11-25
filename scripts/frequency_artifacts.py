@@ -7,7 +7,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import frequency_build as build
-from frequency_campaign import PROGRAMS, exclusive
+from frequency_campaign import exclusive
+from frequency_latex import academic_figures, thesis_table_rows
 from frequency_observation import metrics, paired_results, report
 from physical_campaign_report import LABELS
 from vga_timing import tool_path
@@ -39,9 +40,11 @@ La evaluación global requiere los 25 pares.
 
 Para incorporar una tabla o una figura, copie el archivo .tex al manuscrito e
 inclúyalo mediante \input. Las tablas usan booktabs y longtable. Las figuras usan
-PGFPlots con compat=1.18 e incluyen sus coordenadas. preview.tex reúne las
-mismas fuentes y puede compilarse desde la raíz de este paquete. Los PDF,
-cuando están presentes, son vectoriales.
+PGFPlots con compat=1.18 e incluyen sus coordenadas. Los archivos de tabla cuyo
+nombre termina en _filas.tex se insertan dentro de las tablas del manuscrito y
+usan siunitx para las cifras. preview.tex reúne las tablas completas y las
+figuras y puede compilarse desde la raíz de este paquete. La vista previa en
+PDF, cuando está presente, se genera con LaTeX.
 """
 
 
@@ -74,18 +77,6 @@ def table(directory, name, headers, rows, *, long=False):
         lines.append(r"\bottomrule")
     lines.extend([rf"\end{{{env}}}", r"\endgroup"])
     (directory / (name + ".tex")).write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def plot(directory, name, options, series):
-    lines = [r"\begin{tikzpicture}",
-             r"\begin{axis}[width=.9\linewidth,height=7cm,grid=major,legend cell align=left," + options + "]"]
-    for style, legend, points in series:
-        data = " ".join(f"({x:.15g},{y:.15g})" for x, y in points)
-        lines.append(rf"\addplot+[{style}] coordinates {{{data}}};")
-        if legend:
-            lines.append(rf"\addlegendentry{{{legend}}}")
-    lines.extend([r"\end{axis}", r"\end{tikzpicture}"])
-    (directory / f"{name}.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def historical_comparisons(data, tie):
@@ -157,6 +148,7 @@ def content(directory, data, tie):
               "instructions_per_second", *RESOURCE_KEYS)
     csv_file(out / "observations.csv", fields, observations)
     academic_tables(directory / "tables", data, observations, results["comparisons"])
+    thesis_table_rows(directory / "tables", data, observations)
     academic_figures(directory / "figures", data, observations, results["comparisons"])
     wrapper(directory, caption, results["descriptive_support"])
 
@@ -202,65 +194,12 @@ def verdict(value):
     return "--" if value is None else ("Sí" if value else "No")
 
 
-def academic_figures(directory, data, observations, comparison):
-    if not data["paired"]:
-        return
-    included = [name for name in PROGRAMS if name in data["by_program"]]
-    ticks = ",".join(map(str, range(1, len(included) + 1)))
-    labels = ",".join(LABELS[name] for name in included)
-    groups = {program: index + 1 for index, program in enumerate(included)}
-    plot(directory, "aceleracion", f"ylabel={{Aceleración}},xtick={{{ticks}}},xticklabels={{{labels}}},"
-         "xticklabel style={font=\\small,rotate=18,anchor=east},"
-         "legend style={at={(0.5,-0.25)},anchor=north,legend columns=3}", [
-             ("gray,dashed,no marks,forget plot", None, [(0.65, 1.0), (len(included) + 0.35, 1.0)]),
-             *[(f"only marks,mark={mark},teal", f"Semilla {seed}",
-                [(groups[item["program"]] + (seed - 3) * 0.11, item["speedup"])
-                 for item in data["paired"] if item["seed"] == seed])
-               for seed, mark in zip(sorted({item["seed"] for item in data["paired"]}),
-                                     ("*", "square*", "triangle*", "diamond*", "pentagon*"))],
-         ])
-    plot(directory, "condiciones", f"ylabel={{Aceleración}},xtick={{{ticks}}},xticklabels={{{labels}}},"
-         "xticklabel style={font=\\small,rotate=18,anchor=east},"
-         "legend style={at={(0.5,-0.27)},anchor=north,legend columns=2}", [
-             ("gray,dashed,no marks,forget plot", None, [(0.65, 1.0), (len(included) + 0.35, 1.0)]),
-             *[(f"only marks,{color},mark={mark}", label,
-                [(groups[item["program"]] + offset + (item["seed"] - 3) * .04, item[key])
-                 for item in comparison if item[key] is not None])
-               for key, label, offset, color, mark in (
-                   ("original_40_50_speedup", "Original 40/50 MHz", -.23, "blue", "square*"),
-                   ("projected_historical_fmax_speedup", "Proyección histórica", 0, "violet", "diamond"),
-                   ("validated_frequency_speedup", "Validada en placa", .23, "teal", "*"),
-               )],
-         ])
-    pairs = data["paired"]
-    bound_min = min(min(item["cycle_ratio"], item["frequency_ratio"]) for item in pairs) - .025
-    bound_max = max(max(item["cycle_ratio"], item["frequency_ratio"]) for item in pairs) + .025
-    plot(directory, "compensacion", "xlabel={Relación de ciclos $K$},ylabel={Relación de frecuencias $F$},"
-         "legend style={at={(0.5,-0.20)},anchor=north,legend columns=3}", [
-             ("gray,dashed,no marks", "Igual tiempo nominal", [(bound_min, bound_min), (bound_max, bound_max)]),
-             *[(f"only marks,mark={mark},{color}", LABELS[program],
-                [(item["cycle_ratio"], item["frequency_ratio"]) for item in pairs if item["program"] == program])
-               for program, (mark, color) in zip(included, (("*", "teal"), ("square*", "blue"),
-                      ("triangle*", "red"), ("diamond*", "violet"), ("pentagon*", "orange")))],
-         ])
-    plot(directory, "frecuencias", f"ylabel={{Frecuencia (MHz)}},xtick={{{ticks}}},xticklabels={{{labels}}},"
-         "xticklabel style={font=\\small,rotate=18,anchor=east},"
-         "legend style={at={(0.5,-0.27)},anchor=north,legend columns=2}", [
-             (f"only marks,mark={mark},{color}", f"{label}, {legend}",
-              [(groups[item["program"]] + offset + (item["seed"] - 3) * .05, item[key])
-               for item in observations if item["program"] in groups and item["architecture"] == arch
-               and item[key] is not None])
-             for (arch, label), color, offset in zip(ARCHES.items(), ("blue", "teal"), (-.18, .18))
-             for key, mark, legend in (("effective_mhz", "*", "validada"),
-                                       ("restricted_mhz", "o", "Fmax restringida"))
-         ])
-
-
 def wrapper(directory, caption, support):
     start = r"""\documentclass[a4paper,11pt]{article}
 \usepackage[margin=1.9cm]{geometry}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern,booktabs,longtable,pgfplots}
+\usepackage{lmodern,booktabs,longtable,pgfplots,siunitx}
+\sisetup{output-decimal-marker={,},group-separator={\,}}
 \pgfplotsset{compat=1.18}
 \begin{document}
 """

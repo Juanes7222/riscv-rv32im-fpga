@@ -121,6 +121,39 @@ class FrequencyWorkflowTests(unittest.TestCase):
         self.assertIn("last_search_started", state)
         self.assertIn("last_search_finished", state)
 
+    def test_unresponsive_tool_releases_worker_and_preserves_partial_log(self):
+        command = [sys.executable, "-u", "-c", "import time; print('tool started'); time.sleep(30)"]
+        log = self.directory / "compile.log"
+        with self.assertRaises(build.ToolStopped) as failure:
+            build.invoke(command, self.directory, log, build.ToolLimits(idle_seconds=0.1))
+        self.assertEqual(failure.exception.status, "tool_timeout")
+        self.assertIn("compile.log", str(failure.exception))
+        self.assertEqual(log.read_text().strip(), "tool started")
+
+    def test_pause_cancels_even_a_tool_that_is_still_writing(self):
+        command = [sys.executable, "-u", "-c",
+                   "import time;\nwhile True: print('working'); time.sleep(0.1)"]
+        log = self.directory / "timequest.log"
+        with self.assertRaises(build.ToolStopped) as failure:
+            build.invoke(command, self.directory, log, build.ToolLimits(cancel=lambda: True))
+        self.assertEqual(failure.exception.status, "interrupted")
+        self.assertIn("Pause grace period expired", str(failure.exception))
+        self.assertIn("working", log.read_text())
+
+    def test_interrupted_analysis_keeps_fitted_checkpoint_for_resume(self):
+        checkpoint = self.directory / "fitter.db"
+        checkpoint.write_text("existing fitted database")
+        request = clock_request(49)
+        inputs = {"architecture": "single_cycle"}
+        record = dict(inputs=inputs, request=request, compilation="complete", quartus_version="test",
+                      threads=4, sof="existing.sof",
+                      compile_checkpoint={checkpoint.name: build.file_fingerprint(checkpoint)})
+        with patch.object(build, "invoke", side_effect=build.ToolStopped("interrupted", "paused")):
+            result = build.analyze(self.directory, self.directory / "inputs", record, "test-sta")
+        self.assertEqual(result["status"], "interrupted")
+        self.assertTrue(build.resumable(self.directory, result, inputs, request, "test", 4))
+        self.assertNotIn(result["status"], build.TERMINAL)
+
     def test_infrastructure_failure_does_not_compile_unneeded_lower_point(self):
         combos = [self.combo(name) for name in ("coremark/single_cycle/s1", "raw_stress/single_cycle/s1")]
         dispatched = []
